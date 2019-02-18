@@ -12,7 +12,6 @@
 module System.Docker.TmpProc
   ( -- * data types
     TmpProc(..)
-  , TmpProcHandle(handleURI)
   , Owner(..)
   , OwnerHandle
   , UnknownProc
