@@ -43,8 +43,8 @@ mkTmpProc tables = mkNoResetProc
   }
 
 
--- | A @TmpProc@ that runs the default postgresql version without with no
--- configured reset action.
+-- | A @TmpProc@ that runs the default postgresql version without a configured
+-- reset action.
 mkNoResetProc :: TmpProc
 mkNoResetProc = TmpProc
   { procImageName = pgImageName
@@ -60,7 +60,7 @@ pgImageName :: Text
 pgImageName = "postgres:10.6"
 
 
--- | Makes args chosen to match the password used in @procURI@.
+-- | Makes args chosen to match the password used in 'pgMkUri'.
 pgRunArgs :: [Text]
 pgRunArgs =
   [ "-e"
@@ -68,10 +68,13 @@ pgRunArgs =
   ]
 
 
--- | Makes a uri whose password matches the one configure in @pgRunArgs@.
+-- | Makes a uri whose password matches the one configured by ''pgRunArgs'.
 pgMkUri :: DockerIpAddress -> ProcURI
-pgMkUri ip = "host=" <> C8.pack ip
-  <> " dbname=postgres user=postgres password=" <> pgDefaultPassword <> " port=5432"
+pgMkUri ip = "host="
+             <> C8.pack ip
+             <> " dbname=postgres user=postgres password="
+             <> pgDefaultPassword
+             <> " port=5432"
 
 
 pgDefaultPassword :: C8.ByteString

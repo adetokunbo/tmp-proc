@@ -5,6 +5,7 @@ module System.Docker.TmpProc.Redis
     clearKeys
   , mkTmpProc
   , mkNoResetProc
+  , withConnectionFrom
 
     -- * type aliases
   , KeyName
@@ -33,13 +34,14 @@ clearKeys keys rdsUri = withConnectionFrom rdsUri $ \c ->
   runRedis c $ void $ del keys
 
 
--- | A @TmpProc@ that runs the default redis version with a reset.
+-- | A @TmpProc@ that runs the default redis version with a reset action that
+-- deletes some keys.
 mkTmpProc :: [KeyName] -> TmpProc
 mkTmpProc keys = mkNoResetProc { procReset = clearKeys keys }
 
 
--- | A @TmpProc@ that runs the default redis version with no
--- configured reset action.
+-- | A @TmpProc@ that runs the default redis version without any configured
+-- reset action.
 mkNoResetProc :: TmpProc
 mkNoResetProc = TmpProc
   { procImageName = rdsImageName
@@ -56,11 +58,11 @@ withConnectionFrom uri action = case (parseConnectInfo $ C8.unpack uri) of
   Right x -> bracket (checkedConnect x) disconnect action
 
 
--- | The default image to use when launching a postgres docker process.
+-- | The default image to use when launching the redis @TmpProc@.
 rdsImageName :: Text
 rdsImageName = "redis:5.0"
 
 
--- | Makes a uri whose password matches the one configure in @pgRunArgs@.
+-- | Makes redis connection uri for connecting to the redis @TmpProc@.
 rdsMkUri :: DockerIpAddress -> ProcURI
 rdsMkUri ip = "redis://" <> C8.pack ip <> "/"

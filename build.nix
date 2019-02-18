@@ -16,7 +16,7 @@ let
         pkgs.haskellPackages.cabal-install
         pkgs.haskellPackages.ghcid
         pkgs.haskellPackages.hlint
-        pkgs.has5kellPackages.hoogle
+        pkgs.haskellPackages.hoogle
         pkgs.haskellPackages.stylish-cabal
         pkgs.haskellPackages.stylish-haskell
       ];
