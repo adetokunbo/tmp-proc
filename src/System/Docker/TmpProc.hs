@@ -35,19 +35,19 @@ module System.Docker.TmpProc
   )
 where
 
-import           Control.Concurrent       (newEmptyMVar, putMVar, takeMVar,
-                                           threadDelay)
-import           Control.Exception        (Exception)
-import           Control.Exception        (IOException, bracket, throwIO)
-import           Control.Monad            (forM_, void)
-import qualified Data.ByteString.Char8    as C8
-import           Data.List                (dropWhileEnd)
-import           Data.Text                (Text)
-import qualified Data.Text                as Text
-import           Data.Typeable            (Typeable)
-import           System.Process           (readProcess)
-import           UnliftIO                 (Async, async, cancel, catch, liftIO,
-                                           waitEither)
+import           Control.Concurrent    (newEmptyMVar, putMVar, takeMVar,
+                                        threadDelay)
+import           Control.Exception     (Exception, IOException, bracket,
+                                        onException, throwIO)
+import           Control.Monad         (foldM, forM_, void)
+import qualified Data.ByteString.Char8 as C8
+import           Data.List             (dropWhileEnd)
+import           Data.Text             (Text)
+import qualified Data.Text             as Text
+import           Data.Typeable         (Typeable)
+import           System.Process        (readProcess)
+import           UnliftIO              (Async, async, cancel, catch, liftIO,
+                                        waitEither)
 
 
 -- | 'TmpProc' defines functions used for starting and coordinating support
@@ -185,8 +185,13 @@ doNothing :: ProcURI -> IO ()
 doNothing _ = pure ()
 
 
--- | Starts the 'Owner' process after ensuring that the @TmpProcs@ it depends on
+-- | Starts an 'Owner' process after ensuring that the @TmpProcs@ it depends on
 -- are started.
+--
+-- If any @TmpProc@ fails to start, the remaining are not started, and the ones
+-- that were successfully started earlier are stopped.
+--
+-- If the owner is never becomes healthy, all its @TmpProc@ are stopped.
 setup
   :: Owner a
   -> [TmpProc]
@@ -195,31 +200,39 @@ setup
 setup owner procs port = liftIO $ do
   let Owner { ownerMain, ownerStarted } = owner
   (pids, ownerHandles) <- setupResources procs
-  let res = OwnerHandle
-        { ownerHandles
-        , ownerCleanup = pure ()
-        }
+  let res = OwnerHandle { ownerHandles , ownerCleanup = pure () }
+      cleanupNow = cleanupPids pids
   signal <- newEmptyMVar
   aServer <- async (ownerMain res port (putMVar signal ()))
   aConfirm <- async (takeMVar signal)
   waitEither aServer aConfirm >>= \case
-    Left _ -> error "setup: server thread stopped unexpectedly"
+    Left _ -> do
+      cleanupNow
+      error "setup: server thread stopped unexpectedly"
     Right _ -> do
-      checkHealth maxHealthPings $ ownerStarted port
-      pure $ res
-        { ownerCleanup = mkCleanup pids aServer
-        }
+      checkHealth maxHealthPings $ ownerStarted port `onException` cleanupNow
+      pure $ res { ownerCleanup = cleanupNow >> cancel aServer }
 
 
 setupResources :: [TmpProc] -> IO ([DockerPid], [(ProcName, TmpProcHandle)])
 setupResources procs = do
-  xs <- mapM setupResource procs
+  xs <- foldM setupResource' [] procs
   let pids = map (\(pid, _ , _) -> pid) xs
       handleAssoc = map (\(_, n, h) -> (n, h)) xs
   pure $ (pids, handleAssoc)
 
 
-setupResource :: TmpProc -> IO (DockerPid, ProcName, TmpProcHandle)
+type TmpProcResult = (DockerPid, ProcName, TmpProcHandle)
+
+
+setupResource' :: [TmpProcResult] -> TmpProc -> IO [TmpProcResult]
+setupResource' acc tp = do
+  let handler = cleanupPids $ map (\(pid, _ , _) -> pid) acc
+      addResource = setupResource tp >>= (pure . flip (:) acc)
+  addResource `onException` handler
+
+
+setupResource :: TmpProc -> IO TmpProcResult
 setupResource tp@(TmpProc { procReset, procImageName, procRunArgs, procMkUri }) = do
   let fullRunArgs = [ "run" , "-d" ] <> procRunArgs <> [ procImageName ]
   pid <- trim <$> readProcess "docker" (map Text.unpack fullRunArgs) ""
@@ -239,12 +252,10 @@ setupResource tp@(TmpProc { procReset, procImageName, procRunArgs, procMkUri }) 
     trim = dropWhileEnd isGarbage . dropWhile isGarbage
 
 
-mkCleanup :: [ DockerPid ] -> Async () -> IO ()
-mkCleanup pids aServer = do
-  forM_  pids $ \pid -> do
-    void $ readProcess "docker" [ "stop", pid ] ""
-    void $ readProcess "docker" [ "rm", pid ] ""
-  cancel aServer
+cleanupPids :: [DockerPid] -> IO ()
+cleanupPids pids = forM_  pids $ \pid -> do
+  void $ readProcess "docker" [ "stop", pid ] ""
+  void $ readProcess "docker" [ "rm", pid ] ""
 
 
 pingResource
