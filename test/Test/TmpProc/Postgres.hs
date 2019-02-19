@@ -14,16 +14,18 @@ import           System.Docker.TmpProc
 import           System.Docker.TmpProc.Postgres
 
 import           Test.NoopServer                (noopPort)
+import           Test.TmpProc.Hspec             (noDockerSpec)
 
 
-spec :: Spec
-spec = do
+spec :: Bool -> Spec
+spec noDocker = do
   let desc = "postgres: image " ++ (Text.unpack $ procImageName resetProc)
-  beforeAll (pgSetup resetProc) $ afterAll cleanup $ do
-    describe desc $ do
-      context "invoking a simple SQL reset action" $ do
-        it "should not fail" $ \oh -> do
-          reset (procImageName resetProc) oh `shouldReturn` ()
+  if noDocker then noDockerSpec desc else do
+    beforeAll (pgSetup resetProc) $ afterAll cleanup $ do
+      describe desc $ do
+        context "invoking a simple SQL reset action" $ do
+          it "should not fail" $ \oh -> do
+            reset (procImageName resetProc) oh `shouldReturn` ()
 
 
 -- | A testProc that executes the user-provided reset action.

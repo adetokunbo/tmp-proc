@@ -41,6 +41,7 @@ test-suite docker-tmp-proc-test
                     Test.NoopServerSpec
                     Test.TmpProc.Postgres
                     Test.TmpProc.Redis
+                    Test.TmpProc.Hspec
   hs-source-dirs:   test
   build-depends:    base
                   , bytestring
