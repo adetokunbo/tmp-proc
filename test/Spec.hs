@@ -16,8 +16,9 @@ main :: IO ()
 main = do
   hSetBuffering stdin NoBuffering
   hSetBuffering stdout NoBuffering
+  noDocker <- not <$> hasDocker
   hspec $ do
     let noReset = [Postgres.mkNoResetProc, Redis.mkNoResetProc]
-    mapM_ Noop.noopSpec noReset
-    Postgres.spec
-    Redis.spec
+    mapM_ (Noop.noopSpec noDocker) noReset
+    Postgres.spec noDocker
+    Redis.spec noDocker

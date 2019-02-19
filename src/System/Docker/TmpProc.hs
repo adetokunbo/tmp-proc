@@ -24,6 +24,7 @@ module System.Docker.TmpProc
   , DockerIpAddress
 
     -- * functions
+  , hasDocker
   , withTmpProcOwner
   , setup
   , cleanup
@@ -44,7 +45,10 @@ import           Data.List             (dropWhileEnd)
 import           Data.Text             (Text)
 import qualified Data.Text             as Text
 import           Data.Typeable         (Typeable)
-import           System.Process        (readProcess)
+import           System.Exit           (ExitCode (..))
+import           System.Process        (StdStream (..), proc, readProcess,
+                                        std_out, std_err, waitForProcess,
+                                        withCreateProcess)
 import           UnliftIO              (Async, async, cancel, catch, liftIO,
                                         waitEither)
 
@@ -157,6 +161,20 @@ reset name (OwnerHandle { ownerHandles }) =
     throwError = throwIO $ Unknown name
   in
     maybe throwError handleReset theHandle
+
+
+-- | Determines if the docker daemon is accessible.
+hasDocker :: IO Bool
+hasDocker = do
+  let rawSystemNoStdout cmd args = withCreateProcess
+        (proc cmd args) { std_out = CreatePipe , std_err = CreatePipe }
+        (\_ _ _ -> waitForProcess)
+        `catch`
+        (\(_ :: IOError) -> return (ExitFailure 127))
+      succeeds ExitSuccess = True
+      succeeds _           = False
+
+  succeeds <$> rawSystemNoStdout "docker" ["ps"]
 
 
 -- | Combinator for running 'reset' with an 'OwnerHandle' from the @IO@ monad.

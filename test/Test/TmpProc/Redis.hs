@@ -16,16 +16,18 @@ import           System.Docker.TmpProc
 import           System.Docker.TmpProc.Redis
 
 import           Test.NoopServer             (noopPort)
+import           Test.TmpProc.Hspec          (noDockerSpec)
 
 
-spec :: Spec
-spec = do
+spec :: Bool -> Spec
+spec noDocker = do
   let desc = "redis: image " ++ (Text.unpack $ procImageName resetProc)
-  beforeAll (rdsSetup resetProc) $ afterAll cleanup $ do
-    describe desc $ do
-      context "invoking a simple redis action" $ do
-        it "should not fail" $ \oh -> do
-          reset (procImageName resetProc) oh `shouldReturn` ()
+  if noDocker then noDockerSpec desc else do
+    beforeAll (rdsSetup resetProc) $ afterAll cleanup $ do
+      describe desc $ do
+        context "invoking a simple redis action" $ do
+          it "should not fail" $ \oh -> do
+            reset (procImageName resetProc) oh `shouldReturn` ()
 
 
 -- | A testProc that executes the user-provided reset action.
