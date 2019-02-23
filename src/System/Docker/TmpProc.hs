@@ -26,7 +26,9 @@ module System.Docker.TmpProc
     -- * functions
   , hasDocker
   , withTmpProcOwner
+  , withTmpProcs
   , setup
+  , setupProcs
   , cleanup
   , doNothing
   , reset
@@ -44,12 +46,11 @@ import qualified Data.ByteString.Char8 as C8
 import           Data.List             (dropWhileEnd)
 import           Data.Text             (Text)
 import qualified Data.Text             as Text
-import           Data.Typeable         (Typeable)
 import           System.Exit           (ExitCode (..))
 import           System.Process        (StdStream (..), proc, readProcess,
-                                        std_out, std_err, waitForProcess,
+                                        std_err, std_out, waitForProcess,
                                         withCreateProcess)
-import           UnliftIO              (Async, async, cancel, catch, liftIO,
+import           UnliftIO              (async, cancel, catch, liftIO,
                                         waitEither)
 
 
@@ -163,6 +164,7 @@ reset name (OwnerHandle { ownerHandles }) =
     maybe throwError handleReset theHandle
 
 
+
 -- | Determines if the docker daemon is accessible.
 hasDocker :: IO Bool
 hasDocker = do
@@ -182,7 +184,7 @@ resetIO :: ProcName -> IO OwnerHandle -> IO ()
 resetIO name x = x >>= reset name
 
 
--- | Runs an action that uses an 'Owner' that uses the some 'TmpProc's as
+-- | Runs an action that uses an 'Owner' that uses some 'TmpProc's as
 -- resources and cleans it up afterwards.
 withTmpProcOwner :: Owner a -> [TmpProc] -> Port -> (OwnerHandle -> IO()) -> IO ()
 withTmpProcOwner owner procs port action =
@@ -217,10 +219,10 @@ setup
 setup owner procs port = liftIO $ do
   let Owner { ownerMain, ownerStarted } = owner
   (pids, ownerHandles) <- setupResources procs
+  signal <- newEmptyMVar
   let res = OwnerHandle { ownerHandles , ownerCleanup = pure () }
       cleanupNow = cleanupPids pids
-  signal <- newEmptyMVar
-  aServer <- async (ownerMain res port (putMVar signal ()))
+  aServer <- async (ownerMain res port (putMVar signal res))
   aConfirm <- async (takeMVar signal)
   waitEither aServer aConfirm >>= \case
     Left _ -> do
@@ -229,6 +231,26 @@ setup owner procs port = liftIO $ do
     Right _ -> do
       checkHealth maxHealthPings $ ownerStarted port `onException` cleanupNow
       pure $ res { ownerCleanup = cleanupNow >> cancel aServer }
+
+
+-- | Starts some @TmpProcs@.
+--
+-- If any @TmpProc@ fails to start, the remaining are not started, and the ones
+-- that were successfully started earlier are stopped.
+setupProcs :: [TmpProc] -> IO OwnerHandle
+setupProcs procs = liftIO $ do
+  (pids, ownerHandles) <- setupResources procs
+  pure $ OwnerHandle { ownerHandles , ownerCleanup = cleanupPids pids}
+
+
+-- | Runs an action that uses some 'TmpProc's as resources and cleans them
+-- afterwards.
+withTmpProcs :: [TmpProc] -> (OwnerHandle -> IO a) -> IO a
+withTmpProcs procs action =
+  bracket
+  (setupProcs procs)
+  cleanup
+  action
 
 
 setupResources :: [TmpProc] -> IO ([DockerPid], [(ProcName, TmpProcHandle)])
@@ -312,6 +334,7 @@ pingPeriod = 1000000
 
 -- Type-level proposal
 --
+--
 -- What's the goal? Remove the need for UnknownProc exception by enhancing the types of OwnerHandle.
 --
 -- We probably want to use some form of HList, with tags or symbols indicating
@@ -327,3 +350,10 @@ pingPeriod = 1000000
 -- a function takes a tags and a list of TmpProcHandle and executes reset for a tag that is included in the list of TmpProcHandle
 -- a function that takes a list of TmpProcHandle, and returns the ProcURI (without tag) for the given tag.
 -- a function that takes a list of TmpProcs and generates the list of TmpProcHandle
+--
+-- Ready or not
+--
+-- Can we force the 'ready' action to be run using types ?
+-- the main reason for it is that there is hook in Wai that takes a ready.
+-- It'd be nice if we made it so that only services that need a ready get a ready.
+-- How can we signal that a service will take a 'ready' action ?
