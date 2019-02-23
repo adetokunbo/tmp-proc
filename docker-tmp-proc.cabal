@@ -37,6 +37,7 @@ library
                   , warp              >= 3.2.3 && < 3.3
                   , warp-tls          >= 3.2.4 && < 3.3
                   , unliftio          >= 0.2.7 && < 0.3
+                  , network           >= 2.6.3.6 && < 2.8
   default-language: Haskell2010
   ghc-options:     -fno-ignore-asserts -Wall
 

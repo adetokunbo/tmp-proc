@@ -3,15 +3,29 @@ module System.Docker.TmpProc.Warp
     testWithApplication
   , testWithApplication'
   , testWithReadyApplication
+  , runReadyCancellableApp
+  , runCancellableApp
+
+  -- * type aliases
+  , TmpWarpHandle
   )
 
 where
 
-import           Control.Monad.Cont       (cont, runCont)
-import           Network.Wai              (Application)
-import qualified Network.Wai.Handler.Warp as Warp
+import           Control.Concurrent.Async
+import           Control.Monad.Cont                (cont, runCont)
+import           Network.Socket                    (close)
+import           Network.Wai                       (Application)
+import qualified Network.Wai.Handler.Warp          as Warp
 
-import           System.Docker.TmpProc    (OwnerHandle, TmpProc, withTmpProcs)
+import           System.Docker.TmpProc             (OwnerHandle, TmpProc,
+                                                    cleanup, setupProcs,
+                                                    withTmpProcs)
+
+
+-- | TmpWarpHandle is convenience type; it combines the 'OwnerHandle' and
+-- 'Warp.Port' returned several functions in this module.
+type TmpWarpHandle = (OwnerHandle, Warp.Port)
 
 
 -- | Runs an 'Application' on a free port, after setting up some 'TmpProc's and
@@ -23,10 +37,51 @@ testWithApplication
   -> (OwnerHandle -> IO Application)
   -> (Warp.Port -> IO a)
   -> IO a
-testWithApplication procs action = runCont $ do
+testWithApplication procs mkApp = runCont $ do
   oh <- cont $ withTmpProcs procs
-  p <- cont $ Warp.testWithApplication $ action oh
+  p <- cont $ Warp.testWithApplication $ mkApp oh
   pure p
+
+
+-- | Runs an 'Application' with 'TmpProc' dependencies on a free port.
+--
+-- The result is a tuple ('OwnerHandle', 'Warp.Port'), designed for easy use
+-- with Tasty's withResource function.
+runCancellableApp
+  :: [TmpProc]
+  -> (OwnerHandle -> IO Application)
+  -> IO (IO TmpWarpHandle, (TmpWarpHandle -> IO()))
+runCancellableApp procs mkApp = do
+  oh <- setupProcs procs
+  (port, socket) <- Warp.openFreePort
+  let settings = Warp.setPort port $ Warp.defaultSettings
+  server <- async (mkApp oh >>= Warp.runSettings settings)
+  let cleanup' = do cleanup oh
+                    cancel server
+                    close socket
+  pure (pure (oh, port), const cleanup')
+
+
+-- | Runs an 'Application' with 'TmpProc' dependencies on a free port.
+--
+-- The result is a tuple ('OwnerHandle', 'Warp.Port'), designed for easy use
+-- with Tasty's withResource function.
+runReadyCancellableApp
+  :: (IO (), Warp.Port -> IO ())
+  -> [TmpProc]
+  -> (OwnerHandle -> IO Application)
+  -> IO (IO TmpWarpHandle, (TmpWarpHandle -> IO()))
+runReadyCancellableApp (signal, check) procs mkApp = do
+  oh <- setupProcs procs
+  (port, socket) <- Warp.openFreePort
+  let settings = Warp.setPort port
+        $ Warp.setBeforeMainLoop signal
+        $ Warp.defaultSettings
+  server <- async (mkApp oh >>= Warp.runSettings settings)
+  let cleanup' = do cleanup oh
+                    cancel server
+                    close socket
+  pure (check port >> pure (oh, port), const cleanup')
 
 
 -- | Runs an 'Application' on a free port, after setting up some 'TmpProc's and
@@ -39,9 +94,9 @@ testWithApplication'
   -> (OwnerHandle -> IO Application)
   -> ((OwnerHandle, Warp.Port) -> IO a)
   -> IO a
-testWithApplication' procs action = runCont $ do
+testWithApplication' procs mkApp = runCont $ do
   oh <- cont $ withTmpProcs procs
-  p <- cont $ Warp.testWithApplication $ action oh
+  p <- cont $ Warp.testWithApplication $ mkApp oh
   pure (oh, p)
 
 
@@ -64,9 +119,9 @@ testWithReadyApplication
   -> (OwnerHandle -> IO Application)
   -> (Warp.Port -> IO a)
   -> IO a
-testWithReadyApplication (signal, check) procs action = runCont $ do
+testWithReadyApplication (signal, check) procs mkApp = runCont $ do
   oh <- cont $ withTmpProcs procs
-  p <- cont $ Warp.testWithApplicationSettings (readySettings signal) $ action oh
+  p <- cont $ Warp.testWithApplicationSettings (readySettings signal) $ mkApp oh
   _ <- pure $ check p
   return p
 
