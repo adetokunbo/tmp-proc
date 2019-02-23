@@ -1,6 +1,7 @@
 module System.Docker.TmpProc.Warp
   ( -- * functions
     testWithApplication
+  , testWithApplication'
   , testWithReadyApplication
   )
 
@@ -25,7 +26,23 @@ testWithApplication
 testWithApplication procs action = runCont $ do
   oh <- cont $ withTmpProcs procs
   p <- cont $ Warp.testWithApplication $ action oh
-  return p
+  pure p
+
+
+-- | Runs an 'Application' on a free port, after setting up some 'TmpProc's and
+-- allowing the app to configure itself using them. Also provides the
+-- continuation with access to the handle.
+--
+-- The tmp process are shut down when the application shut down.
+testWithApplication'
+  :: [TmpProc]
+  -> (OwnerHandle -> IO Application)
+  -> ((OwnerHandle, Warp.Port) -> IO a)
+  -> IO a
+testWithApplication' procs action = runCont $ do
+  oh <- cont $ withTmpProcs procs
+  p <- cont $ Warp.testWithApplication $ action oh
+  pure (oh, p)
 
 
 -- | Same as 'testWithApplication', but provides actions for checking the
