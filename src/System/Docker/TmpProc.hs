@@ -12,12 +12,10 @@
 module System.Docker.TmpProc
   ( -- * data types
     TmpProc(..)
-  , Owner(..)
-  , OwnerHandle
+  , Handle
   , UnknownProc
 
     -- * type aliases
-  , Port
   , ProcName
   , ProcURI
   , DockerPid
@@ -25,8 +23,8 @@ module System.Docker.TmpProc
 
     -- * functions
   , hasDocker
-  , withTmpProcOwner
-  , setup
+  , withTmpProcs
+  , setupProcs
   , cleanup
   , doNothing
   , reset
@@ -35,8 +33,7 @@ module System.Docker.TmpProc
   )
 where
 
-import           Control.Concurrent    (newEmptyMVar, putMVar, takeMVar,
-                                        threadDelay)
+import           Control.Concurrent    (threadDelay)
 import           Control.Exception     (Exception, IOException, bracket,
                                         onException, throwIO)
 import           Control.Monad         (foldM, forM_, void)
@@ -44,13 +41,11 @@ import qualified Data.ByteString.Char8 as C8
 import           Data.List             (dropWhileEnd)
 import           Data.Text             (Text)
 import qualified Data.Text             as Text
-import           Data.Typeable         (Typeable)
 import           System.Exit           (ExitCode (..))
 import           System.Process        (StdStream (..), proc, readProcess,
-                                        std_out, std_err, waitForProcess,
+                                        std_err, std_out, waitForProcess,
                                         withCreateProcess)
-import           UnliftIO              (Async, async, cancel, catch, liftIO,
-                                        waitEither)
+import           UnliftIO              (catch, liftIO)
 
 
 -- | 'TmpProc' defines functions used for starting and coordinating support
@@ -88,34 +83,19 @@ data TmpProcHandle = TmpProcHandle
   }
 
 
--- | A process accessed on a given port that accesses some 'TmpProc's through
--- their 'ProcURI's.
-data Owner a = Owner
-  { -- | Starts some @TmpProcs@ under followed by a server, followed by a
-    -- 'ready' action.
-    ownerMain    :: OwnerHandle -> Port -> IO () -> IO ()
-
-    -- | Determines if @ownerMain@ being started successfully.
-  , ownerStarted :: Port -> IO (Either a ())
-  }
-
-
 -- | Provides control over an 'Owner' and its @TmpProcs@.
-data OwnerHandle = OwnerHandle
+data Handle = Handle
   { -- | Stops the owning process, and any @TmpProc@ it is running. In tests,
     -- this should be invoked to cleanup up.
     ownerCleanup :: IO ()
 
     -- | The handles owned by the owner. They are currently keyed by the image
     -- name.
-  , ownerHandles :: [(Text, TmpProcHandle)]
+  , handles      :: [(Text, TmpProcHandle)]
   }
 
 
 -- | TCP port number
-type Port = Int
-
-
 -- | Connection string used to access the service once its running.
 type ProcURI = C8.ByteString
 
@@ -142,10 +122,10 @@ instance Exception UnknownProc
 
 
 -- | Determines the 'ProcURI' for a given 'ProcName'.
-procURI :: ProcName -> OwnerHandle -> Either UnknownProc ProcURI
-procURI name (OwnerHandle { ownerHandles }) =
+procURI :: ProcName -> Handle -> Either UnknownProc ProcURI
+procURI name (Handle { handles }) =
   let
-    theHandle = lookup name ownerHandles
+    theHandle = lookup name handles
     throwError = Left $ Unknown name
   in
     maybe throwError (Right . handleURI) theHandle
@@ -154,13 +134,14 @@ procURI name (OwnerHandle { ownerHandles }) =
 -- | Runs the configured reset action for named 'TmpProc'.
 --
 -- Raises 'UnknownProc' if the 'ProcName' is not known.
-reset :: ProcName -> OwnerHandle -> IO ()
-reset name (OwnerHandle { ownerHandles }) =
+reset :: ProcName -> Handle -> IO ()
+reset name (Handle { handles }) =
   let
-    theHandle = lookup name ownerHandles
+    theHandle = lookup name handles
     throwError = throwIO $ Unknown name
   in
     maybe throwError handleReset theHandle
+
 
 
 -- | Determines if the docker daemon is accessible.
@@ -177,23 +158,13 @@ hasDocker = do
   succeeds <$> rawSystemNoStdout "docker" ["ps"]
 
 
--- | Combinator for running 'reset' with an 'OwnerHandle' from the @IO@ monad.
-resetIO :: ProcName -> IO OwnerHandle -> IO ()
+-- | Combinator for running 'reset' with an 'Handle' from the @IO@ monad.
+resetIO :: ProcName -> IO Handle -> IO ()
 resetIO name x = x >>= reset name
 
 
--- | Runs an action that uses an 'Owner' that uses the some 'TmpProc's as
--- resources and cleans it up afterwards.
-withTmpProcOwner :: Owner a -> [TmpProc] -> Port -> (OwnerHandle -> IO()) -> IO ()
-withTmpProcOwner owner procs port action =
-  bracket
-  (setup owner procs port)
-  cleanup
-  action
-
-
 -- | Shuts down an 'Owner' and any 'TmpProc' services that it is using.
-cleanup :: OwnerHandle -> IO ()
+cleanup :: Handle -> IO ()
 cleanup = ownerCleanup
 
 
@@ -202,33 +173,24 @@ doNothing :: ProcURI -> IO ()
 doNothing _ = pure ()
 
 
--- | Starts an 'Owner' process after ensuring that the @TmpProcs@ it depends on
--- are started.
+-- | Starts some @TmpProcs@.
 --
 -- If any @TmpProc@ fails to start, the remaining are not started, and the ones
 -- that were successfully started earlier are stopped.
---
--- If the owner is never becomes healthy, all its @TmpProc@ are stopped.
-setup
-  :: Owner a
-  -> [TmpProc]
-  -> Port
-  -> IO OwnerHandle
-setup owner procs port = liftIO $ do
-  let Owner { ownerMain, ownerStarted } = owner
-  (pids, ownerHandles) <- setupResources procs
-  let res = OwnerHandle { ownerHandles , ownerCleanup = pure () }
-      cleanupNow = cleanupPids pids
-  signal <- newEmptyMVar
-  aServer <- async (ownerMain res port (putMVar signal ()))
-  aConfirm <- async (takeMVar signal)
-  waitEither aServer aConfirm >>= \case
-    Left _ -> do
-      cleanupNow
-      error "setup: server thread stopped unexpectedly"
-    Right _ -> do
-      checkHealth maxHealthPings $ ownerStarted port `onException` cleanupNow
-      pure $ res { ownerCleanup = cleanupNow >> cancel aServer }
+setupProcs :: [TmpProc] -> IO Handle
+setupProcs procs = liftIO $ do
+  (pids, handles) <- setupResources procs
+  pure $ Handle { handles , ownerCleanup = cleanupPids pids}
+
+
+-- | Runs an action that uses some 'TmpProc's as resources and cleans them
+-- afterwards.
+withTmpProcs :: [TmpProc] -> (Handle -> IO a) -> IO a
+withTmpProcs procs action =
+  bracket
+  (setupProcs procs)
+  cleanup
+  action
 
 
 setupResources :: [TmpProc] -> IO ([DockerPid], [(ProcName, TmpProcHandle)])
@@ -291,15 +253,6 @@ pingResource (TmpProc { procPing }) u =
     go maxHealthPings
 
 
-checkHealth :: Int -> IO (Either a b) -> IO ()
-checkHealth tries h = go tries
-  where
-    go 0 = error "healthy: server isn't healthy"
-    go n = h >>= \case
-      Left  _ -> threadDelay pingPeriod >> go (n - 1)
-      Right _ -> pure ()
-
-
 -- | Number of times to retry a service ping.
 maxHealthPings :: Int
 maxHealthPings = 10
@@ -312,7 +265,8 @@ pingPeriod = 1000000
 
 -- Type-level proposal
 --
--- What's the goal? Remove the need for UnknownProc exception by enhancing the types of OwnerHandle.
+--
+-- What's the goal? Remove the need for UnknownProc exception by enhancing the types of Handle.
 --
 -- We probably want to use some form of HList, with tags or symbols indicating
 -- the different types of TmpProc.
@@ -327,3 +281,10 @@ pingPeriod = 1000000
 -- a function takes a tags and a list of TmpProcHandle and executes reset for a tag that is included in the list of TmpProcHandle
 -- a function that takes a list of TmpProcHandle, and returns the ProcURI (without tag) for the given tag.
 -- a function that takes a list of TmpProcs and generates the list of TmpProcHandle
+--
+-- Ready or not
+--
+-- Can we force the 'ready' action to be run using types ?
+-- the main reason for it is that there is hook in Wai that takes a ready.
+-- It'd be nice if we made it so that only services that need a ready get a ready.
+-- How can we signal that a service will take a 'ready' action ?

@@ -1,49 +1,54 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Test.TmpProc.Postgres where
+module Test.TmpProc.PostgresSpec where
 
 import           Test.Hspec
 
-import           Control.Concurrent             (threadDelay)
 import           Control.Exception              (throwIO)
-import           Control.Monad                  (forever, void)
+import           Control.Monad                  (void)
 import qualified Data.Text                      as Text
-
 import           Database.PostgreSQL.Simple     (connectPostgreSQL, execute_)
+import           Network.Wai                    (Application)
+
 import           System.Docker.TmpProc
 import           System.Docker.TmpProc.Postgres
 
-import           Test.NoopServer                (noopPort)
+import           Test.SimpleServer              (mkTestApp)
 import           Test.TmpProc.Hspec             (noDockerSpec)
 
 
 spec :: Bool -> Spec
 spec noDocker = do
-  let desc = "postgres: image " ++ (Text.unpack $ procImageName resetProc)
+  let desc = "postgres: image " ++ (Text.unpack $ procImageName testTmpProc)
   if noDocker then noDockerSpec desc else do
-    beforeAll (pgSetup resetProc) $ afterAll cleanup $ do
+    beforeAll setupDb $ afterAll cleanup $ do
       describe desc $ do
         context "invoking a simple SQL reset action" $ do
           it "should not fail" $ \oh -> do
-            reset (procImageName resetProc) oh `shouldReturn` ()
+            reset (procImageName testTmpProc) oh `shouldReturn` ()
 
 
--- | A testProc that executes the user-provided reset action.
-resetProc :: TmpProc
-resetProc = mkNoResetProc
-  { procReset = resetAction
+testWaiApp :: Handle -> IO Application
+testWaiApp = mkTestApp doSetup (reset $ procImageName testTmpProc)
+
+
+testTmpProc :: TmpProc
+testTmpProc = mkNoResetProc
+  { procReset = emptyTheTestTable
   }
 
 
-pgServer :: OwnerHandle -> Port -> IO () -> IO ()
-pgServer oh _port ready = do
-  let loopPeriod = 5000000
-      tryUri = procURI (procImageName resetProc) oh
-  case tryUri of
-    Left e    -> throwIO e
-    Right uri -> createTestTable uri
-  ready
-  forever $ threadDelay loopPeriod
+setupDb :: IO Handle
+setupDb = do
+  h <- setupProcs [testTmpProc]
+  doSetup h
+  pure h
+
+
+doSetup :: Handle -> IO ()
+doSetup h = case procURI (procImageName testTmpProc) h of
+  Left e    -> throwIO e
+  Right uri -> createTestTable uri
 
 
 -- | Create the test table and insert some data into it
@@ -57,15 +62,7 @@ createTestTable pgUri = do
   mapM_ (execute_ c) commands
 
 
-resetAction :: ProcURI -> IO ()
-resetAction pgUri = do
+emptyTheTestTable :: ProcURI -> IO ()
+emptyTheTestTable pgUri = do
   c <- connectPostgreSQL pgUri
   void $ execute_ c "DELETE FROM test_tmp_proc"
-
-
-pgOwner :: Owner IOError
-pgOwner = Owner pgServer $ const $ pure $ Right ()
-
-
-pgSetup :: TmpProc -> IO OwnerHandle
-pgSetup tp = setup pgOwner [tp] noopPort
