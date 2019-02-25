@@ -12,7 +12,6 @@
 module System.Docker.TmpProc
   ( -- * data types
     TmpProc(..)
-  , Owner(..)
   , OwnerHandle
   , UnknownProc
 
@@ -25,9 +24,7 @@ module System.Docker.TmpProc
 
     -- * functions
   , hasDocker
-  , withTmpProcOwner
   , withTmpProcs
-  , setup
   , setupProcs
   , cleanup
   , doNothing
@@ -37,8 +34,7 @@ module System.Docker.TmpProc
   )
 where
 
-import           Control.Concurrent    (newEmptyMVar, putMVar, takeMVar,
-                                        threadDelay)
+import           Control.Concurrent    (threadDelay)
 import           Control.Exception     (Exception, IOException, bracket,
                                         onException, throwIO)
 import           Control.Monad         (foldM, forM_, void)
@@ -86,18 +82,6 @@ data TmpProcHandle = TmpProcHandle
     -- intended to by multiple test cases. It's behaviour is determined by
     -- @procReset@.
   , handleReset :: IO ()
-  }
-
-
--- | A process accessed on a given port that accesses some 'TmpProc's through
--- their 'ProcURI's.
-data Owner a = Owner
-  { -- | Starts some @TmpProcs@ under followed by a server, followed by a
-    -- 'ready' action.
-    ownerMain    :: OwnerHandle -> Port -> IO () -> IO ()
-
-    -- | Determines if @ownerMain@ being started successfully.
-  , ownerStarted :: Port -> IO (Either a ())
   }
 
 
@@ -184,16 +168,6 @@ resetIO :: ProcName -> IO OwnerHandle -> IO ()
 resetIO name x = x >>= reset name
 
 
--- | Runs an action that uses an 'Owner' that uses some 'TmpProc's as
--- resources and cleans it up afterwards.
-withTmpProcOwner :: Owner a -> [TmpProc] -> Port -> (OwnerHandle -> IO()) -> IO ()
-withTmpProcOwner owner procs port action =
-  bracket
-  (setup owner procs port)
-  cleanup
-  action
-
-
 -- | Shuts down an 'Owner' and any 'TmpProc' services that it is using.
 cleanup :: OwnerHandle -> IO ()
 cleanup = ownerCleanup
@@ -202,35 +176,6 @@ cleanup = ownerCleanup
 -- | Used for @procReset@ and @procPing@ when no action is needed.
 doNothing :: ProcURI -> IO ()
 doNothing _ = pure ()
-
-
--- | Starts an 'Owner' process after ensuring that the @TmpProcs@ it depends on
--- are started.
---
--- If any @TmpProc@ fails to start, the remaining are not started, and the ones
--- that were successfully started earlier are stopped.
---
--- If the owner is never becomes healthy, all its @TmpProc@ are stopped.
-setup
-  :: Owner a
-  -> [TmpProc]
-  -> Port
-  -> IO OwnerHandle
-setup owner procs port = liftIO $ do
-  let Owner { ownerMain, ownerStarted } = owner
-  (pids, ownerHandles) <- setupResources procs
-  signal <- newEmptyMVar
-  let res = OwnerHandle { ownerHandles , ownerCleanup = pure () }
-      cleanupNow = cleanupPids pids
-  aServer <- async (ownerMain res port (putMVar signal res))
-  aConfirm <- async (takeMVar signal)
-  waitEither aServer aConfirm >>= \case
-    Left _ -> do
-      cleanupNow
-      error "setup: server thread stopped unexpectedly"
-    Right _ -> do
-      checkHealth maxHealthPings $ ownerStarted port `onException` cleanupNow
-      pure $ res { ownerCleanup = cleanupNow >> cancel aServer }
 
 
 -- | Starts some @TmpProcs@.

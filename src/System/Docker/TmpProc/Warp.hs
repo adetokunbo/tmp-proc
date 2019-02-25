@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase     #-}
 {-# LANGUAGE NamedFieldPuns #-}
 module System.Docker.TmpProc.Warp
-  ( -- * functions with test server continuations
+  ( -- * test functions in continuation-passing style
     testWithApplication
   , testWithReadyApplication
 
@@ -9,7 +9,7 @@ module System.Docker.TmpProc.Warp
   , ServerHandle
   , runReadyServer
   , runServer
-  , port
+  , serverPort
   , ownerHandle
   , shutdown
   )
@@ -50,8 +50,8 @@ runReadyServer check procs mkApp = do
   h <- setupProcs procs
   (p, sock) <- Warp.openFreePort
   signal <- newEmptyMVar
-  let settings = Warp.setPort p $ readySettings(putMVar signal ())
-  s <- async (mkApp h >>= Warp.runSettings settings)
+  let settings = readySettings(putMVar signal ())
+  s <- async (mkApp h >>= Warp.runSettingsSocket settings sock)
   aConfirm <- async (takeMVar signal)
   let result = ServerHandle s p sock h
   waitEither s aConfirm >>= \case
@@ -86,8 +86,8 @@ ownerHandle = shHandle
 
 
 -- | The 'Warp.Port' on the 'ServerHandle's server is running.
-port :: ServerHandle -> Warp.Port
-port = shPort
+serverPort :: ServerHandle -> Warp.Port
+serverPort = shPort
 
 
 -- | Runs an 'Application' on a free port, after setting up some 'TmpProc's and

@@ -1,63 +1,74 @@
+{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Test.TmpProc.Redis where
 
 import           Test.Hspec
 
-import           Control.Concurrent          (threadDelay)
 import           Control.Exception           (throwIO)
-import           Control.Monad               (forever)
 import           Control.Monad.IO.Class      (liftIO)
 import qualified Data.ByteString.Char8       as C8
 import qualified Data.Text                   as Text
+import           Database.Redis              (exists, runRedis, setex)
+import           Network.Wai                 (Application)
 
-import           Database.Redis              (runRedis, setex)
 import           System.Docker.TmpProc
 import           System.Docker.TmpProc.Redis
 
-import           Test.NoopServer             (noopPort)
+import           Test.SimpleServer           (mkTestApp)
 import           Test.TmpProc.Hspec          (noDockerSpec)
 
 
 spec :: Bool -> Spec
 spec noDocker = do
-  let desc = "redis: image " ++ (Text.unpack $ procImageName resetProc)
+  let desc = "redis: image " ++ (Text.unpack $ procImageName testTmpProc)
   if noDocker then noDockerSpec desc else do
-    beforeAll (rdsSetup resetProc) $ afterAll cleanup $ do
+    beforeAll setupRds $ afterAll cleanup $ do
       describe desc $ do
         context "invoking a simple redis action" $ do
           it "should not fail" $ \oh -> do
-            reset (procImageName resetProc) oh `shouldReturn` ()
+            reset (procImageName testTmpProc) oh `shouldReturn` ()
 
 
--- | A testProc that executes the user-provided reset action.
-resetProc :: TmpProc
-resetProc = mkNoResetProc
-  { procReset = resetAction
+testWaiApp :: OwnerHandle -> IO Application
+testWaiApp = mkTestApp doSetup (reset $ procImageName testTmpProc)
+
+
+testTmpProc :: TmpProc
+testTmpProc = mkNoResetProc
+  { procReset = checkTestKey
   }
 
 
-rdsServer :: OwnerHandle -> Port -> IO () -> IO ()
-rdsServer oh _port ready = do
-  let loopPeriod = 5000000
-      tryUri = procURI (procImageName resetProc) oh
-  case tryUri of
-    Left e    -> throwIO e
-    Right uri -> addTestKeyValue uri
-  ready
-  forever $ threadDelay loopPeriod
+setupRds :: IO OwnerHandle
+setupRds = do
+  h <- setupProcs [testTmpProc]
+  doSetup h
+  pure h
+
+
+doSetup :: OwnerHandle -> IO ()
+doSetup h = case procURI (procImageName testTmpProc) h of
+  Left e    -> throwIO e
+  Right uri -> addTestKeyValue uri
 
 
 -- | Create the test table and insert some data into it
 addTestKeyValue :: ProcURI -> IO ()
 addTestKeyValue rdsUri = do
   withConnectionFrom rdsUri $ \conn -> do
-    _ <- liftIO $ runRedis conn $ setex testKey 100 testValue
-    pure ()
+    (liftIO $ runRedis conn $ setex testKey 100 testValue) >>= \case
+      Left e -> fail $ "redis operation failed: " ++ show e
+      Right _ -> pure ()
 
 
-resetAction :: ProcURI -> IO ()
-resetAction = clearKeys [testKey]
+checkTestKey :: ProcURI -> IO ()
+checkTestKey rdsUri = do
+  withConnectionFrom rdsUri $ \conn -> do
+    (liftIO $ runRedis conn $ exists testKey) >>= \case
+      Left e -> fail $ "redis operation failed: " ++ show e
+      Right True -> pure ()
+      Right _ -> fail "Could not find the test key"
 
 
 testKey :: C8.ByteString
@@ -65,11 +76,3 @@ testKey = "test.redis.key"
 
 testValue :: C8.ByteString
 testValue = "the test value"
-
-
-rdsOwner :: Owner IOError
-rdsOwner = Owner rdsServer $ const $ pure $ Right ()
-
-
-rdsSetup :: TmpProc -> IO OwnerHandle
-rdsSetup tp = setup rdsOwner [tp] noopPort
