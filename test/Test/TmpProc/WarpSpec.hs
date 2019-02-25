@@ -28,7 +28,7 @@ mkSpec noDocker tp mkApp = do
 singleSharedServerSpec :: TmpProc -> (Handle -> IO Application) -> Spec
 singleSharedServerSpec tp mkApp = do
   let name = procImageName tp
-      desc = "ServerHandle: a server using " ++ (Text.unpack name)
+      desc = "ServerHandle: (one server for all tests) using " ++ (Text.unpack name)
 
   beforeAll (runServer [tp] mkApp) $ afterAll shutdown $ do
     describe desc $ do
@@ -47,7 +47,7 @@ singleSharedServerSpec tp mkApp = do
 serverPerTestSpec :: TmpProc -> (Handle -> IO Application) -> Spec
 serverPerTestSpec tp mkApp = do
   let name = procImageName tp
-      desc = "CPS-style: a server using " ++ (Text.unpack name)
+      desc = "CPS style: (one server per-test) using " ++ (Text.unpack name)
 
   around (testWithApplication [tp] mkApp) $ do
     describe desc $ do
