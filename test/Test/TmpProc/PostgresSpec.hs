@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Test.TmpProc.Postgres where
+module Test.TmpProc.PostgresSpec where
 
 import           Test.Hspec
 

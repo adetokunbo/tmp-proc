@@ -5,9 +5,9 @@ module Main (main) where
 import           Test.Hspec
 
 import           System.IO
-import qualified Test.TmpProc.Postgres as Postgres
-import qualified Test.TmpProc.Redis    as Redis
-import qualified Test.TmpProc.WarpSpec as Warp
+import qualified Test.TmpProc.PostgresSpec as Postgres
+import qualified Test.TmpProc.RedisSpec    as Redis
+import qualified Test.TmpProc.WarpSpec     as Warp
 
 import           System.Docker.TmpProc (hasDocker)
 

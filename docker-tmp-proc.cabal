@@ -45,9 +45,9 @@ test-suite docker-tmp-proc-test
   type:             exitcode-stdio-1.0
   main-is:          Spec.hs
   other-modules:    Test.SimpleServer
-                    Test.TmpProc.Postgres
-                    Test.TmpProc.Redis
                     Test.TmpProc.Hspec
+                    Test.TmpProc.PostgresSpec
+                    Test.TmpProc.RedisSpec
                     Test.TmpProc.WarpSpec
   hs-source-dirs:   test
   build-depends:    base

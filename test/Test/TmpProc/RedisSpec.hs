@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Test.TmpProc.Redis where
+module Test.TmpProc.RedisSpec where
 
 import           Test.Hspec
 
