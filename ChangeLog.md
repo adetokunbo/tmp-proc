@@ -1,8 +1,8 @@
 # Revision history for docker-tmp-proc
 
-## Unreleased changes
+## 0.3.0.0 -- 2019-02-25
 
-* Add hasDocker function to determine if docker is present
+* Reorganize the public API for simpler usage with HSpec and Tasty
 
 
 ## 0.2.0.0 -- 2019-02-18
