@@ -12,7 +12,7 @@
 module System.Docker.TmpProc
   ( -- * data types
     TmpProc(..)
-  , OwnerHandle
+  , Handle
   , UnknownProc
 
     -- * type aliases
@@ -86,14 +86,14 @@ data TmpProcHandle = TmpProcHandle
 
 
 -- | Provides control over an 'Owner' and its @TmpProcs@.
-data OwnerHandle = OwnerHandle
+data Handle = Handle
   { -- | Stops the owning process, and any @TmpProc@ it is running. In tests,
     -- this should be invoked to cleanup up.
     ownerCleanup :: IO ()
 
     -- | The handles owned by the owner. They are currently keyed by the image
     -- name.
-  , ownerHandles :: [(Text, TmpProcHandle)]
+  , handles      :: [(Text, TmpProcHandle)]
   }
 
 
@@ -127,10 +127,10 @@ instance Exception UnknownProc
 
 
 -- | Determines the 'ProcURI' for a given 'ProcName'.
-procURI :: ProcName -> OwnerHandle -> Either UnknownProc ProcURI
-procURI name (OwnerHandle { ownerHandles }) =
+procURI :: ProcName -> Handle -> Either UnknownProc ProcURI
+procURI name (Handle { handles }) =
   let
-    theHandle = lookup name ownerHandles
+    theHandle = lookup name handles
     throwError = Left $ Unknown name
   in
     maybe throwError (Right . handleURI) theHandle
@@ -139,10 +139,10 @@ procURI name (OwnerHandle { ownerHandles }) =
 -- | Runs the configured reset action for named 'TmpProc'.
 --
 -- Raises 'UnknownProc' if the 'ProcName' is not known.
-reset :: ProcName -> OwnerHandle -> IO ()
-reset name (OwnerHandle { ownerHandles }) =
+reset :: ProcName -> Handle -> IO ()
+reset name (Handle { handles }) =
   let
-    theHandle = lookup name ownerHandles
+    theHandle = lookup name handles
     throwError = throwIO $ Unknown name
   in
     maybe throwError handleReset theHandle
@@ -163,13 +163,13 @@ hasDocker = do
   succeeds <$> rawSystemNoStdout "docker" ["ps"]
 
 
--- | Combinator for running 'reset' with an 'OwnerHandle' from the @IO@ monad.
-resetIO :: ProcName -> IO OwnerHandle -> IO ()
+-- | Combinator for running 'reset' with an 'Handle' from the @IO@ monad.
+resetIO :: ProcName -> IO Handle -> IO ()
 resetIO name x = x >>= reset name
 
 
 -- | Shuts down an 'Owner' and any 'TmpProc' services that it is using.
-cleanup :: OwnerHandle -> IO ()
+cleanup :: Handle -> IO ()
 cleanup = ownerCleanup
 
 
@@ -182,15 +182,15 @@ doNothing _ = pure ()
 --
 -- If any @TmpProc@ fails to start, the remaining are not started, and the ones
 -- that were successfully started earlier are stopped.
-setupProcs :: [TmpProc] -> IO OwnerHandle
+setupProcs :: [TmpProc] -> IO Handle
 setupProcs procs = liftIO $ do
-  (pids, ownerHandles) <- setupResources procs
-  pure $ OwnerHandle { ownerHandles , ownerCleanup = cleanupPids pids}
+  (pids, handles) <- setupResources procs
+  pure $ Handle { handles , ownerCleanup = cleanupPids pids}
 
 
 -- | Runs an action that uses some 'TmpProc's as resources and cleans them
 -- afterwards.
-withTmpProcs :: [TmpProc] -> (OwnerHandle -> IO a) -> IO a
+withTmpProcs :: [TmpProc] -> (Handle -> IO a) -> IO a
 withTmpProcs procs action =
   bracket
   (setupProcs procs)
@@ -280,7 +280,7 @@ pingPeriod = 1000000
 -- Type-level proposal
 --
 --
--- What's the goal? Remove the need for UnknownProc exception by enhancing the types of OwnerHandle.
+-- What's the goal? Remove the need for UnknownProc exception by enhancing the types of Handle.
 --
 -- We probably want to use some form of HList, with tags or symbols indicating
 -- the different types of TmpProc.

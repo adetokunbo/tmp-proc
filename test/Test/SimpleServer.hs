@@ -18,9 +18,9 @@ import           System.Docker.TmpProc
 -- | A WAI app that triggers an action on a TmpProc dependency on /test, and
 -- responds to health checks on /health.
 mkTestApp
-  :: (OwnerHandle -> IO())
-  -> (OwnerHandle -> IO())
-  -> OwnerHandle
+  :: (Handle -> IO())
+  -> (Handle -> IO())
+  -> Handle
   -> IO Application
 mkTestApp onStart onTest h = onStart h >> pure app
   where

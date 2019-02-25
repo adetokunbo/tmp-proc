@@ -28,7 +28,7 @@ spec noDocker = do
             reset (procImageName testTmpProc) oh `shouldReturn` ()
 
 
-testWaiApp :: OwnerHandle -> IO Application
+testWaiApp :: Handle -> IO Application
 testWaiApp = mkTestApp doSetup (reset $ procImageName testTmpProc)
 
 
@@ -38,14 +38,14 @@ testTmpProc = mkNoResetProc
   }
 
 
-setupDb :: IO OwnerHandle
+setupDb :: IO Handle
 setupDb = do
   h <- setupProcs [testTmpProc]
   doSetup h
   pure h
 
 
-doSetup :: OwnerHandle -> IO ()
+doSetup :: Handle -> IO ()
 doSetup h = case procURI (procImageName testTmpProc) h of
   Left e    -> throwIO e
   Right uri -> createTestTable uri

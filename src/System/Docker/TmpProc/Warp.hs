@@ -10,7 +10,7 @@ module System.Docker.TmpProc.Warp
   , runReadyServer
   , runServer
   , serverPort
-  , ownerHandle
+  , handle
   , shutdown
   )
 
@@ -24,8 +24,8 @@ import           Network.Socket           (Socket, close)
 import           Network.Wai              (Application)
 import qualified Network.Wai.Handler.Warp as Warp
 
-import           System.Docker.TmpProc    (OwnerHandle, TmpProc, cleanup,
-                                           setupProcs, withTmpProcs)
+import           System.Docker.TmpProc    (Handle, TmpProc, cleanup, setupProcs,
+                                           withTmpProcs)
 import           UnliftIO                 (Async, async, bracket, cancel,
                                            onException, waitEither)
 
@@ -35,7 +35,7 @@ data ServerHandle = ServerHandle
   { shServer :: Async ()
   , shPort   :: Warp.Port
   , shSocket :: Socket
-  , shHandle :: OwnerHandle
+  , shHandle :: Handle
   }
 
 
@@ -44,7 +44,7 @@ data ServerHandle = ServerHandle
 runReadyServer
   :: (Warp.Port -> IO ())       --  ^ throws an exception if the client is not ready
   -> [TmpProc]                  --  ^ defines the dependent @TmpProc@s
-  -> (OwnerHandle -> IO Application)
+  -> (Handle -> IO Application)
   -> IO ServerHandle
 runReadyServer check procs mkApp = do
   h <- setupProcs procs
@@ -66,7 +66,7 @@ runReadyServer check procs mkApp = do
 -- | Runs an 'Application' with 'TmpProc' dependencies on a free port.
 runServer
   :: [TmpProc]
-  -> (OwnerHandle -> IO Application)
+  -> (Handle -> IO Application)
   -> IO ServerHandle
 runServer = runReadyServer (const $ pure ())
 
@@ -80,9 +80,9 @@ shutdown h = do
   close shSocket
 
 
--- | The 'OwnerHandle' for interacting with a 'ServerHandle's 'TmpProc' dependencies.
-ownerHandle :: ServerHandle -> OwnerHandle
-ownerHandle = shHandle
+-- | The 'Handle' for interacting with a 'ServerHandle's 'TmpProc' dependencies.
+handle :: ServerHandle -> Handle
+handle = shHandle
 
 
 -- | The 'Warp.Port' on the 'ServerHandle's server is running.
@@ -97,8 +97,8 @@ serverPort = shPort
 -- The tmp process are shut down when the application shut down.
 testWithApplication
   :: [TmpProc]
-  -> (OwnerHandle -> IO Application)
-  -> ((OwnerHandle, Warp.Port) -> IO a)
+  -> (Handle -> IO Application)
+  -> ((Handle, Warp.Port) -> IO a)
   -> IO a
 testWithApplication procs mkApp = runCont $ do
   oh <- cont $ withTmpProcs procs
@@ -116,8 +116,8 @@ testWithApplication procs mkApp = runCont $ do
 testWithReadyApplication
   :: (Warp.Port -> IO ())
   -> [TmpProc]
-  -> (OwnerHandle -> IO Application)
-  -> ((OwnerHandle, Warp.Port) -> IO a)
+  -> (Handle -> IO Application)
+  -> ((Handle, Warp.Port) -> IO a)
   -> IO a
 testWithReadyApplication check procs mkApp = runCont $ do
   oh <- cont $ withTmpProcs procs

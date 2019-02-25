@@ -8,14 +8,14 @@ import           Data.Either                (isRight)
 import qualified Data.Text                  as Text
 import           Network.Wai                (Application)
 import           System.Docker.TmpProc
-import           System.Docker.TmpProc.Warp (ownerHandle, runServer, serverPort,
+import           System.Docker.TmpProc.Warp (handle, runServer, serverPort,
                                              shutdown, testWithApplication)
 
-import           Test.SimpleServer            (statusOfGet)
+import           Test.SimpleServer          (statusOfGet)
 import           Test.TmpProc.Hspec         (noDockerSpec)
 
 
-mkSpec :: Bool -> TmpProc -> (OwnerHandle -> IO Application) -> Spec
+mkSpec :: Bool -> TmpProc -> (Handle -> IO Application) -> Spec
 mkSpec noDocker tp mkApp = do
   let name = procImageName tp
       desc = "ServerHandle: a server using " ++ (Text.unpack name)
@@ -25,26 +25,26 @@ mkSpec noDocker tp mkApp = do
     serverPerTestSpec tp mkApp
 
 
-singleSharedServerSpec :: TmpProc -> (OwnerHandle -> IO Application) -> Spec
+singleSharedServerSpec :: TmpProc -> (Handle -> IO Application) -> Spec
 singleSharedServerSpec tp mkApp = do
   let name = procImageName tp
       desc = "ServerHandle: a server using " ++ (Text.unpack name)
 
   beforeAll (runServer [tp] mkApp) $ afterAll shutdown $ do
     describe desc $ do
-      context "ownerHandle" $ do
+      context "handle" $ do
         it "should obtain the process' URI" $ \sh -> do
-          (isRight $ procURI name $ ownerHandle sh) `shouldBe` True
+          (isRight $ procURI name $ handle sh) `shouldBe` True
 
         it "should reset the process ok" $ \sh -> do
-          reset name (ownerHandle sh) `shouldReturn` ()
+          reset name (handle sh) `shouldReturn` ()
 
       context "port" $ do
         it "should reset the process ok" $ \sh -> do
           statusOfGet (serverPort sh) "test" `shouldReturn` 200
 
 
-serverPerTestSpec :: TmpProc -> (OwnerHandle -> IO Application) -> Spec
+serverPerTestSpec :: TmpProc -> (Handle -> IO Application) -> Spec
 serverPerTestSpec tp mkApp = do
   let name = procImageName tp
       desc = "CPS-style: a server using " ++ (Text.unpack name)
