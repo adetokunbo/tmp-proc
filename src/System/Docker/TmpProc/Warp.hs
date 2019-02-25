@@ -12,12 +12,15 @@ module System.Docker.TmpProc.Warp
   , serverPort
   , handle
   , shutdown
+
+    -- * health check support
+  , checkHealth
   )
 
 where
 
 import           Control.Concurrent       (newEmptyMVar, putMVar, readMVar,
-                                           takeMVar)
+                                           takeMVar, threadDelay)
 import           Control.Monad            (void)
 import           Control.Monad.Cont       (cont, runCont)
 import           Network.Socket           (Socket, close)
@@ -127,6 +130,17 @@ testWithReadyApplication check procs mkApp = runCont $ do
   return (oh, p)
 
 
+-- | Simplifies writing the health checks used by @ready@ variants of this module.
+checkHealth :: Int -> IO (Either a b) -> IO ()
+checkHealth tries h = go tries
+  where
+    go 0 = error "healthy: server isn't healthy"
+    go n = h >>= \case
+      Left  _ -> threadDelay pingPeriod >> go (n - 1)
+      Right _ -> pure ()
+
+
+
 -- | A 'Warp.Settings' configured with a ready action.
 --
 -- The ready action is used to check if a server is healthy.
@@ -162,3 +176,8 @@ mkWaiter check = do
     { notify = putMVar mvar
     , waitFor
     }
+
+
+-- | Gap between service pings in milliseconds.
+pingPeriod :: Int
+pingPeriod = 1000000

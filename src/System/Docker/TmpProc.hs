@@ -16,7 +16,6 @@ module System.Docker.TmpProc
   , UnknownProc
 
     -- * type aliases
-  , Port
   , ProcName
   , ProcURI
   , DockerPid
@@ -46,8 +45,7 @@ import           System.Exit           (ExitCode (..))
 import           System.Process        (StdStream (..), proc, readProcess,
                                         std_err, std_out, waitForProcess,
                                         withCreateProcess)
-import           UnliftIO              (async, cancel, catch, liftIO,
-                                        waitEither)
+import           UnliftIO              (catch, liftIO)
 
 
 -- | 'TmpProc' defines functions used for starting and coordinating support
@@ -98,9 +96,6 @@ data Handle = Handle
 
 
 -- | TCP port number
-type Port = Int
-
-
 -- | Connection string used to access the service once its running.
 type ProcURI = C8.ByteString
 
@@ -256,15 +251,6 @@ pingResource (TmpProc { procPing }) u =
                              go (n - 1) )
   in
     go maxHealthPings
-
-
-checkHealth :: Int -> IO (Either a b) -> IO ()
-checkHealth tries h = go tries
-  where
-    go 0 = error "healthy: server isn't healthy"
-    go n = h >>= \case
-      Left  _ -> threadDelay pingPeriod >> go (n - 1)
-      Right _ -> pure ()
 
 
 -- | Number of times to retry a service ping.
