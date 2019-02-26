@@ -1,5 +1,9 @@
 # Revision history for docker-tmp-proc
 
+## 0.3.1.0 -- 2019-02-26
+
+* Add new public functions that allow TLS-protected endpoints
+
 ## 0.3.0.0 -- 2019-02-25
 
 * Reorganize the public API for simpler usage with HSpec and Tasty
