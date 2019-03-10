@@ -4,10 +4,13 @@
 let
   overridez = import ./nix/haskell-overridez.nix;
   pkgsMake = import ./nix/fetchPkgsMake.nix {};
+  nixVersion = import (./. + "/nix/${nixBase}.nix");
+  nixpkgs = import ./nix/fetchNixPkgs.nix nixVersion;
+
   pkgsMakeHaskellOverridez = pkgs: overridez.allIn ./nix;
   pkgsMakeArgs = {
-    nixpkgsRev = "a4c4cbb613cc3e15186de0fdb04082fa7e38f6a0";
-    nixpkgsSha256 = "1lagfycy2lvfc8cdxk98dz2rxjlrbmv9hj42x0x40sy66bck1w0y";
+    nixpkgsRev = nixVersion.rev;
+    nixpkgsSha256 = nixVersion.sha256;
     haskellArgs = {
       overrides = pkgsMakeHaskellOverridez;
       extraOverrides = pkgsMakeHaskellOverridez;
@@ -23,7 +26,7 @@ let
       ];
     };
   };
-  pkgs = import ./nix/nixpkgs.nix { inherit nixBase system; };
+  pkgs = import nixpkgs { inherit system; };
 
 in
 
