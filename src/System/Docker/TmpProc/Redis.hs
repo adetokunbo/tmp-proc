@@ -53,7 +53,7 @@ mkNoResetProc = TmpProc
 
 
 withConnectionFrom :: ProcURI -> (Connection -> IO()) -> IO()
-withConnectionFrom uri action = case (parseConnectInfo $ C8.unpack uri) of
+withConnectionFrom uri action = case parseConnectInfo $ C8.unpack uri of
   Left e  -> error e
   Right x -> bracket (checkedConnect x) disconnect action
 

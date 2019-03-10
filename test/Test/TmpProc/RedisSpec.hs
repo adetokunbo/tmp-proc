@@ -21,13 +21,13 @@ import           Test.TmpProc.Hspec          (noDockerSpec)
 
 spec :: Bool -> Spec
 spec noDocker = do
-  let desc = "redis: image " ++ (Text.unpack $ procImageName testTmpProc)
-  if noDocker then noDockerSpec desc else do
-    beforeAll setupRds $ afterAll cleanup $ do
-      describe desc $ do
-        context "invoking a simple redis action" $ do
-          it "should not fail" $ \oh -> do
-            reset (procImageName testTmpProc) oh `shouldReturn` ()
+  let desc = "redis: image " ++ Text.unpack (procImageName testTmpProc)
+  if noDocker then noDockerSpec desc else
+    beforeAll setupRds $ afterAll cleanup $
+    describe desc $
+    context "invoking a simple redis action" $
+    it "should not fail" $ \oh ->
+    reset (procImageName testTmpProc) oh `shouldReturn` ()
 
 
 testWaiApp :: Handle -> IO Application
@@ -55,20 +55,20 @@ doSetup h = case procURI (procImageName testTmpProc) h of
 
 -- | Create the test table and insert some data into it
 addTestKeyValue :: ProcURI -> IO ()
-addTestKeyValue rdsUri = do
-  withConnectionFrom rdsUri $ \conn -> do
-    (liftIO $ runRedis conn $ setex testKey 100 testValue) >>= \case
-      Left e -> fail $ "redis operation failed: " ++ show e
-      Right _ -> pure ()
+addTestKeyValue rdsUri =
+  withConnectionFrom rdsUri $ \conn ->
+  liftIO (runRedis conn $ setex testKey 100 testValue) >>= \case
+  Left e -> fail $ "redis operation failed: " ++ show e
+  Right _ -> pure ()
 
 
 checkTestKey :: ProcURI -> IO ()
-checkTestKey rdsUri = do
-  withConnectionFrom rdsUri $ \conn -> do
-    (liftIO $ runRedis conn $ exists testKey) >>= \case
-      Left e -> fail $ "redis operation failed: " ++ show e
-      Right True -> pure ()
-      Right _ -> fail "Could not find the test key"
+checkTestKey rdsUri =
+  withConnectionFrom rdsUri $ \conn ->
+  liftIO (runRedis conn $ exists testKey) >>= \case
+  Left e -> fail $ "redis operation failed: " ++ show e
+  Right True -> pure ()
+  Right _ -> fail "Could not find the test key"
 
 
 testKey :: C8.ByteString

@@ -12,6 +12,7 @@ let
       overrides = pkgsMakeHaskellOverridez;
       extraOverrides = pkgsMakeHaskellOverridez;
       envMoreTools = [
+        pkgs.haskellPackages.apply-refact
         pkgs.haskellPackages.cabal2nix
         pkgs.haskellPackages.cabal-install
         pkgs.haskellPackages.ghcid

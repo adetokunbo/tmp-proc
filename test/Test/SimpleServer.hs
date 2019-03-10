@@ -40,9 +40,9 @@ mkTestApp
 mkTestApp onStart onTest h = onStart h >> pure app
   where
     app rq respond
-      | isHealthReq rq = (respond $ responseLBS status200 [] "ok")
+      | isHealthReq rq = respond $ responseLBS status200 [] "ok"
     app rq respond
-      | isTestReq rq = onTest h >> (respond $ responseLBS status200 [] "ok")
+      | isTestReq rq = onTest h >> respond (responseLBS status200 [] "ok")
     app _ respond = respond $ responseLBS status400 [] "Incorrect request"
 
     isHealthReq = isReqPathsEq ["health"]

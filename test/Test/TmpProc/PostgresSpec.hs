@@ -19,13 +19,13 @@ import           Test.TmpProc.Hspec             (noDockerSpec)
 
 spec :: Bool -> Spec
 spec noDocker = do
-  let desc = "postgres: image " ++ (Text.unpack $ procImageName testTmpProc)
-  if noDocker then noDockerSpec desc else do
-    beforeAll setupDb $ afterAll cleanup $ do
-      describe desc $ do
-        context "invoking a simple SQL reset action" $ do
-          it "should not fail" $ \oh -> do
-            reset (procImageName testTmpProc) oh `shouldReturn` ()
+  let desc = "postgres: image " ++ Text.unpack (procImageName testTmpProc)
+  if noDocker then noDockerSpec desc else
+    beforeAll setupDb $ afterAll cleanup $
+    describe desc $
+    context "invoking a simple SQL reset action" $
+    it "should not fail" $ \oh ->
+    reset (procImageName testTmpProc) oh `shouldReturn` ()
 
 
 testWaiApp :: Handle -> IO Application

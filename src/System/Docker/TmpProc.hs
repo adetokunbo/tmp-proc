@@ -2,8 +2,6 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE GADTs               #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -115,7 +113,7 @@ type ProcName = Text
 
 
 -- | Exception used when an unknown 'ProcName' is used.
-data UnknownProc = Unknown ProcName
+newtype UnknownProc = Unknown ProcName
   deriving (Eq, Show)
 
 instance Exception UnknownProc
@@ -123,7 +121,7 @@ instance Exception UnknownProc
 
 -- | Determines the 'ProcURI' for a given 'ProcName'.
 procURI :: ProcName -> Handle -> Either UnknownProc ProcURI
-procURI name (Handle { handles }) =
+procURI name Handle { handles } =
   let
     theHandle = lookup name handles
     throwError = Left $ Unknown name
@@ -135,7 +133,7 @@ procURI name (Handle { handles }) =
 --
 -- Raises 'UnknownProc' if the 'ProcName' is not known.
 reset :: ProcName -> Handle -> IO ()
-reset name (Handle { handles }) =
+reset name Handle { handles } =
   let
     theHandle = lookup name handles
     throwError = throwIO $ Unknown name
@@ -186,11 +184,7 @@ setupProcs procs = liftIO $ do
 -- | Runs an action that uses some 'TmpProc's as resources and cleans them
 -- afterwards.
 withTmpProcs :: [TmpProc] -> (Handle -> IO a) -> IO a
-withTmpProcs procs action =
-  bracket
-  (setupProcs procs)
-  cleanup
-  action
+withTmpProcs procs = bracket (setupProcs procs) cleanup
 
 
 setupResources :: [TmpProc] -> IO ([DockerPid], [(ProcName, TmpProcHandle)])
@@ -198,7 +192,7 @@ setupResources procs = do
   xs <- foldM setupResource' [] procs
   let pids = map (\(pid, _ , _) -> pid) xs
       handleAssoc = map (\(_, n, h) -> (n, h)) xs
-  pure $ (pids, handleAssoc)
+  pure (pids, handleAssoc)
 
 
 type TmpProcResult = (DockerPid, ProcName, TmpProcHandle)
@@ -207,15 +201,15 @@ type TmpProcResult = (DockerPid, ProcName, TmpProcHandle)
 setupResource' :: [TmpProcResult] -> TmpProc -> IO [TmpProcResult]
 setupResource' acc tp = do
   let handler = cleanupPids $ map (\(pid, _ , _) -> pid) acc
-      addResource = setupResource tp >>= (pure . flip (:) acc)
+      addResource = flip (:) acc <$> setupResource tp
   addResource `onException` handler
 
 
 setupResource :: TmpProc -> IO TmpProcResult
-setupResource tp@(TmpProc { procReset, procImageName, procRunArgs, procMkUri }) = do
+setupResource tp@TmpProc { procReset, procImageName, procRunArgs, procMkUri } = do
   let fullRunArgs = [ "run" , "-d" ] <> procRunArgs <> [ procImageName ]
   pid <- trim <$> readProcess "docker" (map Text.unpack fullRunArgs) ""
-  handleURI <- (procMkUri . trim) <$> readProcess "docker"
+  handleURI <- procMkUri . trim <$> readProcess "docker"
     [ "inspect"
     , pid
     , "--format"
@@ -241,7 +235,7 @@ pingResource
   :: TmpProc
   -> ProcURI
   -> IO ()
-pingResource (TmpProc { procPing }) u =
+pingResource TmpProc { procPing } u =
   let
     go 0 = error
       $ "resource setup: failed to connect to " ++ C8.unpack u
