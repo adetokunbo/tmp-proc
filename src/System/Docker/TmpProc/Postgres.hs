@@ -32,7 +32,7 @@ type TableName = String
 clearTables :: [TableName] -> ProcURI -> IO ()
 clearTables tables pgUri = do
   c <- connectPostgreSQL pgUri
-  mapM_ (execute_ c) $ map (fromString . ((++) "DELETE FROM ")) tables
+  mapM_ (execute_ c . (fromString . (++) "DELETE FROM ")) tables
 
 
 -- | A @TmpProc@ that runs the default postgresql version.
@@ -64,7 +64,7 @@ pgImageName = "postgres:10.6"
 pgRunArgs :: [Text]
 pgRunArgs =
   [ "-e"
-  , "POSTGRES_PASSWORD=" <> (Text.pack $ C8.unpack $ pgDefaultPassword)
+  , "POSTGRES_PASSWORD=" <> Text.pack (C8.unpack pgDefaultPassword)
   ]
 
 
