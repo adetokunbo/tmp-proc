@@ -1,5 +1,10 @@
 # Revision history for docker-tmp-proc
 
+## 0.3.2.0 -- 2019-04-01
+
+* Make the run*Server functions throw exceptions in app threads to the calling
+  thread.
+
 ## 0.3.1.0 -- 2019-02-26
 
 * Add new public functions that allow TLS-protected endpoints

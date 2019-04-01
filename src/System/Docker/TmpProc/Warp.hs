@@ -24,9 +24,9 @@ module System.Docker.TmpProc.Warp
 where
 
 import           Control.Concurrent          (newEmptyMVar, putMVar, readMVar,
-                                              takeMVar, threadDelay)
+                                              takeMVar, threadDelay, myThreadId, throwTo)
 import           Control.Exception           (ErrorCall (..))
-import           Control.Monad               (void)
+import           Control.Monad               (void, when)
 import           Control.Monad.Cont          (cont, runCont)
 import           Network.Socket              (Socket, close)
 import           Network.Wai                 (Application)
@@ -37,7 +37,7 @@ import           System.Docker.TmpProc       (Handle, TmpProc, cleanup,
                                               setupProcs, withTmpProcs)
 import           UnliftIO                    (Async, async, bracket, cancel,
                                               onException, race, throwIO,
-                                              waitEither)
+                                              waitEither, catch)
 
 
 -- | Represents a started Warp application and it's 'TmpProc' dependencies.
@@ -95,11 +95,19 @@ runReadyServer'
   -> (Handle -> IO Application)
   -> IO ServerHandle
 runReadyServer' runApp check procs mkApp = do
+  callingThread <- myThreadId
   h <- setupProcs procs
   (p, sock) <- Warp.openFreePort
   signal <- newEmptyMVar
   let settings = readySettings(putMVar signal ())
-  s <- async (mkApp h >>= runApp settings sock)
+  app <- mkApp h
+  let wrappedApp request respond =
+        app request respond `catch` \ e -> do
+          when
+            (Warp.defaultShouldDisplayException e)
+            (throwTo callingThread e)
+          throwIO e
+  s <- async (pure wrappedApp >>= runApp settings sock)
   aConfirm <- async (takeMVar signal)
   let result = ServerHandle s p sock h
   waitEither s aConfirm >>= \case
