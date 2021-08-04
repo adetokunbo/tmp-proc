@@ -11,6 +11,7 @@ in
       cabal = "3.2.0.0";
       hlint = "latest"; # Selects the latest version in the hackage.nix snapshot
       haskell-language-server = "latest";
+      ghcid = "latest";
     };
     # See overlays/tools.nix for more details
 
