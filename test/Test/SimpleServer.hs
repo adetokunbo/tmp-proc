@@ -13,7 +13,6 @@ where
 
 import           Data.List                   (foldl')
 
-import           Data.Default                (def)
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
 
@@ -52,7 +51,7 @@ mkTestApp onStart onTest h = onStart h >> pure app
 
 -- | Determine the status from a Get on localhost.
 statusOfGet :: Warp.Port -> Text -> IO Int
-statusOfGet p path = runReq def $ do
+statusOfGet p path = runReq defaultHttpConfig $ do
   r <- req GET (localUrl path) NoReqBody ignoreResponse $ port p
   return $ responseStatusCode r
 
@@ -60,7 +59,7 @@ statusOfGet p path = runReq def $ do
 statusOfGet' :: Int -> Text -> IO Int
 statusOfGet' p path = do
   manager <- mkSimpleTLSManager
-  runReq (def { httpConfigAltManager = Just manager }) $ do
+  runReq (defaultHttpConfig { httpConfigAltManager = Just manager }) $ do
     r <- req GET (localHttpsUrl path) NoReqBody ignoreResponse $ port p
     return $ responseStatusCode r
 
