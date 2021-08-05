@@ -1,5 +1,9 @@
 # Revision history for docker-tmp-proc
 
+## 0.4.0.0 -- 2021-08-03
+
+* Update versions of major dependencies, allowing it to build with GHC 8.10
+
 ## 0.3.2.0 -- 2019-04-01
 
 * Make the run*Server functions throw exceptions in app threads to the calling
