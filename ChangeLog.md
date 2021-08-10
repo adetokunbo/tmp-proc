@@ -1,5 +1,9 @@
 # Revision history for docker-tmp-proc
 
+## Unreleased -- 2021-08-10
+
+* Switch the developer build environment to haskell.nix
+
 ## 0.4.0.0 -- 2021-08-03
 
 * Update versions of major dependencies, allowing it to build with GHC 8.10
