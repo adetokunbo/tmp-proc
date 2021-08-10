@@ -1,4 +1,3 @@
-
 # Created by https://www.gitignore.io/api/haskell,linux,emacs
 # Edit at https://www.gitignore.io/?templates=haskell,linux,emacs
 
@@ -92,3 +91,7 @@ cabal.project.local~
 .nfs*
 
 # End of https://www.gitignore.io/api/haskell,linux,emacs
+
+
+### Nix ###
+result*
