@@ -2,6 +2,7 @@
 
 ## Unreleased -- 2021-08-10
 
+* Add a stack.yaml for building with stack
 * Switch the developer build environment to haskell.nix
 
 ## 0.4.0.0 -- 2021-08-03
