@@ -10,7 +10,7 @@ jobs:
     - uses: cachix/install-nix-action@v13
       with:
         nix_path: nixpkgs=channel:nixos-unstable
-    - uses: finnp/create-file-action@master
+    - uses: adetokunbo/create-file-action@master
       env:
         FILE_NAME: ".config/nix/nix.conf"
         FILE_DATA: "trusted-public-keys = [...] hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= [...]\nsubstituters = [...] https://hydra.iohk.io [...]"
