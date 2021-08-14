@@ -17,7 +17,7 @@ jobs:
     - name: Add haskell.nix as a substituter in the user Nix conf
       run: |
         echo "substituters = https://cache.nixos.org https://hydra.iohk.io" >> $HOME/.config/nix/nix.conf
-    - name: Add the public key for to haskell.nix substituter
+    - name: Add the public key for the haskell.nix substituter
       run: |
         echo "trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=" >> $HOME/.config/nix/nix.conf
     - uses: cachix/cachix-action@v10
@@ -55,7 +55,7 @@ jobs:
     - name: Add haskell.nix as a substituter in the user Nix conf
       run: |
         echo "substituters = https://cache.nixos.org https://hydra.iohk.io" >> $HOME/.config/nix/nix.conf
-    - name: Add the public key for to haskell.nix substituter
+    - name: Add the public key for the haskell.nix substituter
       run: |
         echo "trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=" >> $HOME/.config/nix/nix.conf
     - uses: cachix/cachix-action@v10
