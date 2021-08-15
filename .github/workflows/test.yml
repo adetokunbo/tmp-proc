@@ -2,7 +2,7 @@ name: "Nix Build"
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [master]
 jobs:
   cabal-nix:
     runs-on: ubuntu-latest
