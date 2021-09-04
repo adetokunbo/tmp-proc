@@ -18,7 +18,7 @@ let
 
     h8x.nixpkgsArgs;
 
-in pkgs.haskell-nix.project {
+in pkgs.haskell-nix.cabalProject {
   # 'cleanGit' cleans a source directory based on the files known by git
   src = pkgs.haskell-nix.haskellLib.cleanGit {
     name = "docker-tmp-proc";
