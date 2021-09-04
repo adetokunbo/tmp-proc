@@ -1,12 +1,12 @@
 cabal-version:      3.0
 name:               docker-tmp-proc
 version:            0.4.0.0
-synopsis:           Use docker to run 'tmp' procesess
-description:        Use processes run in docker containers as temporary processes
+synopsis:           Run 'tmp' processes
+description:        Uses processes run in docker containers as temporary processes
                     similarly to the use of files in the tmp file system
 license:            BSD-3-Clause
 license-file:       LICENSE
-copyright:          2019 Tim Emiola
+copyright:          2020 Tim Emiola
 author:             Tim Emiola
 maintainer:         tim.emiola@gmail.com
 category:           Testing
@@ -26,6 +26,11 @@ library
                     System.Docker.TmpProc.Postgres
                     System.Docker.TmpProc.Redis
                     System.Docker.TmpProc.Warp
+                    System.TmpProc.Docker
+                    System.TmpProc.Docker.Postgres
+                    System.TmpProc.Docker.Redis
+                    System.TmpProc.TypeLevel
+                    System.TmpProc.Warp
   hs-source-dirs:   src
   build-depends:    base              >= 4.11 && < 4.16
                   , async             >= 2.2.1 && < 2.3
@@ -47,6 +52,8 @@ test-suite docker-tmp-proc-test
   type:             exitcode-stdio-1.0
   main-is:          Spec.hs
   other-modules:    Test.SimpleServer
+                    Test.System.TmpProc.HttpBinSpec
+                    Test.System.TmpProc.WarpSpec
                     Test.TmpProc.Hspec
                     Test.TmpProc.PostgresSpec
                     Test.TmpProc.RedisSpec
