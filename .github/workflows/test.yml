@@ -28,4 +28,4 @@ jobs:
         cat $HOME/.config/nix/nix.conf
     - name: Run the tests in a nix-shell
       run: |
-        nix-shell --run "cabal new-test --test-show-details=streaming"
+        nix-shell --run "cabal new-test --test-show-details=streaming docker-tmp-proc"
