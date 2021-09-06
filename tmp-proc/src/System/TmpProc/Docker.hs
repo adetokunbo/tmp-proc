@@ -318,7 +318,7 @@ named ::
 named proxy xs = named' proxy $ toKVs xs
 
 
-{-| Liked 'named', but obtains the connection for types that are 'Connectable'. -}
+{-| Liked 'named', but constrains the handle to be 'Connectable'. -}
 connected ::
   ( KnownSymbol s
   , AreHandles xs

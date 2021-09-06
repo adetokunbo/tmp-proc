@@ -78,7 +78,7 @@ instance Connectable TmpPostgres where
   closeConn = close
 
 
-{-| Makes a uri whose password matches the one specified in 'pgRunArgs'. -}
+{-| Makes a uri whose password matches the one specified in 'runArgs''. -}
 mkUri' :: HostIpAddress -> SvcURI
 mkUri' ip = "host="
              <> C8.pack (Text.unpack ip)
@@ -91,7 +91,7 @@ dbPassword :: C8.ByteString
 dbPassword = "mysecretpassword"
 
 
-{-| Match the password used in 'pgMkUri'. -}
+{-| Match the password used in 'mkUri''. -}
 runArgs' :: [Text]
 runArgs' =
   [ "-e"
@@ -99,7 +99,7 @@ runArgs' =
   ]
 
 
-{-| Drop the tables if any are specified. -}
+{-| Empty all rows in the tables, if any are specified. -}
 reset' :: ProcHandle TmpPostgres -> IO ()
 reset' handle@(ProcHandle {hProc}) =
   let go (TmpPostgres []) = pure ()
