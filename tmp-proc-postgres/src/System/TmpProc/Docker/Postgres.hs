@@ -6,7 +6,7 @@
 
 {-|
 Module      : System.TmpProc.Docker.Postgres
-Description : A specification for launching a postgres process
+Description : Provides an instance of @Proc@ for launching postgres as a tmp process.
 Copyright   : (c) 2021, Tim Emiola
 License     : BSD
 Maintainer  : tim.emiola@gmail.com
@@ -31,12 +31,14 @@ import           Data.String                (fromString)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as Text
 
-import           Database.PostgreSQL.Simple (connectPostgreSQL, execute_)
+import           Database.PostgreSQL.Simple (Connection, connectPostgreSQL,
+                                             execute_, close)
 
-import           System.TmpProc.Docker      (HList (..), HostIpAddress,
-                                             Proc (..), Proc2Handle,
-                                             ProcHandle (..), SvcURI,
-                                             startupAll)
+import           System.TmpProc.Docker      (Connectable (..), HList (..),
+                                             HostIpAddress, Proc (..),
+                                             Proc2Handle, ProcHandle (..),
+                                             ReverseConn, SvcURI, startupAll,
+                                             withTmpConn)
 
 
 {-| A singleton 'HList' containing a 'TmpPostgres'. -}
@@ -57,7 +59,7 @@ It specifies the names of the tables to be dropped during a reset.
 data TmpPostgres = TmpPostgres [Text]
 
 
-{-| Specifies how to run Postgres as a tmp 'Proc'.  -}
+{-| A 'Proc' for running postgres as a tmp process. -}
 instance Proc TmpPostgres where
   type Image TmpPostgres = "postgres:10.6"
   type Name TmpPostgres = "a-postgres-db"
@@ -66,6 +68,14 @@ instance Proc TmpPostgres where
   runArgs = runArgs'
   ping = void . connectPostgreSQL . hUri
   reset = reset'
+
+type instance ReverseConn Connection = TmpPostgres
+
+instance Connectable TmpPostgres where
+  type Conn TmpPostgres = Connection
+
+  openConn = connectPostgreSQL . hUri
+  closeConn = close
 
 
 {-| Makes a uri whose password matches the one specified in 'pgRunArgs'. -}
@@ -91,9 +101,8 @@ runArgs' =
 
 {-| Drop the tables if any are specified. -}
 reset' :: ProcHandle TmpPostgres -> IO ()
-reset' ProcHandle {hUri = uri, hProc} =
+reset' handle@(ProcHandle {hProc}) =
   let go (TmpPostgres []) = pure ()
-      go (TmpPostgres tables) = do
-        c <- connectPostgreSQL uri
+      go (TmpPostgres tables) = withTmpConn handle $ \c ->
         mapM_ (execute_ c . (fromString . (++) "DELETE FROM ") . Text.unpack) tables
   in go hProc

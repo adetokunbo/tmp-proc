@@ -9,7 +9,7 @@ import           Control.Exception              (onException)
 import           Data.Proxy                     (Proxy (..))
 import           Data.Text                      (Text)
 import qualified Data.Text                      as Text
-import           Database.PostgreSQL.Simple     (connectPostgreSQL, execute_)
+import           Database.PostgreSQL.Simple     (execute_)
 
 import           System.TmpProc.Docker
 import           System.TmpProc.Docker.Postgres
@@ -59,12 +59,11 @@ testTable = "to_be_reset"
 
 
 initTable :: HList '[ProcHandle TmpPostgres] -> IO ()
-initTable = createTestTable . ixUriOf @"a-postgres-db" Proxy
+initTable = createTestTable . connected @"a-postgres-db" Proxy
 
 
-createTestTable :: SvcURI -> IO ()
-createTestTable pgUri = do
-  c <- connectPostgreSQL pgUri
+createTestTable :: ProcHandle TmpPostgres -> IO ()
+createTestTable handle = withTmpConn handle $ \c -> do
   let commands =
         [ "CREATE TABLE to_be_reset (an_id INTEGER)"
         , "INSERT INTO to_be_reset VALUES (347)"
