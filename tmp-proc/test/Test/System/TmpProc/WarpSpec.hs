@@ -53,7 +53,7 @@ setupBeforeAllTls = runTLSServer defaultTLSSettings testProcs testApp
 
 suffixAround, suffixBeforeAll, prefixHttp, prefixHttps :: String
 suffixAround = " when the server is restarted for each test"
-suffixBeforeAll = " when the starts beforeAll tests"
+suffixBeforeAll = " when the server starts beforeAll tests"
 prefixHttp = "System.TmpProc.Warp:HTTP:"
 prefixHttps = "System.TmpProc.Warp:HTTPS:"
 
