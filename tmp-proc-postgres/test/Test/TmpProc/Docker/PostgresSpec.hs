@@ -30,7 +30,7 @@ spec noDocker = do
 checkPostgres :: String -> Spec
 checkPostgres desc =  beforeAll setupHandles $ afterAll terminateAll $ do
   describe desc $ do
-    context "when using the Proc from the HList by Name" $ do
+    context "when using the Proc from the HList by its 'Name'" $ do
 
       context "ixPing" $ do
 
@@ -43,22 +43,22 @@ checkPostgres desc =  beforeAll setupHandles $ afterAll terminateAll $ do
           -> ixReset @"a-postgres-db" Proxy hs `shouldReturn`()
 
 
-setupHandles :: IO (HList '[ProcHandle PgDocker])
+setupHandles :: IO (HList '[ProcHandle TmpPostgres])
 setupHandles = do
   handles <- startupAll $ testProc `HCons` HNil
   initTable handles `onException` terminateAll handles
   pure handles
 
 
-testProc :: PgDocker
-testProc = PgDocker [testTable]
+testProc :: TmpPostgres
+testProc = TmpPostgres [testTable]
 
 
 testTable :: Text
 testTable = "to_be_reset"
 
 
-initTable :: HList '[ProcHandle PgDocker] -> IO ()
+initTable :: HList '[ProcHandle TmpPostgres] -> IO ()
 initTable = createTestTable . ixUriOf @"a-postgres-db" Proxy
 
 

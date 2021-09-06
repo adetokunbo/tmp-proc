@@ -25,7 +25,7 @@ Stability   : experimental
 -}
 module System.TmpProc.Docker.Postgres
   ( -- * data types
-    PgDocker(..)
+    TmpPostgres(..)
 
     -- * useful definitions
   , aProc
@@ -49,13 +49,13 @@ import           System.TmpProc.Docker            (HList (..), HostIpAddress,
                                              ProcHandle (..), SvcURI,
                                              startupAll)
 
-{-| Contains just 'PgDocker'. -}
-aProc :: HList '[PgDocker]
-aProc = PgDocker [] `HCons` HNil
+{-| Contains just 'TmpPostgres'. -}
+aProc :: HList '[TmpPostgres]
+aProc = TmpPostgres [] `HCons` HNil
 
 
 {-| The handle created from just 'aProc'. -}
-aHandle :: IO (HList (Proc2Handle '[PgDocker]))
+aHandle :: IO (HList (Proc2Handle '[TmpPostgres]))
 aHandle = startupAll aProc
 
 
@@ -64,13 +64,13 @@ aHandle = startupAll aProc
 It specifies the names of the tables dropped during a reset.
 
 -}
-data PgDocker = PgDocker [Text]
+data TmpPostgres = TmpPostgres [Text]
 
 
 {-| Specify how to run Postgres as a Tmp 'Proc'.  -}
-instance Proc PgDocker where
-  type Image PgDocker = "postgres:10.6"
-  type Name PgDocker = "a-postgres-db"
+instance Proc TmpPostgres where
+  type Image TmpPostgres = "postgres:10.6"
+  type Name TmpPostgres = "a-postgres-db"
 
   uriOf = mkUri'
   runArgs = runArgs'
@@ -100,10 +100,10 @@ runArgs' =
 
 
 {-| Drop the tables if any are specified. -}
-reset' :: ProcHandle PgDocker -> IO ()
+reset' :: ProcHandle TmpPostgres -> IO ()
 reset' ProcHandle {hUri = uri, hProc} =
-  let go (PgDocker []) = pure ()
-      go (PgDocker tables) = do
+  let go (TmpPostgres []) = pure ()
+      go (TmpPostgres tables) = do
         c <- connectPostgreSQL uri
         mapM_ (execute_ c . (fromString . (++) "DELETE FROM ") . Text.unpack) tables
   in go hProc
