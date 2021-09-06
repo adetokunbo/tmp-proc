@@ -36,6 +36,13 @@ module System.TmpProc.Docker
   , runArgs'
   , nameOf
 
+    -- * @'Connectable'@ and related types and functions
+  , Connectable(..)
+  , ReverseConn
+  , connected
+  , withTmpConn
+  , withNamedConn
+
     -- * @'ProcHandle'@ and functions for using HLists of @'ProcHandle's@
   , ProcHandle(..)
   , imageTexts
@@ -162,7 +169,24 @@ imageTexts = go procProof
     go (SomeProcsCons cons)  (x `HCons` y) = imageText x : (go cons y)
 
 
-{-| Specify how to launch a temporary process using Docker. -}
+{-| Used to prove that 'Conn' a is injective for all 'Connectable'. -}
+type family ReverseConn a :: *
+
+
+{-| Specifies how to a get a connection to a 'Proc'. -}
+class (Proc a, (ReverseConn (Conn a) ~ a)) => Connectable a where
+  {-| The connection type. -}
+  type Conn a :: *
+
+  {-| Get a connection to the Proc via its 'ProcHandle', -}
+  openConn :: ProcHandle a -> IO (Conn a)
+
+  {-| Close a connection to a 'Proc', -}
+  closeConn :: Conn a -> IO ()
+  closeConn = const $ pure ()
+
+
+{-| Specifies how to launch a temporary process using Docker. -}
 class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
   {-| The image name of the docker image. -}
   type Image a :: Symbol
@@ -292,6 +316,33 @@ named ::
   , Lookup s (Handle2KV xs) ~ ProcHandle a)
   => Proxy s -> HList xs -> ProcHandle a
 named proxy xs = named' proxy $ toKVs xs
+
+
+{-| Liked 'named', but obtains the connection for types that are 'Connectable'. -}
+connected ::
+  ( KnownSymbol s
+  , AreHandles xs
+  , Connectable a
+  , KVMember s (Handle2KV xs)
+  , Lookup s (Handle2KV xs) ~ ProcHandle a)
+  => Proxy s -> HList xs -> ProcHandle a
+connected proxy xs = named' proxy $ toKVs xs
+
+
+{-| Liked 'connected', but provides the 'Conn' to a callback. -}
+withNamedConn ::
+  ( KnownSymbol s
+  , AreHandles xs
+  , Connectable a
+  , KVMember s (Handle2KV xs)
+  , Lookup s (Handle2KV xs) ~ ProcHandle a)
+  => Proxy s -> HList xs -> (Conn a -> IO b) -> IO b
+withNamedConn proxy xs action = flip withTmpConn action $ named' proxy $ toKVs xs
+
+
+{-| Run an action on a 'Connectable' handle as a callback on its 'Conn' -}
+withTmpConn :: Connectable a => ProcHandle a -> (Conn a -> IO b) -> IO b
+withTmpConn handle action = bracket (openConn handle) closeConn action
 
 
 named'
