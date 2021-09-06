@@ -23,7 +23,7 @@ noDockerSpec desc = describe desc $
 
 spec :: Bool -> Spec
 spec noDocker = do
-  let desc = "Tmp.Proc:Postgres" ++ Text.unpack (nameOf testProc)
+  let desc = "Tmp.Proc:Postgres:" ++ Text.unpack (nameOf testProc)
   if noDocker then noDockerSpec desc else checkPostgres desc
 
 
