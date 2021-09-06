@@ -45,6 +45,7 @@ module System.TmpProc.Docker
   , ixReset
   , ixPing
   , ixUriOf
+  , named
 
     -- * type-level functions/proofs
   , Proc2Handle
@@ -280,6 +281,28 @@ nPings h@ProcHandle{hProc = p} =
                              go (n - 1) )
   in
     go $ fromEnum $ pingCount' p
+
+
+{-| Obtains the handle with the given @'Name'@ from an 'HList' of 'ProcHandle'. -}
+named ::
+  ( KnownSymbol s
+  , AreHandles xs
+  , Proc a
+  , KVMember s (Handle2KV xs)
+  , Lookup s (Handle2KV xs) ~ ProcHandle a)
+  => Proxy s -> HList xs -> ProcHandle a
+named proxy xs = named' proxy $ toKVs xs
+
+
+named'
+  :: forall (s :: Symbol) a (xs :: [*]) .
+     ( KnownSymbol s
+     , Proc a
+     , KVMember s xs
+     , Lookup s xs ~ ProcHandle a)
+  => Proxy s -> HList xs -> ProcHandle a
+named' _ kvs = select @s kvs
+
 
 
 {-| Resets the handle with the given @'Name'@ in a list of Handles. -}
