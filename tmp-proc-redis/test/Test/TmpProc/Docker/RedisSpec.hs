@@ -70,7 +70,7 @@ initRedis = addTestKeyValue . named @"a-redis-db" Proxy
 
 
 addTestKeyValue :: ProcHandle TmpRedis -> IO ()
-addTestKeyValue handle = withTmpConnection handle $ \conn -> do
+addTestKeyValue handle = withTmpConn handle $ \conn -> do
   liftIO (runRedis conn $ setex testKey 100 testValue) >>= \case
     Left e  -> fail $ "redis operation failed: " ++ show e
     Right _ -> pure ()
@@ -85,7 +85,7 @@ testValue = "the test value"
 
 
 checkTestKey :: ProcHandle TmpRedis -> IO Bool
-checkTestKey handle = withTmpConnection handle $ \conn -> do
+checkTestKey handle = withTmpConn handle $ \conn -> do
   liftIO (runRedis conn $ exists testKey) >>= \case
     Left e  -> fail $ "redis operation failed: " ++ show e
     Right x -> pure x
