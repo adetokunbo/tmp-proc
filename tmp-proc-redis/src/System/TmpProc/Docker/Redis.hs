@@ -19,7 +19,6 @@ module System.TmpProc.Docker.Redis
     -- * useful definitions
   , aProc
   , aHandle
-  , withTmpConnection
 
     -- * key names
   , KeyName
@@ -29,7 +28,6 @@ module System.TmpProc.Docker.Redis
   )
 where
 
-import           Control.Exception     (bracket)
 import           Control.Monad         (void)
 import qualified Data.ByteString.Char8 as C8
 import qualified Data.Text             as Text
@@ -39,14 +37,7 @@ import           Database.Redis        (Connection, checkedConnect, del,
 
 import           System.TmpProc.Docker (HList (..), HostIpAddress, Proc (..),
                                         Proc2Handle, ProcHandle (..), SvcURI,
-                                        startupAll)
-
-
-{-| Run an action on redis using a connection to 'ProcHandle' 'TmpRedis'. -}
-withTmpConnection :: ProcHandle TmpRedis -> (Connection -> IO a) -> IO a
-withTmpConnection handle action = case parseConnectInfo $ C8.unpack $ hUri handle of
-  Left e  -> error e
-  Right x -> bracket (checkedConnect x) disconnect action
+                                        startupAll, Connectable(..), ReverseConn, withTmpConn)
 
 
 {-| A singleton 'HList' containing an example 'TmpRedis'. -}
@@ -78,8 +69,22 @@ instance Proc TmpRedis where
 
   uriOf = mkUri'
   runArgs = []
-  ping = flip withTmpConnection (const $ pure ())
+  ping = flip withTmpConn (const $ pure ())
   reset = clearKeys
+
+type instance ReverseConn Connection = TmpRedis
+
+instance Connectable TmpRedis where
+  type Conn TmpRedis = Connection
+
+  closeConn = disconnect
+  openConn = openConn'
+
+
+openConn' :: ProcHandle TmpRedis -> IO Connection
+openConn' handle =  case parseConnectInfo $ C8.unpack $ hUri handle of
+  Left e  -> error e
+  Right x -> checkedConnect x
 
 
 mkUri' :: HostIpAddress -> SvcURI
@@ -87,6 +92,8 @@ mkUri' ip =  "redis://" <> (C8.pack $ Text.unpack ip) <> "/"
 
 
 clearKeys :: ProcHandle TmpRedis -> IO ()
-clearKeys handle = withTmpConnection handle $ \c ->
-  runRedis c $ void $ del $ keysOf $ hProc handle
-  where keysOf (TmpRedis keys) = keys
+clearKeys handle@(ProcHandle {hProc}) =
+  let go (TmpRedis []) = pure ()
+      go (TmpRedis keys) = withTmpConn handle $ \c -> runRedis c $ void $ del keys
+  in
+    go hProc
