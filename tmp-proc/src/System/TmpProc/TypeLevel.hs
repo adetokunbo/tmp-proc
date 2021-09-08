@@ -31,24 +31,23 @@ module System.TmpProc.TypeLevel
    -- * Confirm membership of an extensible record made of an 'HList' of @'KV's@
   , KVMember
   , Member(..)
-  , Lookup
+  , KVLookup
   , IsHead
 
     -- * A Key Value type where the keys are type-level strings
   , KV(..)
   , select
 
-    -- * WhenIn items in a 'HList' by their type
-  , IsIn(..)
-  , WhenIn(..)
-  , hIndex
+    -- * Detects if a type is/is not in another list of types
+  , IsAbsent
   )
 where
 
+
 import qualified Data.Type.Equality as T
+import           GHC.Exts           (Constraint)
 import           GHC.TypeLits       (ErrorMessage (..), Symbol, TypeError)
 import qualified GHC.TypeLits       as TL
-
 
 
 {-| Obtain the first element of a 'HList'. -}
@@ -96,12 +95,12 @@ type family IsHead (s :: Symbol) (xs :: [*]) :: Bool where
   IsHead s _              = 'False
 
 
-{-| WhenIn if the type corresponding to a given symbol in a 'HList' of 'KV'. -}
-type family Lookup (s :: Symbol) (xs :: [*]) :: * where
-  Lookup s '[] = TypeError (('TL.Text "Cannot find the label: ") ':<>: ('TL.Text s))
-  Lookup s (KV s' t ': tail) = If (s T.== s') t (Lookup s tail)
-  Lookup s (badType ': tail) =
-    TypeError (('TL.Text "Expecting a KV in the type list, instead have: ")
+{-| KVLookup finds the type corresponding to a symbol in an 'HList' of 'KV'. -}
+type family KVLookup (s :: Symbol) (xs :: [*]) :: * where
+  KVLookup s '[] = TypeError (('TL.Text "KVLookup:cannot find a KV with key:") ':<>: ('TL.ShowType s))
+  KVLookup s (KV s' t ': tail) = If (s T.== s') t (KVLookup s tail)
+  KVLookup s (badType ': tail) =
+    TypeError (('TL.Text "KVLookup: expected KVs in the type list, instead have: ")
                ':<>:
                ('TL.ShowType badType))
 
@@ -119,62 +118,22 @@ instance Member s tail t (IsHead s tail)
 
 
 {-| Simplifies writing constraint that use 'Member'. -}
-type KVMember s xs = Member s xs (Lookup s xs) (IsHead s xs)
+type KVMember s xs = Member s xs (KVLookup s xs) (IsHead s xs)
 
 
 {-| Select an item by 'HList' of '@'KV's@ by 'key'. -}
 select
   :: forall s xs . KVMember s xs
   => HList xs
-  -> Lookup s xs
-select = select' @s @xs @(Lookup s xs) @(IsHead s xs)
+  -> KVLookup s xs
+select = select' @s @xs @(KVLookup s xs) @(IsHead s xs)
 
 
-{-| A proof that @e@ is an element of @r@. -}
-data IsIn e r where
+{-| A constraint that confirms type @e@ is not an element of type list @r@. -}
+type family IsAbsent e r :: Constraint where
+  IsAbsent e '[]           = ()
+  IsAbsent e (e' ': tail)  = If (e T.== e') (TypeError (NotAbsentErr e)) (IsAbsent e tail)
 
-  -- | @e@ is located at the head of the list.
-  IsHead  :: IsIn e (e ': r)
-
-  -- | @e@ is located somewhere in the tail of the list.
-  InTail :: IsIn e r -> IsIn e (e' ': r)
-
-
-{-| Obtains an 'IsIn'.
-
-An intermediate class used by 'WhenIn'
-
--}
-class WhenIn1 (t :: k) (r :: [k]) (r0 :: [k]) where
-  find1Proof :: IsIn t r
-
-instance {-# OVERLAPPING #-} WhenIn1 elem (elem ': rest) orig where
-  find1Proof = IsHead
-
-instance WhenIn1 elem items orig => WhenIn1 elem (_head ': items) orig where
-  find1Proof = InTail $ find1Proof @_ @elem @items @orig
-
-instance TypeError (WhenIn1NotFound elem orig) => WhenIn1 elem '[] orig where
-  find1Proof = error "WhenIn1: TypeError should have caught this"
-
-type WhenIn1NotFound key collection =
-  ('TL.Text "WhenIn1: type " ':<>: 'TL.ShowType key) ':<>:
-  ('TL.Text " could not be found in list of types " ':<>:
-   'TL.ShowType collection)
-
-
-{-| Obtains an 'IsIn' -}
-class WhenIn (t :: k) (r :: [k]) where
-  findProof :: IsIn t r
-
-instance WhenIn1 elem items items => WhenIn elem items where
-  findProof = find1Proof @_ @elem @items @items
-
-
-{-| Finds an element of @'HList'@ using 'WhenIn'. -}
-hIndex :: WhenIn b as => HList as ->  b
-hIndex = go findProof
-  where
-    go :: IsIn b as -> HList as -> b
-    go IsHead (x `HCons` _)      = x
-    go (InTail z) (_ `HCons` xs) = go z xs
+type (NotAbsentErr e) =
+  ('TL.Text " type " ':<>: 'TL.ShowType e) ':<>:
+  ('TL.Text " is already in this type list, and is not allowed again")

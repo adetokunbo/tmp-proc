@@ -11,7 +11,7 @@
 {-# LANGUAGE PolyKinds              #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeApplications       #-}
-{-# LANGUAGE TypeFamilies           #-}
+{-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE TypeOperators          #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
@@ -38,7 +38,6 @@ module System.TmpProc.Docker
 
     -- * @'Connectable'@ and related types and functions
   , Connectable(..)
-  , ReverseConn
   , connected
   , withTmpConn
   , withNamedConn
@@ -87,8 +86,8 @@ import           System.Process           (StdStream (..), proc, readProcess,
                                            std_err, std_out, waitForProcess,
                                            withCreateProcess)
 
-import           System.TmpProc.TypeLevel (HList (..), KV (..), KVMember,
-                                           Lookup, hIndex, select)
+import           System.TmpProc.TypeLevel (HList (..), IsAbsent, KV (..),
+                                           KVLookup, KVMember, select)
 
 {-| Determines if the docker daemon is accessible. -}
 hasDocker :: IO Bool
@@ -169,14 +168,10 @@ imageTexts = go procProof
     go (SomeProcsCons cons)  (x `HCons` y) = imageText x : (go cons y)
 
 
-{-| Used to prove that 'Conn' a is injective for all 'Connectable'. -}
-type family ReverseConn a :: *
-
-
 {-| Specifies how to a get a connection to a 'Proc'. -}
-class (Proc a, (ReverseConn (Conn a) ~ a)) => Connectable a where
+class Proc a => Connectable a where
   {-| The connection type. -}
-  type Conn a :: *
+  type Conn a = (conn :: *) | conn -> a
 
   {-| Get a connection to the Proc via its 'ProcHandle', -}
   openConn :: ProcHandle a -> IO (Conn a)
@@ -192,7 +187,7 @@ class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
   type Image a :: Symbol
 
   {-| A label to use when referencing the process created from this image. -}
-  type Name a :: Symbol
+  type Name a = (labelName :: Symbol) | labelName -> a
 
   {-| Additional arguments for launching the temporary process. -}
   runArgs :: [Text]
@@ -313,7 +308,7 @@ named ::
   , AreHandles xs
   , Proc a
   , KVMember s (Handle2KV xs)
-  , Lookup s (Handle2KV xs) ~ ProcHandle a)
+  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
   => Proxy s -> HList xs -> ProcHandle a
 named proxy xs = named' proxy $ toKVs xs
 
@@ -324,7 +319,7 @@ connected ::
   , AreHandles xs
   , Connectable a
   , KVMember s (Handle2KV xs)
-  , Lookup s (Handle2KV xs) ~ ProcHandle a)
+  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
   => Proxy s -> HList xs -> ProcHandle a
 connected proxy xs = named' proxy $ toKVs xs
 
@@ -335,7 +330,7 @@ withNamedConn ::
   , AreHandles xs
   , Connectable a
   , KVMember s (Handle2KV xs)
-  , Lookup s (Handle2KV xs) ~ ProcHandle a)
+  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
   => Proxy s -> HList xs -> (Conn a -> IO b) -> IO b
 withNamedConn proxy xs action = flip withTmpConn action $ named' proxy $ toKVs xs
 
@@ -350,7 +345,7 @@ named'
      ( KnownSymbol s
      , Proc a
      , KVMember s xs
-     , Lookup s xs ~ ProcHandle a)
+     , KVLookup s xs ~ ProcHandle a)
   => Proxy s -> HList xs -> ProcHandle a
 named' _ kvs = select @s kvs
 
@@ -362,7 +357,7 @@ ixReset ::
   , AreHandles xs
   , Proc a
   , KVMember s (Handle2KV xs)
-  , Lookup s (Handle2KV xs) ~ ProcHandle a)
+  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
   => Proxy s -> HList xs -> IO ()
 ixReset proxy xs = ixReset' proxy $ toKVs xs
 
@@ -372,7 +367,7 @@ ixReset'
      ( KnownSymbol s
      , Proc a
      , KVMember s xs
-     , Lookup s xs ~ ProcHandle a)
+     , KVLookup s xs ~ ProcHandle a)
   => Proxy s -> HList xs -> IO ()
 ixReset' _ kvs = reset $ select @s kvs
 
@@ -383,7 +378,7 @@ ixPing ::
   , AreHandles xs
   , Proc a
   , KVMember s (Handle2KV xs)
-  , Lookup s (Handle2KV xs) ~ ProcHandle a)
+  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
   => Proxy s -> HList xs -> IO ()
 ixPing proxy xs = ixPing' proxy $ toKVs xs
 
@@ -393,7 +388,7 @@ ixPing'
      ( KnownSymbol s
      , Proc a
      , KVMember s xs
-     , Lookup s xs ~ ProcHandle a)
+     , KVLookup s xs ~ ProcHandle a)
   => Proxy s -> HList xs -> IO ()
 ixPing' _ kvs = ping $ select @s kvs
 
@@ -404,7 +399,7 @@ ixUriOf ::
   , AreHandles xs
   , Proc a
   , KVMember s (Handle2KV xs)
-  , Lookup s (Handle2KV xs) ~ ProcHandle a)
+  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
   => Proxy s -> HList xs -> SvcURI
 ixUriOf proxy xs = ixUriOf' proxy $ toKVs xs
 
@@ -414,7 +409,7 @@ ixUriOf'
      ( KnownSymbol s
      , Proc a
      , KVMember s xs
-     , Lookup s xs ~ ProcHandle a)
+     , KVLookup s xs ~ ProcHandle a)
   => Proxy s -> HList xs -> SvcURI
 ixUriOf' _ kvs = hUri $ select @s kvs
 
@@ -448,7 +443,7 @@ type family Handle2KV (ts :: [*]) :: [*] where
 {-| Used by @'AreProcs'@ to prove a list of types just contains @'Proc's@. -}
 data SomeProcs (as :: [*]) where
   SomeProcsNil  :: SomeProcs '[]
-  SomeProcsCons :: Proc a => SomeProcs as -> SomeProcs (a ': as)
+  SomeProcsCons :: (Proc a, IsAbsent a as) => SomeProcs as -> SomeProcs (a ': as)
 
 
 {-| Declares a proof that a list of types only contains @'Proc's@. -}
@@ -458,14 +453,14 @@ class AreProcs as where
 instance AreProcs '[] where
   procProof = SomeProcsNil
 
-instance (Proc a, AreProcs as) => AreProcs (a ': as) where
+instance (Proc a, AreProcs as, IsAbsent a as) => AreProcs (a ': as) where
   procProof = SomeProcsCons procProof
 
 
 {-| Used by @'AreHandles'@ to prove a list of types just contains @'ProcHandle's@. -}
 data SomeHandles (as :: [*]) where
   SomeHandlesNil  :: SomeHandles '[]
-  SomeHandlesCons :: Proc a => SomeHandles as -> SomeHandles (ProcHandle a ': as)
+  SomeHandlesCons :: (Proc a, IsAbsent (ProcHandle a) as) => SomeHandles as -> SomeHandles (ProcHandle a ': as)
 
 
 {-| Declares a proof that a list of types only contains @'ProcHandle's@. -}
@@ -475,5 +470,5 @@ class AreHandles as where
 instance AreHandles '[] where
   handleProof = SomeHandlesNil
 
-instance (Proc a, AreHandles as) => AreHandles (ProcHandle a ': as) where
+instance (Proc a, AreHandles as, IsAbsent (ProcHandle a) as) => AreHandles (ProcHandle a ': as) where
   handleProof = SomeHandlesCons handleProof
