@@ -39,8 +39,6 @@ module System.TmpProc.TypeLevel
   , select
 
     -- * Detects if a type is/is not in another list of types
-  , IsIn(..)
-  , WhenIn(..)
   , IsAbsent
   )
 where
@@ -129,47 +127,6 @@ select
   => HList xs
   -> KVLookup s xs
 select = select' @s @xs @(KVLookup s xs) @(IsHead s xs)
-
-
-{-| A proof that @e@ is an element of @r@. -}
-data IsIn e r where
-
-  -- | @e@ is located at the head of the list.
-  IsHead  :: IsIn e (e ': r)
-
-  -- | @e@ is located somewhere in the tail of the list.
-  InTail :: IsIn e r -> IsIn e (e' ': r)
-
-
-{-| Obtains an 'IsIn'.
-
-An intermediate class used by 'WhenIn'
-
--}
-class WhenIn1 (t :: k) (r :: [k]) (r0 :: [k]) where
-  find1Proof :: IsIn t r
-
-instance {-# OVERLAPPING #-} WhenIn1 elem (elem ': rest) orig where
-  find1Proof = IsHead
-
-instance WhenIn1 elem items orig => WhenIn1 elem (_head ': items) orig where
-  find1Proof = InTail $ find1Proof @_ @elem @items @orig
-
-instance TypeError (WhenIn1NotFound elem orig) => WhenIn1 elem '[] orig where
-  find1Proof = error "WhenIn1: TypeError should have caught this"
-
-type WhenIn1NotFound key collection =
-  ('TL.Text "WhenIn1: type " ':<>: 'TL.ShowType key) ':<>:
-  ('TL.Text " could not be found in list of types " ':<>:
-   'TL.ShowType collection)
-
-
-{-| Obtains an 'IsIn' -}
-class WhenIn (t :: k) (r :: [k]) where
-  findProof :: IsIn t r
-
-instance WhenIn1 elem items items => WhenIn elem items where
-  findProof = find1Proof @_ @elem @items @items
 
 
 {-| A constraint that confirms type @e@ is not an element of type list @r@. -}
