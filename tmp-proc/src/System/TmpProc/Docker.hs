@@ -169,7 +169,7 @@ imageTexts = go procProof
     go (SomeProcsCons cons)  (x `HCons` y) = imageText x : (go cons y)
 
 
-{-| Used to prove that 'Conn' a is injective for all 'Connectable'. -}
+{-| Used to prove that @'Conn'@ is injective for all @'Connectable'@. -}
 type family ReverseConn a :: *
 
 

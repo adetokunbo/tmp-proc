@@ -38,7 +38,7 @@ module System.TmpProc.TypeLevel
   , KV(..)
   , select
 
-    -- * WhenIn items in a 'HList' by their type
+    -- * WhenIn detects if a type is in another list of types
   , IsIn(..)
   , WhenIn(..)
   , hIndex
