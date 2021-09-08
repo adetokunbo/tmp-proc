@@ -31,7 +31,7 @@ module System.TmpProc.TypeLevel
    -- * Confirm membership of an extensible record made of an 'HList' of @'KV's@
   , KVMember
   , Member(..)
-  , Lookup
+  , KVLookup
   , IsHead
 
     -- * A Key Value type where the keys are type-level strings
@@ -96,12 +96,12 @@ type family IsHead (s :: Symbol) (xs :: [*]) :: Bool where
   IsHead s _              = 'False
 
 
-{-| WhenIn if the type corresponding to a given symbol in a 'HList' of 'KV'. -}
-type family Lookup (s :: Symbol) (xs :: [*]) :: * where
-  Lookup s '[] = TypeError (('TL.Text "Cannot find the label: ") ':<>: ('TL.Text s))
-  Lookup s (KV s' t ': tail) = If (s T.== s') t (Lookup s tail)
-  Lookup s (badType ': tail) =
-    TypeError (('TL.Text "Expecting a KV in the type list, instead have: ")
+{-| KVLookup finds the type corresponding to a symbol in an 'HList' of 'KV'. -}
+type family KVLookup (s :: Symbol) (xs :: [*]) :: * where
+  KVLookup s '[] = TypeError (('TL.Text "KVLookup:cannot find a KV with key:") ':<>: ('TL.ShowType s))
+  KVLookup s (KV s' t ': tail) = If (s T.== s') t (KVLookup s tail)
+  KVLookup s (badType ': tail) =
+    TypeError (('TL.Text "KVLookup: expected KVs in the type list, instead have: ")
                ':<>:
                ('TL.ShowType badType))
 
@@ -119,15 +119,15 @@ instance Member s tail t (IsHead s tail)
 
 
 {-| Simplifies writing constraint that use 'Member'. -}
-type KVMember s xs = Member s xs (Lookup s xs) (IsHead s xs)
+type KVMember s xs = Member s xs (KVLookup s xs) (IsHead s xs)
 
 
 {-| Select an item by 'HList' of '@'KV's@ by 'key'. -}
 select
   :: forall s xs . KVMember s xs
   => HList xs
-  -> Lookup s xs
-select = select' @s @xs @(Lookup s xs) @(IsHead s xs)
+  -> KVLookup s xs
+select = select' @s @xs @(KVLookup s xs) @(IsHead s xs)
 
 
 {-| A proof that @e@ is an element of @r@. -}

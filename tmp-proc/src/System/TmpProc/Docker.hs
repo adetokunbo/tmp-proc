@@ -88,7 +88,7 @@ import           System.Process           (StdStream (..), proc, readProcess,
                                            withCreateProcess)
 
 import           System.TmpProc.TypeLevel (HList (..), KV (..), KVMember,
-                                           Lookup, hIndex, select)
+                                           KVLookup, hIndex, select)
 
 {-| Determines if the docker daemon is accessible. -}
 hasDocker :: IO Bool
@@ -313,7 +313,7 @@ named ::
   , AreHandles xs
   , Proc a
   , KVMember s (Handle2KV xs)
-  , Lookup s (Handle2KV xs) ~ ProcHandle a)
+  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
   => Proxy s -> HList xs -> ProcHandle a
 named proxy xs = named' proxy $ toKVs xs
 
@@ -324,7 +324,7 @@ connected ::
   , AreHandles xs
   , Connectable a
   , KVMember s (Handle2KV xs)
-  , Lookup s (Handle2KV xs) ~ ProcHandle a)
+  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
   => Proxy s -> HList xs -> ProcHandle a
 connected proxy xs = named' proxy $ toKVs xs
 
@@ -335,7 +335,7 @@ withNamedConn ::
   , AreHandles xs
   , Connectable a
   , KVMember s (Handle2KV xs)
-  , Lookup s (Handle2KV xs) ~ ProcHandle a)
+  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
   => Proxy s -> HList xs -> (Conn a -> IO b) -> IO b
 withNamedConn proxy xs action = flip withTmpConn action $ named' proxy $ toKVs xs
 
@@ -350,7 +350,7 @@ named'
      ( KnownSymbol s
      , Proc a
      , KVMember s xs
-     , Lookup s xs ~ ProcHandle a)
+     , KVLookup s xs ~ ProcHandle a)
   => Proxy s -> HList xs -> ProcHandle a
 named' _ kvs = select @s kvs
 
@@ -362,7 +362,7 @@ ixReset ::
   , AreHandles xs
   , Proc a
   , KVMember s (Handle2KV xs)
-  , Lookup s (Handle2KV xs) ~ ProcHandle a)
+  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
   => Proxy s -> HList xs -> IO ()
 ixReset proxy xs = ixReset' proxy $ toKVs xs
 
@@ -372,7 +372,7 @@ ixReset'
      ( KnownSymbol s
      , Proc a
      , KVMember s xs
-     , Lookup s xs ~ ProcHandle a)
+     , KVLookup s xs ~ ProcHandle a)
   => Proxy s -> HList xs -> IO ()
 ixReset' _ kvs = reset $ select @s kvs
 
@@ -383,7 +383,7 @@ ixPing ::
   , AreHandles xs
   , Proc a
   , KVMember s (Handle2KV xs)
-  , Lookup s (Handle2KV xs) ~ ProcHandle a)
+  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
   => Proxy s -> HList xs -> IO ()
 ixPing proxy xs = ixPing' proxy $ toKVs xs
 
@@ -393,7 +393,7 @@ ixPing'
      ( KnownSymbol s
      , Proc a
      , KVMember s xs
-     , Lookup s xs ~ ProcHandle a)
+     , KVLookup s xs ~ ProcHandle a)
   => Proxy s -> HList xs -> IO ()
 ixPing' _ kvs = ping $ select @s kvs
 
@@ -404,7 +404,7 @@ ixUriOf ::
   , AreHandles xs
   , Proc a
   , KVMember s (Handle2KV xs)
-  , Lookup s (Handle2KV xs) ~ ProcHandle a)
+  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
   => Proxy s -> HList xs -> SvcURI
 ixUriOf proxy xs = ixUriOf' proxy $ toKVs xs
 
@@ -414,7 +414,7 @@ ixUriOf'
      ( KnownSymbol s
      , Proc a
      , KVMember s xs
-     , Lookup s xs ~ ProcHandle a)
+     , KVLookup s xs ~ ProcHandle a)
   => Proxy s -> HList xs -> SvcURI
 ixUriOf' _ kvs = hUri $ select @s kvs
 
