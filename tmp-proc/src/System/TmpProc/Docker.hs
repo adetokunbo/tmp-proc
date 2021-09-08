@@ -87,7 +87,7 @@ import           System.Process           (StdStream (..), proc, readProcess,
                                            withCreateProcess)
 
 import           System.TmpProc.TypeLevel (HList (..), KV (..), KVMember,
-                                           KVLookup, hIndex, select)
+                                           KVLookup, select)
 
 {-| Determines if the docker daemon is accessible. -}
 hasDocker :: IO Bool

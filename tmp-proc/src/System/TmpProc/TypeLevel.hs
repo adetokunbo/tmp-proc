@@ -41,9 +41,9 @@ module System.TmpProc.TypeLevel
     -- * WhenIn detects if a type is in another list of types
   , IsIn(..)
   , WhenIn(..)
-  , hIndex
   )
 where
+
 
 import qualified Data.Type.Equality as T
 import           GHC.TypeLits       (ErrorMessage (..), Symbol, TypeError)
@@ -169,12 +169,3 @@ class WhenIn (t :: k) (r :: [k]) where
 
 instance WhenIn1 elem items items => WhenIn elem items where
   findProof = find1Proof @_ @elem @items @items
-
-
-{-| Finds an element of @'HList'@ using 'WhenIn'. -}
-hIndex :: WhenIn b as => HList as ->  b
-hIndex = go findProof
-  where
-    go :: IsIn b as -> HList as -> b
-    go IsHead (x `HCons` _)      = x
-    go (InTail z) (_ `HCons` xs) = go z xs
