@@ -38,17 +38,18 @@ module System.TmpProc.TypeLevel
   , KV(..)
   , select
 
-    -- * WhenIn detects if a type is in another list of types
+    -- * Detects if a type is/is not in another list of types
   , IsIn(..)
   , WhenIn(..)
+  , IsAbsent
   )
 where
 
 
 import qualified Data.Type.Equality as T
+import           GHC.Exts           (Constraint)
 import           GHC.TypeLits       (ErrorMessage (..), Symbol, TypeError)
 import qualified GHC.TypeLits       as TL
-
 
 
 {-| Obtain the first element of a 'HList'. -}
@@ -169,3 +170,13 @@ class WhenIn (t :: k) (r :: [k]) where
 
 instance WhenIn1 elem items items => WhenIn elem items where
   findProof = find1Proof @_ @elem @items @items
+
+
+{-| A constraint that confirms type @e@ is not an element of type list @r@. -}
+type family IsAbsent e r :: Constraint where
+  IsAbsent e '[]           = ()
+  IsAbsent e (e' ': tail)  = If (e T.== e') (TypeError (NotAbsentErr e)) (IsAbsent e tail)
+
+type (NotAbsentErr e) =
+  ('TL.Text " type " ':<>: 'TL.ShowType e) ':<>:
+  ('TL.Text " is already in this type list, and is not allowed again")

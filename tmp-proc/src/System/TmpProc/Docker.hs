@@ -86,8 +86,8 @@ import           System.Process           (StdStream (..), proc, readProcess,
                                            std_err, std_out, waitForProcess,
                                            withCreateProcess)
 
-import           System.TmpProc.TypeLevel (HList (..), KV (..), KVMember,
-                                           KVLookup, select)
+import           System.TmpProc.TypeLevel (HList (..), IsAbsent, KV (..),
+                                           KVLookup, KVMember, select)
 
 {-| Determines if the docker daemon is accessible. -}
 hasDocker :: IO Bool
@@ -443,7 +443,7 @@ type family Handle2KV (ts :: [*]) :: [*] where
 {-| Used by @'AreProcs'@ to prove a list of types just contains @'Proc's@. -}
 data SomeProcs (as :: [*]) where
   SomeProcsNil  :: SomeProcs '[]
-  SomeProcsCons :: Proc a => SomeProcs as -> SomeProcs (a ': as)
+  SomeProcsCons :: (Proc a, IsAbsent a as) => SomeProcs as -> SomeProcs (a ': as)
 
 
 {-| Declares a proof that a list of types only contains @'Proc's@. -}
@@ -453,14 +453,14 @@ class AreProcs as where
 instance AreProcs '[] where
   procProof = SomeProcsNil
 
-instance (Proc a, AreProcs as) => AreProcs (a ': as) where
+instance (Proc a, AreProcs as, IsAbsent a as) => AreProcs (a ': as) where
   procProof = SomeProcsCons procProof
 
 
 {-| Used by @'AreHandles'@ to prove a list of types just contains @'ProcHandle's@. -}
 data SomeHandles (as :: [*]) where
   SomeHandlesNil  :: SomeHandles '[]
-  SomeHandlesCons :: Proc a => SomeHandles as -> SomeHandles (ProcHandle a ': as)
+  SomeHandlesCons :: (Proc a, IsAbsent (ProcHandle a) as) => SomeHandles as -> SomeHandles (ProcHandle a ': as)
 
 
 {-| Declares a proof that a list of types only contains @'ProcHandle's@. -}
@@ -470,5 +470,5 @@ class AreHandles as where
 instance AreHandles '[] where
   handleProof = SomeHandlesNil
 
-instance (Proc a, AreHandles as) => AreHandles (ProcHandle a ': as) where
+instance (Proc a, AreHandles as, IsAbsent (ProcHandle a) as) => AreHandles (ProcHandle a ': as) where
   handleProof = SomeHandlesCons handleProof
