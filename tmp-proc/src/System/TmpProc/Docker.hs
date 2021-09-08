@@ -38,7 +38,6 @@ module System.TmpProc.Docker
 
     -- * @'Connectable'@ and related types and functions
   , Connectable(..)
-  , ReverseConn
   , connected
   , withTmpConn
   , withNamedConn
@@ -169,14 +168,10 @@ imageTexts = go procProof
     go (SomeProcsCons cons)  (x `HCons` y) = imageText x : (go cons y)
 
 
-{-| Used to prove that @'Conn'@ is injective for all @'Connectable'@. -}
-type family ReverseConn a :: *
-
-
 {-| Specifies how to a get a connection to a 'Proc'. -}
-class (Proc a, (ReverseConn (Conn a) ~ a)) => Connectable a where
+class Proc a => Connectable a where
   {-| The connection type. -}
-  type Conn a :: *
+  type Conn a = (conn :: *) | conn -> a
 
   {-| Get a connection to the Proc via its 'ProcHandle', -}
   openConn :: ProcHandle a -> IO (Conn a)

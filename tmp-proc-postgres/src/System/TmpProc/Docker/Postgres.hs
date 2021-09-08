@@ -37,7 +37,7 @@ import           Database.PostgreSQL.Simple (Connection, connectPostgreSQL,
 import           System.TmpProc.Docker      (Connectable (..), HList (..),
                                              HostIpAddress, Proc (..),
                                              Proc2Handle, ProcHandle (..),
-                                             ReverseConn, SvcURI, startupAll,
+                                             SvcURI, startupAll,
                                              withTmpConn)
 
 
@@ -68,8 +68,6 @@ instance Proc TmpPostgres where
   runArgs = runArgs'
   ping = void . connectPostgreSQL . hUri
   reset = reset'
-
-type instance ReverseConn Connection = TmpPostgres
 
 instance Connectable TmpPostgres where
   type Conn TmpPostgres = Connection

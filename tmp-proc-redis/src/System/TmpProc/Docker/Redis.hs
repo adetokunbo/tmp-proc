@@ -37,7 +37,7 @@ import           Database.Redis        (Connection, checkedConnect, del,
 
 import           System.TmpProc.Docker (HList (..), HostIpAddress, Proc (..),
                                         Proc2Handle, ProcHandle (..), SvcURI,
-                                        startupAll, Connectable(..), ReverseConn, withTmpConn)
+                                        startupAll, Connectable(..), withTmpConn)
 
 
 {-| A singleton 'HList' containing an example 'TmpRedis'. -}
@@ -71,8 +71,6 @@ instance Proc TmpRedis where
   runArgs = []
   ping = flip withTmpConn (const $ pure ())
   reset = clearKeys
-
-type instance ReverseConn Connection = TmpRedis
 
 instance Connectable TmpRedis where
   type Conn TmpRedis = Connection
