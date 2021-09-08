@@ -11,7 +11,7 @@
 {-# LANGUAGE PolyKinds              #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeApplications       #-}
-{-# LANGUAGE TypeFamilies           #-}
+{-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE TypeOperators          #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
@@ -192,7 +192,7 @@ class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
   type Image a :: Symbol
 
   {-| A label to use when referencing the process created from this image. -}
-  type Name a :: Symbol
+  type Name a = (labelName :: Symbol) | labelName -> a
 
   {-| Additional arguments for launching the temporary process. -}
   runArgs :: [Text]

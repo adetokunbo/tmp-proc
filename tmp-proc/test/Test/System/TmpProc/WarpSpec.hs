@@ -10,22 +10,17 @@ module Test.System.TmpProc.WarpSpec where
 
 import           Test.Hspec
 
-import           Control.Exception         (catch)
-import qualified Data.ByteString.Char8     as C8
-import           Data.List                 (foldl')
 import           Data.Proxy                (Proxy (..))
 import           Data.Text                 (Text)
-import qualified Data.Text                 as Text
-import           Network.HTTP.Req
 import           Network.HTTP.Types        (status200, status400)
 import           Network.Wai               (Application, pathInfo, responseLBS)
 
-import           System.TmpProc.Docker     (HList (..), Proc (..), ProcHandle,
-                                            hAddr, ixPing)
+import           System.TmpProc.Docker     (HList (..), ProcHandle, ixPing)
 import           System.TmpProc.Warp       (ServerHandle, handles, runServer,
                                             runTLSServer, serverPort, shutdown,
                                             testWithApplication,
                                             testWithTLSApplication)
+import           Test.HttpBin
 import           Test.SimpleServer         (defaultTLSSettings, statusOfGet,
                                             statusOfGet')
 import           Test.System.TmpProc.Hspec (noDockerSpec)
@@ -109,43 +104,6 @@ checkEachTest descPrefix setup getter = around setup $ do
     context "serverPort" $ do
       it "should invoke the server via the warp ok" $ \(_, p) ->
         getter p "test" `shouldReturn` 200
-
-
-{-| Represents a temporary process running a HttpBin server. -}
-data HttpBinTest = HttpBinTest
-
-{-| Run HttpBin as temporary process.  -}
-instance Proc HttpBinTest where
-  type Image HttpBinTest = "kennethreitz/httpbin"
-  type Name HttpBinTest = "http-bin-test"
-
-  uriOf ip = "http://" <> C8.pack (Text.unpack ip) <> "/"
-  runArgs = []
-  reset _ = pure ()
-  ping = ping'
-
-
-{-| Does nothing, httpBin is stateless. -}
-ping' :: ProcHandle HttpBinTest -> IO ()
-ping' handle = do
-  let catchHttp x = x `catch` (\(_ :: HttpException) ->
-                                  fail "tmp proc:httpbin:ping failed")
-  catchHttp $ do
-    gotStatus <- getByHandle handle "/status/200"
-    if (gotStatus == 200) then pure () else
-      fail "tmp proc:httpbin:incorrect ping status"
-
-
--- | Determine the status from a Get on localhost.
-getByHandle :: ProcHandle HttpBinTest -> Text -> IO Int
-getByHandle handle urlPath = runReq defaultHttpConfig $ do
-  r <- req GET (handleUrl handle urlPath) NoReqBody ignoreResponse $ mempty
-  return $ responseStatusCode r
-
-
-handleUrl :: ProcHandle HttpBinTest -> Text -> Url 'Http
-handleUrl handle urlPath = foldl' (/:) (http $ hAddr handle)
-  $ Text.splitOn "/" $ Text.dropWhile (== '/') urlPath
 
 
 -- | A WAI app that triggers an action on a TmpProc dependency on /test, and

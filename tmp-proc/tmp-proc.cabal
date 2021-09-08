@@ -46,6 +46,7 @@ test-suite integration-test
   type:             exitcode-stdio-1.0
   main-is:          Spec.hs
   other-modules:    Test.SimpleServer
+                    Test.HttpBin
                     Test.System.TmpProc.HttpBinSpec
                     Test.System.TmpProc.WarpSpec
                     Test.System.TmpProc.Hspec
