@@ -50,9 +50,9 @@ import           UnliftIO                    (Async, async, bracket, cancel,
                                               catch, onException, race, throwIO,
                                               waitEither)
 
-import           System.TmpProc.Docker       (AreHandles, AreProcs, HList (..),
-                                              Proc2Handle, startupAll,
-                                              terminateAll, withTmpProcs)
+import           System.TmpProc.Docker       (AreProcs, HList (..), Proc2Handle,
+                                              startupAll, terminateAll,
+                                              withTmpProcs)
 
 
 -- | Represents a started Warp application and any 'AreProcs' dependencies.
@@ -65,7 +65,7 @@ data ServerHandle as = ServerHandle
 
 -- | Runs an 'Application' with 'ProcHandle' dependencies on a free port.
 runServer
-  :: (AreProcs as, AreHandles (Proc2Handle as))
+  :: AreProcs as
   => HList as
   -> (HList (Proc2Handle as) -> IO Application)
   -> IO (ServerHandle (Proc2Handle as))
@@ -74,9 +74,9 @@ runServer = runReadyServer doNothing
 
 {-| Like 'runServer'; with an additional @ready@ that determines if the server is ready.'. -}
 runReadyServer
-  :: (AreProcs as, AreHandles (Proc2Handle as))
+  :: AreProcs as
   => (Warp.Port -> IO ())       --  ^ throws an exception if the server is not ready
-  -> HList as                   --  ^ defines the dependent @TmpProc@s
+  -> HList as                   --  ^ defines the dependent @Proc@s
   -> (HList (Proc2Handle as) -> IO Application)
   -> IO (ServerHandle (Proc2Handle as))
 runReadyServer = runReadyServer' Warp.runSettingsSocket
@@ -84,7 +84,7 @@ runReadyServer = runReadyServer' Warp.runSettingsSocket
 
 {-| Like 'runServer'; the port is secured with 'Warp.TLSSettings'. -}
 runTLSServer
-  :: (AreProcs as, AreHandles (Proc2Handle as))
+  :: AreProcs as
   => Warp.TLSSettings
   -> HList as
   -> (HList (Proc2Handle as) -> IO Application)
@@ -94,10 +94,10 @@ runTLSServer tlsSettings = runReadyServer' (Warp.runTLSSocket tlsSettings)  doNo
 
 {-| Like 'runReadyServer'; the port is secured with 'Warp.TLSSettings'. -}
 runReadyTLSServer
-  :: (AreProcs as, AreHandles (Proc2Handle as))
+  :: AreProcs as
   => Warp.TLSSettings
   -> (Warp.Port -> IO ())       --  ^ throws an exception if the server is not ready
-  -> HList as                   --  ^ defines the dependent @TmpProc@s
+  -> HList as                   --  ^ defines the dependent @Proc@s
   -> (HList (Proc2Handle as) -> IO Application)
   -> IO (ServerHandle (Proc2Handle as))
 runReadyTLSServer tlsSettings = runReadyServer' (Warp.runTLSSocket tlsSettings)
@@ -105,10 +105,10 @@ runReadyTLSServer tlsSettings = runReadyServer' (Warp.runTLSSocket tlsSettings)
 
 -- | Used to implement 'runReadyServer'
 runReadyServer'
-  :: (AreProcs as, AreHandles (Proc2Handle as))
+  :: AreProcs as
   => (Warp.Settings -> Socket -> Application -> IO ())
   -> (Warp.Port -> IO ())       --  ^ throws an exception if the server is not ready
-  -> HList as                   --  ^ defines the dependent @TmpProc@s
+  -> HList as                   --  ^ defines the dependent @Proc@s
   -> (HList (Proc2Handle as) -> IO Application)
   -> IO (ServerHandle (Proc2Handle as))
 runReadyServer' runApp check procs mkApp = do
@@ -137,7 +137,7 @@ runReadyServer' runApp check procs mkApp = do
 
 
 -- | Shuts down the 'ServerHandle' server and its 'TmpProc' dependencies.
-shutdown :: AreHandles as => ServerHandle as -> IO ()
+shutdown :: AreProcs as => ServerHandle (Proc2Handle as) -> IO ()
 shutdown h = do
   let ServerHandle { shServer, shSocket, shHandles } = h
   terminateAll shHandles
@@ -163,7 +163,7 @@ access to the handles to the handles.
 The tmp process are shut down when the application shut down.
 -}
 testWithApplication
-  :: (AreProcs as, AreHandles (Proc2Handle as))
+  :: AreProcs as
   => HList as
   -> (HList (Proc2Handle as) -> IO Application)
   -> ((HList (Proc2Handle as), Warp.Port) -> IO a)
@@ -176,7 +176,7 @@ testWithApplication procs mkApp = runCont $ do
 
 {-| Like 'testWithApplication', but the port is secured using the given 'Warp.TLSSettings. '-}
 testWithTLSApplication
-  :: (AreProcs as, AreHandles (Proc2Handle as))
+  :: AreProcs as
   =>  Warp.TLSSettings
   -> HList as
   -> (HList (Proc2Handle as) -> IO Application)
@@ -199,7 +199,7 @@ correctly.
 The tmp process are shut down when the application shut down.
 -}
 testWithReadyApplication
-  :: (AreProcs as, AreHandles (Proc2Handle as))
+  :: AreProcs as
   => (Warp.Port -> IO ()) -- throws an exception if the server is not ready
   -> HList as
   -> (HList (Proc2Handle as) -> IO Application)
@@ -215,7 +215,7 @@ testWithReadyApplication check procs mkApp = runCont $ do
 
 {-| Like 'testWithReadyApplication'; the port is secured with 'Warp.TLSSettings'. -}
 testWithReadyTLSApplication
-  :: (AreProcs as, AreHandles (Proc2Handle as))
+  :: AreProcs as
   => Warp.TLSSettings
   -> (Warp.Port -> IO ()) -- throws an exception if the server is not ready
   -> HList as

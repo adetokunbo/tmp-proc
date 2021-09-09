@@ -56,8 +56,6 @@ module System.TmpProc.Docker
 
     -- * type-level functions/proofs
   , Proc2Handle
-  , AreHandles
-  , SomeHandles(..)
   , AreProcs
   , SomeProcs(..)
 
@@ -106,7 +104,7 @@ hasDocker = do
 
 {-| Set up some @'Proc's@, run an action that uses them, then terminate them. -}
 withTmpProcs
-  :: (AreProcs as, AreHandles (Proc2Handle as))
+  :: AreProcs as
   => HList as
   -> (HList (Proc2Handle as) -> IO b)
   -> IO b
@@ -135,8 +133,8 @@ startupAll = go procProof
 
 
 {-| Terminate all processes owned by some @'ProcHandle's@. -}
-terminateAll :: AreHandles as => HList as -> IO ()
-terminateAll = go handleProof
+terminateAll :: AreProcs as => HList (Proc2Handle as) -> IO ()
+terminateAll = go $ p2h procProof
   where
     go :: SomeHandles as -> HList as -> IO ()
     go SomeHandlesNil HNil = pure ()
@@ -151,14 +149,6 @@ terminate handle = do
   let pid = hPid handle
   void $ readProcess "docker" [ "stop", pid ] ""
   void $ readProcess "docker" [ "rm", pid ] ""
-
-
-_allPids :: AreHandles as => HList as -> [String]
-_allPids = go handleProof
-  where
-    go :: SomeHandles as -> HList as -> [String]
-    go SomeHandlesNil          HNil          = []
-    go (SomeHandlesCons cons)  (x `HCons` y) = hPid x : (go cons y)
 
 
 imageTexts :: AreProcs as => HList as -> [Text]
@@ -306,33 +296,32 @@ nPings h@ProcHandle{hProc = p} =
 {-| Obtains the handle with the given @'Name'@ from an 'HList' of 'ProcHandle'. -}
 named ::
   ( KnownSymbol s
-  , AreHandles xs
-  , Proc a
-  , KVMember s (Handle2KV xs)
-  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
-  => Proxy s -> HList xs -> ProcHandle a
+  , AreProcs xs
+  , KVMember s (Handle2KV (Proc2Handle xs))
+  , KVLookup s (Handle2KV (Proc2Handle xs)) ~ ProcHandle a)
+  => Proxy s -> HList (Proc2Handle xs) -> ProcHandle a
 named proxy xs = named' proxy $ toKVs xs
 
 
 {-| Liked 'named', but constrains the handle to be 'Connectable'. -}
 connected ::
   ( KnownSymbol s
-  , AreHandles xs
+  , AreProcs xs
   , Connectable a
-  , KVMember s (Handle2KV xs)
-  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
-  => Proxy s -> HList xs -> ProcHandle a
+  , KVMember s (Handle2KV (Proc2Handle xs))
+  , KVLookup s (Handle2KV (Proc2Handle xs)) ~ ProcHandle a)
+  => Proxy s -> HList (Proc2Handle xs) -> ProcHandle a
 connected proxy xs = named' proxy $ toKVs xs
 
 
 {-| Liked 'connected', but provides the 'Conn' to a callback. -}
 withNamedConn ::
   ( KnownSymbol s
-  , AreHandles xs
+  , AreProcs xs
   , Connectable a
-  , KVMember s (Handle2KV xs)
-  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
-  => Proxy s -> HList xs -> (Conn a -> IO b) -> IO b
+  , KVMember s (Handle2KV (Proc2Handle xs))
+  , KVLookup s (Handle2KV (Proc2Handle xs)) ~ ProcHandle a)
+  => Proxy s -> HList (Proc2Handle xs) -> (Conn a -> IO b) -> IO b
 withNamedConn proxy xs action = flip withTmpConn action $ named' proxy $ toKVs xs
 
 
@@ -344,22 +333,20 @@ withTmpConn handle action = bracket (openConn handle) closeConn action
 named'
   :: forall (s :: Symbol) a (xs :: [*]) .
      ( KnownSymbol s
-     , Proc a
      , KVMember s xs
      , KVLookup s xs ~ ProcHandle a)
   => Proxy s -> HList xs -> ProcHandle a
 named' _ kvs = select @s kvs
 
 
-
 {-| Resets the handle with the given @'Name'@ in a list of Handles. -}
 ixReset ::
   ( KnownSymbol s
-  , AreHandles xs
+  , AreProcs xs
   , Proc a
-  , KVMember s (Handle2KV xs)
-  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
-  => Proxy s -> HList xs -> IO ()
+  , KVMember s (Handle2KV (Proc2Handle xs))
+  , KVLookup s (Handle2KV (Proc2Handle xs)) ~ ProcHandle a)
+  => Proxy s -> HList (Proc2Handle xs) -> IO ()
 ixReset proxy xs = ixReset' proxy $ toKVs xs
 
 
@@ -376,11 +363,11 @@ ixReset' _ kvs = reset $ select @s kvs
 {-| Pings the handle with the given @'Name'@ in a list of Handles. -}
 ixPing ::
   ( KnownSymbol s
-  , AreHandles xs
+  , AreProcs xs
   , Proc a
-  , KVMember s (Handle2KV xs)
-  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
-  => Proxy s -> HList xs -> IO ()
+  , KVMember s (Handle2KV (Proc2Handle xs))
+  , KVLookup s (Handle2KV (Proc2Handle xs)) ~ ProcHandle a)
+  => Proxy s -> HList (Proc2Handle xs) -> IO ()
 ixPing proxy xs = ixPing' proxy $ toKVs xs
 
 
@@ -397,18 +384,17 @@ ixPing' _ kvs = ping $ select @s kvs
 {-| URI for the handle with the given @'Name'@ in a list of Handles. -}
 ixUriOf ::
   ( KnownSymbol s
-  , AreHandles xs
-  , Proc a
-  , KVMember s (Handle2KV xs)
-  , KVLookup s (Handle2KV xs) ~ ProcHandle a)
-  => Proxy s -> HList xs -> SvcURI
+  , AreProcs xs
+  , Connectable a
+  , KVMember s (Handle2KV (Proc2Handle xs))
+  , KVLookup s (Handle2KV (Proc2Handle xs)) ~ ProcHandle a)
+  => Proxy s -> HList (Proc2Handle xs) -> SvcURI
 ixUriOf proxy xs = ixUriOf' proxy $ toKVs xs
 
 
 ixUriOf'
   :: forall (s :: Symbol) a (xs :: [*]) .
      ( KnownSymbol s
-     , Proc a
      , KVMember s xs
      , KVLookup s xs ~ ProcHandle a)
   => Proxy s -> HList xs -> SvcURI
@@ -416,8 +402,8 @@ ixUriOf' _ kvs = hUri $ select @s kvs
 
 
 {-| Create a 'HList' of @'KV's@ from a 'HList' of @'ProcHandle's@. -}
-toKVs :: AreHandles xs => HList xs -> HList (Handle2KV xs)
-toKVs = go handleProof
+toKVs :: AreProcs xs => HList (Proc2Handle xs) -> HList (Handle2KV (Proc2Handle xs))
+toKVs = go $ p2h procProof
   where
     go :: SomeHandles as -> HList as -> HList (Handle2KV as)
     go SomeHandlesNil         HNil          = HNil
@@ -430,7 +416,7 @@ toKV h = V h
 
 
 {-| Converts list of types to the corresponding 'ProcHandle' types. -}
-type family Proc2Handle as where
+type family Proc2Handle (as :: [*]) = (handleTys :: [*]) | handleTys -> as where
   Proc2Handle '[]        = '[]
   Proc2Handle (a ':  as) = ProcHandle a ': Proc2Handle as
 
@@ -458,18 +444,12 @@ instance (Proc a, AreProcs as, IsAbsent a as) => AreProcs (a ': as) where
   procProof = SomeProcsCons procProof
 
 
-{-| Used by @'AreHandles'@ to prove a list of types just contains @'ProcHandle's@. -}
+{-| Used to prove a list of types just contains @'ProcHandle's@. -}
 data SomeHandles (as :: [*]) where
   SomeHandlesNil  :: SomeHandles '[]
-  SomeHandlesCons :: (Proc a, IsAbsent (ProcHandle a) as) => SomeHandles as -> SomeHandles (ProcHandle a ': as)
+  SomeHandlesCons :: Proc a => SomeHandles as -> SomeHandles (ProcHandle a ': as)
 
 
-{-| Declares a proof that a list of types only contains @'ProcHandle's@. -}
-class AreHandles as where
-  handleProof :: SomeHandles as
-
-instance AreHandles '[] where
-  handleProof = SomeHandlesNil
-
-instance (Proc a, AreHandles as, IsAbsent (ProcHandle a) as) => AreHandles (ProcHandle a ': as) where
-  handleProof = SomeHandlesCons handleProof
+p2h :: SomeProcs as -> SomeHandles (Proc2Handle as)
+p2h SomeProcsNil = SomeHandlesNil
+p2h (SomeProcsCons cons) = SomeHandlesCons (p2h cons)
