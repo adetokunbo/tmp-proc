@@ -57,10 +57,10 @@ import           System.TmpProc.Docker       (AreHandles, AreProcs, HList (..),
 
 -- | Represents a started Warp application and any 'AreProcs' dependencies.
 data ServerHandle as = ServerHandle
-  { shServer :: !(Async ())
-  , shPort   :: !Warp.Port
-  , shSocket :: !Socket
-  , shProcs  :: !(HList as)
+  { shServer  :: !(Async ())
+  , shPort    :: !Warp.Port
+  , shSocket  :: !Socket
+  , shHandles :: !(HList as)
   }
 
 -- | Runs an 'Application' with 'ProcHandle' dependencies on a free port.
@@ -139,15 +139,15 @@ runReadyServer' runApp check procs mkApp = do
 -- | Shuts down the 'ServerHandle' server and its 'TmpProc' dependencies.
 shutdown :: AreHandles as => ServerHandle as -> IO ()
 shutdown h = do
-  let ServerHandle { shServer, shSocket, shProcs } = h
-  terminateAll shProcs
+  let ServerHandle { shServer, shSocket, shHandles } = h
+  terminateAll shHandles
   cancel shServer
   close shSocket
 
 
 -- | Access a  @'ServerHandle's@  @'ProcHandle's@.
-handles :: AreHandles as => ServerHandle as -> HList as
-handles = shProcs
+handles :: AreProcs as => ServerHandle (Proc2Handle as) -> HList (Proc2Handle as)
+handles = shHandles
 
 
 -- | The 'Warp.Port' on the 'ServerHandle's server is running.
