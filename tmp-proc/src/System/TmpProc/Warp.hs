@@ -1,6 +1,18 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase       #-}
 {-# LANGUAGE NamedFieldPuns   #-}
+{-|
+Copyright   : (c) 2020-2021 Tim Emiola
+SPDX-License-Identifier: BSD3
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com >
+
+Provides functions to conveniently run WAI applications in integration tests
+with temporary processes as dependencies.
+
+These aim to simplify setup and teardown code in integration tests that use
+Warp.
+
+-}
 module System.TmpProc.Warp
   ( -- * test functions in continuation-passing style
     testWithApplication

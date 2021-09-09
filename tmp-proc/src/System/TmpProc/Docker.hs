@@ -16,12 +16,13 @@
 {-# LANGUAGE UndecidableInstances   #-}
 
 {-|
-Module      : System.TmpProc.Docker
-Description : Temporary processes launched as docker images.
-Copyright   : (c)
-License     : BSD
-Maintainer  : tim@challengehub.com
-Stability   : experimental
+Copyright   : (c) 2020-2021 Tim Emiola
+SPDX-License-Identifier: BSD3
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com >
+
+Implements core data types and combinators for launching temporary processes as
+docker images.
+
 -}
 module System.TmpProc.Docker
   (

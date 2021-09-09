@@ -15,12 +15,11 @@
 {-# LANGUAGE TypeOperators          #-}
 {-# LANGUAGE UndecidableInstances   #-}
 {-|
-Module      : System.TmpProc.TypeLevel
-Description : Define TypeLevel combinators used by other modules in this package.
-Copyright   : (c)
-License     : BSD
-Maintainer  : tim@challengehub.com
-Stability   : experimental
+Copyright   : (c) 2020-2021 Tim Emiola
+SPDX-License-Identifier: BSD3
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com >
+
+Defines TypeLevel combinators used by the other System.TmpProc.* modules
 -}
 module System.TmpProc.TypeLevel
   ( -- * HList
