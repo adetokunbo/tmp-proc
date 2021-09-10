@@ -86,8 +86,10 @@ import           System.Process           (StdStream (..), proc, readProcess,
                                            std_err, std_out, waitForProcess,
                                            withCreateProcess)
 
-import           System.TmpProc.TypeLevel (HList (..), IsAbsent, KV (..),
-                                           KVLookup, KVMember, select)
+import           System.TmpProc.TypeLevel (IsSubsetOf, SubsetOf, hSubset)
+import           System.TmpProc.TypeLevel (HList (..), IsAbsent,
+                                           KV (..), KVLookup, KVMember,
+                                           selectTF)
 
 {-| Determines if the docker daemon is accessible. -}
 hasDocker :: IO Bool
@@ -338,7 +340,7 @@ named'
      , KVMember s xs
      , KVLookup s xs ~ ProcHandle a)
   => Proxy s -> HList xs -> ProcHandle a
-named' _ kvs = select @s kvs
+named' _ kvs = selectTF @s kvs
 
 
 {-| Resets the handle with the given @'Name'@ in a list of Handles. -}
@@ -347,7 +349,6 @@ ixReset
   => Proxy s -> HList (Proc2Handle xs) -> IO ()
 ixReset proxy xs = ixReset' proxy $ toKVs xs
 
-
 ixReset'
   :: forall (s :: Symbol) a (xs :: [*]) .
      ( KnownSymbol s
@@ -355,7 +356,7 @@ ixReset'
      , KVMember s xs
      , KVLookup s xs ~ ProcHandle a)
   => Proxy s -> HList xs -> IO ()
-ixReset' _ kvs = reset $ select @s kvs
+ixReset' _ kvs = reset $ selectTF @s kvs
 
 
 {-| Pings the handle with the given @'Name'@ in a list of Handles. -}
@@ -372,7 +373,7 @@ ixPing'
      , KVMember s xs
      , KVLookup s xs ~ ProcHandle a)
   => Proxy s -> HList xs -> IO ()
-ixPing' _ kvs = ping $ select @s kvs
+ixPing' _ kvs = ping $ selectTF @s kvs
 
 
 {-| URI for the handle with the given @'Name'@ in a list of Handles. -}
@@ -388,7 +389,7 @@ ixUriOf'
      , KVMember s xs
      , KVLookup s xs ~ ProcHandle a)
   => Proxy s -> HList xs -> SvcURI
-ixUriOf' _ kvs = hUri $ select @s kvs
+ixUriOf' _ kvs = hUri $ selectTF @s kvs
 
 
 {-| Create a 'HList' of @'KV's@ from a 'HList' of @'ProcHandle's@. -}

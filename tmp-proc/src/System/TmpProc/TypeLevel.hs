@@ -34,9 +34,9 @@ module System.TmpProc.TypeLevel
   , KVLookup
   , IsHead
 
-    -- * A Key Value type where the keys are type-level strings
+    -- * A Key/Value type where the keys are type-level strings
   , KV(..)
-  , select
+  , selectTF
 
     -- * Tools for writing constraints on type lists
   , IsAbsent
@@ -135,12 +135,12 @@ instance Member s tail t (IsHead s tail)
 type KVMember s xs = Member s xs (KVLookup s xs) (IsHead s xs)
 
 
-{-| Select an item by 'HList' of '@'KV's@ by 'key'. -}
-select
+{-| Select an item in a 'HList' of '@'KV's@ by 'key'. -}
+selectTF
   :: forall s xs . KVMember s xs
   => HList xs
   -> KVLookup s xs
-select = select' @s @xs @(KVLookup s xs) @(IsHead s xs)
+selectTF = select' @s @xs @(KVLookup s xs) @(IsHead s xs)
 
 
 {-| A constraint that confirms type @e@ is not an element of type list @r@. -}
