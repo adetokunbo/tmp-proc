@@ -58,7 +58,7 @@ module System.TmpProc.Docker
   , Proc2Handle
   , AreProcs
   , SomeProcs(..)
-  , NamedHandleIn
+  , HasNamedHandle
 
     -- * Docker-related functions
   , hasDocker
@@ -88,7 +88,8 @@ import           System.Process           (StdStream (..), proc, readProcess,
 
 import           System.TmpProc.TypeLevel (IsSubsetOf, SubsetOf, hSubset)
 import           System.TmpProc.TypeLevel (HList (..), IsAbsent,
-                                           KV (..), KVLookup, KVMember,
+                                           KV (..),
+                                           MemberGadt, selectG,
                                            selectTF)
 
 {-| Determines if the docker daemon is accessible. -}
@@ -299,32 +300,31 @@ nPings h@ProcHandle{hProc = p} =
 {-| Constraint alias used to constrain types where a 'Name' looks up
   a type in an 'HList' of 'ProcHandle'.
 -}
-type NamedHandleIn s a xs =
-  ( KnownSymbol s
-  , AreProcs xs
+type HasNamedHandle s a xs =
+  ( s ~ Name a
   , Proc a
-  , KVMember s (Handle2KV (Proc2Handle xs))
-  , KVLookup s (Handle2KV (Proc2Handle xs)) ~ ProcHandle a
+  , AreProcs xs
+  , MemberGadt s (ProcHandle a) (Handle2KV (Proc2Handle xs))
   )
 
 
 {-| Obtains the handle with the given @'Name'@ from an 'HList' of 'ProcHandle'. -}
 named
-  :: NamedHandleIn s a xs
+  :: HasNamedHandle s a xs
   => Proxy s -> HList (Proc2Handle xs) -> ProcHandle a
 named proxy xs = named' proxy $ toKVs xs
 
 
 {-| Liked 'named', but constrains the handle to be 'Connectable'. -}
 connected
-  :: (NamedHandleIn s a xs, Connectable a)
+  :: (HasNamedHandle s a xs, Connectable a)
   => Proxy s -> HList (Proc2Handle xs) -> ProcHandle a
 connected proxy xs = named' proxy $ toKVs xs
 
 
 {-| Liked 'connected', but provides the 'Conn' to a callback. -}
 withNamedConn
-  :: (NamedHandleIn s a xs, Connectable a)
+  :: (HasNamedHandle s a xs, Connectable a)
   => Proxy s -> HList (Proc2Handle xs) -> (Conn a -> IO b) -> IO b
 withNamedConn proxy xs action = flip withTmpConn action $ named' proxy $ toKVs xs
 
@@ -333,63 +333,57 @@ withNamedConn proxy xs action = flip withTmpConn action $ named' proxy $ toKVs x
 withTmpConn :: Connectable a => ProcHandle a -> (Conn a -> IO b) -> IO b
 withTmpConn handle action = bracket (openConn handle) closeConn action
 
-
 named'
   :: forall (s :: Symbol) a (xs :: [*]) .
      ( KnownSymbol s
-     , KVMember s xs
-     , KVLookup s xs ~ ProcHandle a)
+     , MemberGadt s (ProcHandle a) xs)
   => Proxy s -> HList xs -> ProcHandle a
-named' _ kvs = selectTF @s kvs
+named' _ kvs = selectG @s @(ProcHandle a) kvs
 
 
 {-| Resets the handle with the given @'Name'@ in a list of Handles. -}
 ixReset
-  :: NamedHandleIn s a xs
+  :: HasNamedHandle s a xs
   => Proxy s -> HList (Proc2Handle xs) -> IO ()
 ixReset proxy xs = ixReset' proxy $ toKVs xs
 
 ixReset'
   :: forall (s :: Symbol) a (xs :: [*]) .
-     ( KnownSymbol s
-     , Proc a
-     , KVMember s xs
-     , KVLookup s xs ~ ProcHandle a)
+     ( Proc a
+     , s ~ Name a
+     , MemberGadt s (ProcHandle a) xs)
   => Proxy s -> HList xs -> IO ()
-ixReset' _ kvs = reset $ selectTF @s kvs
+ixReset' _ kvs = reset $ selectG @s @(ProcHandle a) kvs
 
 
 {-| Pings the handle with the given @'Name'@ in a list of Handles. -}
 ixPing
-  :: NamedHandleIn s a xs
+  :: HasNamedHandle s a xs
   => Proxy s -> HList (Proc2Handle xs) -> IO ()
 ixPing proxy xs = ixPing' proxy $ toKVs xs
 
-
 ixPing'
   :: forall (s :: Symbol) a (xs :: [*]) .
-     ( KnownSymbol s
-     , Proc a
-     , KVMember s xs
-     , KVLookup s xs ~ ProcHandle a)
+     ( Proc a
+     , s ~ Name a
+     , MemberGadt s (ProcHandle a) xs)
   => Proxy s -> HList xs -> IO ()
-ixPing' _ kvs = ping $ selectTF @s kvs
+ixPing' _ kvs = ping $ selectG @s @(ProcHandle a) kvs
 
 
 {-| URI for the handle with the given @'Name'@ in a list of Handles. -}
 ixUriOf
-  :: NamedHandleIn s a xs
+  :: HasNamedHandle s a xs
   => Proxy s -> HList (Proc2Handle xs) -> SvcURI
 ixUriOf proxy xs = ixUriOf' proxy $ toKVs xs
 
-
 ixUriOf'
   :: forall (s :: Symbol) a (xs :: [*]) .
-     ( KnownSymbol s
-     , KVMember s xs
-     , KVLookup s xs ~ ProcHandle a)
+     ( Proc a
+     , s ~ Name a
+     , MemberGadt s (ProcHandle a) xs)
   => Proxy s -> HList xs -> SvcURI
-ixUriOf' _ kvs = hUri $ selectTF @s kvs
+ixUriOf' _ kvs = hUri $ selectG @s @(ProcHandle a) kvs
 
 
 {-| Create a 'HList' of @'KV's@ from a 'HList' of @'ProcHandle's@. -}
