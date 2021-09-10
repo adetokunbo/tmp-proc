@@ -9,13 +9,14 @@ module Test.HttpBin where
 import           Control.Exception        (catch)
 import qualified Data.ByteString.Char8    as C8
 import           Data.List                (foldl')
+import           Data.Proxy               (Proxy(..))
 import           Data.Text                (Text)
 import qualified Data.Text                as Text
 import           Network.HTTP.Req
 
 import           System.TmpProc.Docker    (HList (..), HostIpAddress, Proc (..),
                                            Proc2Handle, ProcHandle (..), SvcURI,
-                                           startupAll)
+                                           manyNamed, startupAll)
 import           System.TmpProc.TypeLevel ((%:))
 
 
@@ -23,7 +24,7 @@ setupHandles :: IO (HList (Proc2Handle '[HttpBinTest, HttpBinTest2, HttpBinTest3
 setupHandles = startupAll $ HttpBinTest %: HttpBinTest2 %: HttpBinTest3 %: HNil
 
 
-{-| A data type representing a connection to the HttpBin server. -}
+{-| A data type representing a connection to a HttpBin server. -}
 data HttpBinTest = HttpBinTest
 
 {-| Run HttpBin as temporary process.  -}
@@ -37,11 +38,11 @@ instance Proc HttpBinTest where
   ping = ping'
 
 
-{-| Another data type representing a connection to the HttpBin server.
+{-| Another data type representing a connection to a HttpBin server.
 
 
-Allows the test tmp process list used to have multiple entries, to better
-detect any compiler errors in the tmp-proc library.
+Allows the test tmp process list to several heterogenous types, to better
+detect any compiler errors.
 
 -}
 data HttpBinTest2 = HttpBinTest2
@@ -57,11 +58,10 @@ instance Proc HttpBinTest2 where
   ping = ping'
 
 
-{-| Yet another data type representing a connection to the HttpBin server.
+{-| Yet another data type representing a connection to a HttpBin server.
 
-
-Allows the test tmp process list used to have multiple entries, to better
-detect any compiler errors in the tmp-proc library.
+Allows the test tmp process list to several heterogenous types, to better
+detect any compiler errors.
 
 -}
 data HttpBinTest3 = HttpBinTest3
@@ -104,3 +104,29 @@ handleGet handle urlPath = runReq defaultHttpConfig $ do
 handleUrl :: ProcHandle a -> Text -> Url 'Http
 handleUrl handle urlPath = foldl' (/:) (http $ hAddr handle)
   $ Text.splitOn "/" $ Text.dropWhile (== '/') urlPath
+
+
+{-| Verify that the compile time type computations related to 'manyNamed' are ok. -}
+typeLevelCheck1 :: IO (HList (Proc2Handle '[HttpBinTest3]))
+typeLevelCheck1 = do
+  allHandles <- setupHandles
+  pure $ manyNamed @'["http-bin-test-3"] Proxy  allHandles
+
+
+typeLevelCheck2 :: IO (HList (Proc2Handle '[HttpBinTest, HttpBinTest3]))
+typeLevelCheck2 = do
+  allHandles <- setupHandles
+  pure $ manyNamed @'["http-bin-test", "http-bin-test-3"] Proxy  allHandles
+
+{-| Verify that various compile time type computations work ok.
+
+N.B. Fixme
+
+This fails because of a known bug. The workaround is always ensure that the
+names are provided it same order as they occur in the handle.
+
+-}
+-- typeLevelCheck3 :: IO (HList (Proc2Handle '[HttpBinTest3, HttpBinTest]))
+-- typeLevelCheck3 = do
+--   allHandles <- setupHandles
+--   pure $ manyNamed @'["http-bin-test-3", "http-bin-test"] Proxy  allHandles

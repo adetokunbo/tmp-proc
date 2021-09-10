@@ -31,8 +31,10 @@ module System.TmpProc.TypeLevel
     -- * A Key/Value type where the keys are type-level strings
   , KV(..)
   , select
+  , selectMany
   , LookupKV(..)
   , MemberKV(..)
+  , ManyMemberKV(..)
 
     -- * Tools for writing constraints on type lists
   , IsAbsent
@@ -113,6 +115,7 @@ data SubsetOf (ys :: [*]) (xs :: [*]) where
   SSOuter :: SubsetOf ys xs -> SubsetOf ys (a : xs)
 
 
+{-| Generate proof instances of 'SubsetOf'. -}
 class IsSubsetOf (ys :: [*]) (xs :: [*]) where
   ssProof :: SubsetOf ys xs
 
@@ -126,11 +129,13 @@ instance IsSubsetOf ys xs => IsSubsetOf ys (a : xs) where
   ssProof = SSOuter ssProof
 
 
+{-| Proves a symbols its type occur together as a 'KV' in a list of 'KV' types. -}
 data LookupKV (k :: Symbol) t (xs :: [*]) where
   AtHead :: LookupKV k t (KV k t ': kvs)
   OtherKeys :: LookupKV k t kvs -> LookupKV k t (KV ok ot ': kvs)
 
 
+{-| Generate proof instances of 'LookupKV'. -}
 class MemberKV (k :: Symbol) (t :: *) (xs :: [*]) where
   lookupProof :: LookupKV k t xs
 
@@ -154,3 +159,47 @@ select = go $ lookupProof @k @t @xs
     go :: LookupKV k1 t1 xs1 -> HList xs1 -> t1
     go AtHead (V x `HCons` _)         = x
     go (OtherKeys cons) (_ `HCons` y) = go cons y
+
+
+{-| Proves that some symbols and corresponding types occur together as a 'KV' in a
+  list of 'KV' types. -}
+data LookupMany (keys :: [Symbol]) (t :: [*]) (xs :: [*]) where
+  FirstOfMany :: LookupMany (k ': '[]) (t ': '[]) (KV k t ': kvs)
+  NextOfMany
+    :: LookupMany ks ts kvs
+    -> LookupMany (k ': ks) (t ': ts) (KV k t ': kvs)
+
+  ManyOthers :: LookupMany ks ts kvs -> LookupMany ks ts (KV ok ot ': kvs)
+
+
+{-| Generate proof instances of 'LookupMany'. -}
+class ManyMemberKV (ks :: [Symbol]) (ts :: [*]) (kvs :: [*])  where
+  manyProof :: LookupMany ks ts kvs
+
+instance {-# Overlapping #-} ManyMemberKV '[k] '[t] '[KV k t] where
+  manyProof = FirstOfMany @k @t @'[]
+
+instance {-# Overlapping #-} ManyMemberKV ks ts kvs => ManyMemberKV (k ': ks) (t ': ts) (KV k t ': kvs) where
+  manyProof = NextOfMany manyProof
+
+instance ManyMemberKV ks ts kvs  => ManyMemberKV ks ts (KV ok ot ': kvs) where
+  manyProof = ManyOthers manyProof
+
+
+{-| Select items with specified keys from an 'HList' of '@'KV's@ by 'key'.
+
+Note: there is a known bug; the specified keys have to be provided in the same
+order as they are in the HList, any other order will usually result in an
+compiler error.
+
+-}
+selectMany
+  :: forall ks ts xs . ManyMemberKV ks ts xs
+  => HList xs
+  -> HList ts
+selectMany = go $ manyProof @ks @ts @xs
+  where
+    go :: LookupMany ks1 ts1 xs1 -> HList xs1 -> HList ts1
+    go FirstOfMany (V x `HCons` _)        = x `HCons` HNil
+    go (NextOfMany cons) (V x `HCons` y)  = x `HCons` go cons y
+    go (ManyOthers cons) (_ `HCons` y)    = go cons y

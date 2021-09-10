@@ -53,6 +53,7 @@ module System.TmpProc.Docker
   , ixPing
   , ixUriOf
   , named
+  , manyNamed
 
     -- * type families and constraints
   , Proc2Handle
@@ -88,8 +89,8 @@ import           System.Process           (StdStream (..), proc, readProcess,
 
 import           System.TmpProc.TypeLevel (IsSubsetOf, SubsetOf, hSubset)
 import           System.TmpProc.TypeLevel (HList (..), IsAbsent,
-                                           KV (..),
-                                           MemberKV, select)
+                                           KV (..), ManyMemberKV,
+                                           MemberKV, select, selectMany)
 
 
 {-| Determines if the docker daemon is accessible. -}
@@ -308,11 +309,29 @@ type HasNamedHandle s a xs =
   )
 
 
-{-| Obtains the handle with the given @'Name'@ from an 'HList' of 'ProcHandle'. -}
+{-| Constraint alias used to constrain types where several 'Names' looks up
+  a types in an 'HList' of 'ProcHandle'.
+-}
+type SomeNamedHandles names ps xs =
+  ( names ~ Proc2Name ps
+  , ManyMemberKV (Proc2Name ps) (Proc2Handle ps) (Handle2KV (Proc2Handle xs))
+  , AreProcs ps
+  , AreProcs xs
+  )
+
+
+{-| The named handle from an  @'HList'@ of @'ProcHandle'@. -}
 named
   :: HasNamedHandle s a xs
   => Proxy s -> HList (Proc2Handle xs) -> ProcHandle a
 named proxy xs = named' proxy $ toKVs xs
+
+
+{-| The named @'ProcHandle's@ from an 'HList' of @'ProcHandle'@. -}
+manyNamed
+  :: SomeNamedHandles names ps xs
+  => Proxy names -> HList (Proc2Handle xs) -> HList (Proc2Handle ps)
+manyNamed proxy xs = manyNamed' proxy $ toKVs xs
 
 
 {-| Liked 'named', but constrains the handle to be 'Connectable'. -}
@@ -339,6 +358,17 @@ named'
      , MemberKV s (ProcHandle a) xs)
   => Proxy s -> HList xs -> ProcHandle a
 named' _ kvs = select @s @(ProcHandle a) kvs
+
+
+manyNamed'
+  :: forall (ps :: [*]) (handles :: [*]) (names :: [Symbol]) (xs :: [*]) .
+     ( handles ~ Proc2Handle ps
+     , names ~ Proc2Name ps
+     , ManyMemberKV names handles xs
+     , AreProcs ps
+     )
+  => Proxy names -> HList xs -> HList (Proc2Handle ps)
+manyNamed' _ kvs = selectMany @names @handles kvs
 
 
 {-| Resets the handle with the given @'Name'@ in a list of Handles. -}
@@ -406,7 +436,13 @@ type family Proc2Handle (as :: [*]) = (handleTys :: [*]) | handleTys -> as where
   Proc2Handle (a ':  as) = ProcHandle a ': Proc2Handle as
 
 
-{-| Convert a list of 'ProcHandle' types to corresponding 'KV' types. -}
+{-| Converts list of 'Proc' the corresponding 'Name' symbols. -}
+type family Proc2Name (as :: [*]) = (nameTys :: [Symbol]) | nameTys -> as where
+  Proc2Name '[]          = '[]
+  Proc2Name (a ':  as)   = Name a ': Proc2Name as
+
+
+{-| Convert list of 'ProcHandle' types to corresponding 'KV' types. -}
 type family Handle2KV (ts :: [*]) = (kvTys :: [*]) | kvTys -> ts where
   Handle2KV '[]                   = '[]
   Handle2KV (ProcHandle t ':  ts) = KV (Name t) (ProcHandle t) ': Handle2KV ts
