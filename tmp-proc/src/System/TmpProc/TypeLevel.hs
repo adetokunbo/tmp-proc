@@ -26,6 +26,7 @@ module System.TmpProc.TypeLevel
     HList(..)
   , (%:)
   , hHead
+  , hSubset
 
    -- * Confirm membership of an extensible record made of an 'HList' of @'KV's@
   , KVMember
@@ -39,6 +40,8 @@ module System.TmpProc.TypeLevel
 
     -- * Detects if a type is/is not in another list of types
   , IsAbsent
+  , SubsetOf(..)
+  , IsSubsetOf(..)
   )
 where
 
@@ -52,6 +55,16 @@ import qualified GHC.TypeLits       as TL
 {-| Obtain the first element of a 'HList'. -}
 hHead :: HList (a ': as) -> a
 hHead (x `HCons` _) = x
+
+
+{-| Get a subset of the terms in a 'HList'. -}
+hSubset :: IsSubsetOf ys xs => HList xs -> HList ys
+hSubset = go ssProof
+  where
+    go :: SubsetOf ys xs -> HList xs -> HList ys
+    go SSNil HNil                   = HNil
+    go (SSBoth cons) (y `HCons` x)  = y `HCons` go cons x
+    go (SSOuter cons) (_ `HCons` x) = go cons x
 
 
 {-| A Heterogenous list -}
@@ -136,3 +149,22 @@ type family IsAbsent e r :: Constraint where
 type (NotAbsentErr e) =
   ('TL.Text " type " ':<>: 'TL.ShowType e) ':<>:
   ('TL.Text " is already in this type list, and is not allowed again")
+
+
+data SubsetOf (ys :: [*]) (xs :: [*]) where
+  SSNil :: SubsetOf '[] '[]
+  SSBoth :: SubsetOf ys xs -> SubsetOf (a : ys) (a : xs)
+  SSOuter :: SubsetOf ys xs -> SubsetOf ys (a : xs)
+
+
+class IsSubsetOf (ys :: [*]) (xs :: [*]) where
+  ssProof :: SubsetOf ys xs
+
+instance IsSubsetOf '[] '[] where
+  ssProof = SSNil
+
+instance IsSubsetOf ys xs => IsSubsetOf (a : ys) (a : xs) where
+  ssProof = SSBoth ssProof
+
+instance IsSubsetOf ys xs => IsSubsetOf ys (a : xs) where
+  ssProof = SSOuter ssProof
