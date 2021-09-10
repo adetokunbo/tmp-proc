@@ -412,7 +412,7 @@ type family Proc2Handle (as :: [*]) = (handleTys :: [*]) | handleTys -> as where
 
 
 {-| Convert a list of 'ProcHandle' types to corresponding 'KV' types. -}
-type family Handle2KV (ts :: [*]) :: [*] where
+type family Handle2KV (ts :: [*]) = (kvTys :: [*]) | kvTys -> ts where
   Handle2KV '[]                   = '[]
   Handle2KV (ProcHandle t ':  ts) = KV (Name t) (ProcHandle t) ': Handle2KV ts
 
