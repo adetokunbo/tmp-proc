@@ -438,3 +438,18 @@ data SomeHandles (as :: [*]) where
 p2h :: SomeProcs as -> SomeHandles (Proc2Handle as)
 p2h SomeProcsNil         = SomeHandlesNil
 p2h (SomeProcsCons cons) = SomeHandlesCons (p2h cons)
+
+
+{-| Declares a proof that a list of types only contains @'Connectable's@. -}
+class Connectables as where
+  connProof :: SomeProcs as
+
+instance Connectables '[] where
+  connProof = SomeProcsNil
+
+instance (Connectable a, Connectables as, IsAbsent a as) => Connectables (a ': as) where
+  connProof = SomeProcsCons connProof
+
+
+justConnectables :: (IsSubsetOf ys xs, Connectables ys, AreProcs xs) => HList xs -> HList ys
+justConnectables = hSubset
