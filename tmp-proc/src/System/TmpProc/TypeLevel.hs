@@ -38,10 +38,12 @@ module System.TmpProc.TypeLevel
   , KV(..)
   , select
 
-    -- * Detects if a type is/is not in another list of types
+    -- * Tools for writing constraints on type lists
   , IsAbsent
   , SubsetOf(..)
   , IsSubsetOf(..)
+  , LookupGadt(..)
+  , MemberGadt(..)
   )
 where
 
@@ -168,3 +170,21 @@ instance IsSubsetOf ys xs => IsSubsetOf (a : ys) (a : xs) where
 
 instance IsSubsetOf ys xs => IsSubsetOf ys (a : xs) where
   ssProof = SSOuter ssProof
+
+
+data LookupGadt (k :: Symbol) t (xs :: [*]) where
+  AtHead :: LookupGadt k t (KV k t ': kvs)
+  OtherKeys :: LookupGadt k t kvs -> LookupGadt k t (KV ok ot ': kvs)
+
+
+class MemberGadt (k :: Symbol) (t :: *) (xs :: [*]) where
+  lookupProof :: LookupGadt k t xs
+
+instance {-# Overlapping #-} MemberGadt k t '[KV k t] where
+  lookupProof = AtHead @k @t @'[]
+
+instance {-# Overlapping #-} MemberGadt k t (KV k t ': kvs) where
+  lookupProof = AtHead @k @t @kvs
+
+instance MemberGadt k t kvs => MemberGadt k t (KV ok ot ': kvs) where
+  lookupProof = OtherKeys lookupProof
