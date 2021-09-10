@@ -89,8 +89,8 @@ import           System.Process           (StdStream (..), proc, readProcess,
 import           System.TmpProc.TypeLevel (IsSubsetOf, SubsetOf, hSubset)
 import           System.TmpProc.TypeLevel (HList (..), IsAbsent,
                                            KV (..),
-                                           MemberGadt, selectG,
-                                           selectTF)
+                                           MemberGadt, select)
+
 
 {-| Determines if the docker daemon is accessible. -}
 hasDocker :: IO Bool
@@ -338,7 +338,7 @@ named'
      ( KnownSymbol s
      , MemberGadt s (ProcHandle a) xs)
   => Proxy s -> HList xs -> ProcHandle a
-named' _ kvs = selectG @s @(ProcHandle a) kvs
+named' _ kvs = select @s @(ProcHandle a) kvs
 
 
 {-| Resets the handle with the given @'Name'@ in a list of Handles. -}
@@ -353,7 +353,7 @@ ixReset'
      , s ~ Name a
      , MemberGadt s (ProcHandle a) xs)
   => Proxy s -> HList xs -> IO ()
-ixReset' _ kvs = reset $ selectG @s @(ProcHandle a) kvs
+ixReset' _ kvs = reset $ select @s @(ProcHandle a) kvs
 
 
 {-| Pings the handle with the given @'Name'@ in a list of Handles. -}
@@ -368,7 +368,7 @@ ixPing'
      , s ~ Name a
      , MemberGadt s (ProcHandle a) xs)
   => Proxy s -> HList xs -> IO ()
-ixPing' _ kvs = ping $ selectG @s @(ProcHandle a) kvs
+ixPing' _ kvs = ping $ select @s @(ProcHandle a) kvs
 
 
 {-| URI for the handle with the given @'Name'@ in a list of Handles. -}
@@ -383,7 +383,7 @@ ixUriOf'
      , s ~ Name a
      , MemberGadt s (ProcHandle a) xs)
   => Proxy s -> HList xs -> SvcURI
-ixUriOf' _ kvs = hUri $ selectG @s @(ProcHandle a) kvs
+ixUriOf' _ kvs = hUri $ select @s @(ProcHandle a) kvs
 
 
 {-| Create a 'HList' of @'KV's@ from a 'HList' of @'ProcHandle's@. -}

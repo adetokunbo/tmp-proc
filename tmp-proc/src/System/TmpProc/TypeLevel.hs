@@ -37,7 +37,7 @@ module System.TmpProc.TypeLevel
     -- * A Key/Value type where the keys are type-level strings
   , KV(..)
   , selectTF
-  , selectG
+  , select
 
     -- * Tools for writing constraints on type lists
   , IsAbsent
@@ -192,11 +192,11 @@ instance MemberGadt k t kvs => MemberGadt k t (KV ok ot ': kvs) where
 
 
 {-| Select an item in a 'HList' of '@'KV's@ by 'key'. -}
-selectG
+select
   :: forall k t xs . MemberGadt k t xs
   => HList xs
   -> t
-selectG = go $ lookupProof @k @t @xs
+select = go $ lookupProof @k @t @xs
   where
     go :: LookupGadt k1 t1 xs1 -> HList xs1 -> t1
     go AtHead (V x `HCons` _)         = x
