@@ -89,7 +89,7 @@ import           System.Process           (StdStream (..), proc, readProcess,
 import           System.TmpProc.TypeLevel (IsSubsetOf, SubsetOf, hSubset)
 import           System.TmpProc.TypeLevel (HList (..), IsAbsent,
                                            KV (..),
-                                           MemberGadt, select)
+                                           MemberKV, select)
 
 
 {-| Determines if the docker daemon is accessible. -}
@@ -304,7 +304,7 @@ type HasNamedHandle s a xs =
   ( s ~ Name a
   , Proc a
   , AreProcs xs
-  , MemberGadt s (ProcHandle a) (Handle2KV (Proc2Handle xs))
+  , MemberKV s (ProcHandle a) (Handle2KV (Proc2Handle xs))
   )
 
 
@@ -336,7 +336,7 @@ withTmpConn handle action = bracket (openConn handle) closeConn action
 named'
   :: forall (s :: Symbol) a (xs :: [*]) .
      ( KnownSymbol s
-     , MemberGadt s (ProcHandle a) xs)
+     , MemberKV s (ProcHandle a) xs)
   => Proxy s -> HList xs -> ProcHandle a
 named' _ kvs = select @s @(ProcHandle a) kvs
 
@@ -351,7 +351,7 @@ ixReset'
   :: forall (s :: Symbol) a (xs :: [*]) .
      ( Proc a
      , s ~ Name a
-     , MemberGadt s (ProcHandle a) xs)
+     , MemberKV s (ProcHandle a) xs)
   => Proxy s -> HList xs -> IO ()
 ixReset' _ kvs = reset $ select @s @(ProcHandle a) kvs
 
@@ -366,7 +366,7 @@ ixPing'
   :: forall (s :: Symbol) a (xs :: [*]) .
      ( Proc a
      , s ~ Name a
-     , MemberGadt s (ProcHandle a) xs)
+     , MemberKV s (ProcHandle a) xs)
   => Proxy s -> HList xs -> IO ()
 ixPing' _ kvs = ping $ select @s @(ProcHandle a) kvs
 
@@ -381,7 +381,7 @@ ixUriOf'
   :: forall (s :: Symbol) a (xs :: [*]) .
      ( Proc a
      , s ~ Name a
-     , MemberGadt s (ProcHandle a) xs)
+     , MemberKV s (ProcHandle a) xs)
   => Proxy s -> HList xs -> SvcURI
 ixUriOf' _ kvs = hUri $ select @s @(ProcHandle a) kvs
 

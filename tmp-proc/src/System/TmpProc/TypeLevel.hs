@@ -31,13 +31,13 @@ module System.TmpProc.TypeLevel
     -- * A Key/Value type where the keys are type-level strings
   , KV(..)
   , select
+  , LookupKV(..)
+  , MemberKV(..)
 
     -- * Tools for writing constraints on type lists
   , IsAbsent
   , SubsetOf(..)
   , IsSubsetOf(..)
-  , LookupGadt(..)
-  , MemberGadt(..)
   )
 where
 
@@ -126,31 +126,31 @@ instance IsSubsetOf ys xs => IsSubsetOf ys (a : xs) where
   ssProof = SSOuter ssProof
 
 
-data LookupGadt (k :: Symbol) t (xs :: [*]) where
-  AtHead :: LookupGadt k t (KV k t ': kvs)
-  OtherKeys :: LookupGadt k t kvs -> LookupGadt k t (KV ok ot ': kvs)
+data LookupKV (k :: Symbol) t (xs :: [*]) where
+  AtHead :: LookupKV k t (KV k t ': kvs)
+  OtherKeys :: LookupKV k t kvs -> LookupKV k t (KV ok ot ': kvs)
 
 
-class MemberGadt (k :: Symbol) (t :: *) (xs :: [*]) where
-  lookupProof :: LookupGadt k t xs
+class MemberKV (k :: Symbol) (t :: *) (xs :: [*]) where
+  lookupProof :: LookupKV k t xs
 
-instance {-# Overlapping #-} MemberGadt k t '[KV k t] where
+instance {-# Overlapping #-} MemberKV k t '[KV k t] where
   lookupProof = AtHead @k @t @'[]
 
-instance {-# Overlapping #-} MemberGadt k t (KV k t ': kvs) where
+instance {-# Overlapping #-} MemberKV k t (KV k t ': kvs) where
   lookupProof = AtHead @k @t @kvs
 
-instance MemberGadt k t kvs => MemberGadt k t (KV ok ot ': kvs) where
+instance MemberKV k t kvs => MemberKV k t (KV ok ot ': kvs) where
   lookupProof = OtherKeys lookupProof
 
 
 {-| Select an item in a 'HList' of '@'KV's@ by 'key'. -}
 select
-  :: forall k t xs . MemberGadt k t xs
+  :: forall k t xs . MemberKV k t xs
   => HList xs
   -> t
 select = go $ lookupProof @k @t @xs
   where
-    go :: LookupGadt k1 t1 xs1 -> HList xs1 -> t1
+    go :: LookupKV k1 t1 xs1 -> HList xs1 -> t1
     go AtHead (V x `HCons` _)         = x
     go (OtherKeys cons) (_ `HCons` y) = go cons y
