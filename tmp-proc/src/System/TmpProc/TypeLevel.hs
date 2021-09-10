@@ -28,15 +28,8 @@ module System.TmpProc.TypeLevel
   , hHead
   , hSubset
 
-   -- * Confirm membership of an extensible record made of an 'HList' of @'KV's@
-  , KVMember
-  , Member(..)
-  , KVLookup
-  , IsHead
-
     -- * A Key/Value type where the keys are type-level strings
   , KV(..)
-  , selectTF
   , select
 
     -- * Tools for writing constraints on type lists
@@ -102,46 +95,6 @@ data KV :: Symbol -> * -> * where
 type family If (b :: Bool) tv fv where
   If 'False _ fv  = fv
   If 'True  tv _  = tv
-
-
-{-| Determines if a given symbol belongs to the 'KV' at head of type-level 'List'. -}
-type family IsHead (s :: Symbol) (xs :: [*]) :: Bool where
-  IsHead s (KV s' _ ': _) = s T.== s'
-  IsHead s _              = 'False
-
-
-{-| KVLookup finds the type corresponding to a symbol in an 'HList' of 'KV'. -}
-type family KVLookup (s :: Symbol) (xs :: [*]) :: * where
-  KVLookup s '[] = TypeError (('TL.Text "KVLookup:cannot find a KV with key:") ':<>: ('TL.ShowType s))
-  KVLookup s (KV s' t ': tail) = If (s T.== s') t (KVLookup s tail)
-  KVLookup s (badType ': tail) =
-    TypeError (('TL.Text "KVLookup: expected KVs in the type list, instead have: ")
-               ':<>:
-               ('TL.ShowType badType))
-
-
-{-| Specifies how obtain a 'KV' by key from a HList of types. -}
-class Member (s :: Symbol) xs t (isHead :: Bool) where
-  select' :: HList xs -> t
-
-instance Member s (KV s t ': tail) t 'True where
-  select' (HCons (V t) _) = t
-
-instance Member s tail t (IsHead s tail)
-  => Member s (KV s' t' ': tail) t 'False where
-  select' (HCons _ xs) = select' @s @tail @t @(IsHead s tail) xs
-
-
-{-| Simplifies writing constraint that use 'Member'. -}
-type KVMember s xs = Member s xs (KVLookup s xs) (IsHead s xs)
-
-
-{-| Select an item in a 'HList' of '@'KV's@ by 'key'. -}
-selectTF
-  :: forall s xs . KVMember s xs
-  => HList xs
-  -> KVLookup s xs
-selectTF = select' @s @xs @(KVLookup s xs) @(IsHead s xs)
 
 
 {-| A constraint that confirms type @e@ is not an element of type list @r@. -}
