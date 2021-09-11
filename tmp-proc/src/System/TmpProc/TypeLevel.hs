@@ -15,31 +15,31 @@
 {-# LANGUAGE TypeOperators          #-}
 {-# LANGUAGE UndecidableInstances   #-}
 {-|
-Module      : System.TmpProc.TypeLevel
-Description : Define TypeLevel combinators used by other modules in this package.
-Copyright   : (c)
-License     : BSD
-Maintainer  : tim@challengehub.com
-Stability   : experimental
+Copyright   : (c) 2020-2021 Tim Emiola
+SPDX-License-Identifier: BSD3
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com >
+
+Defines TypeLevel combinators used by the other System.TmpProc.* modules
 -}
 module System.TmpProc.TypeLevel
   ( -- * HList
     HList(..)
   , (%:)
   , hHead
+  , hSubset
 
-   -- * Confirm membership of an extensible record made of an 'HList' of @'KV's@
-  , KVMember
-  , Member(..)
-  , KVLookup
-  , IsHead
-
-    -- * A Key Value type where the keys are type-level strings
+    -- * A Key/Value type where the keys are type-level strings
   , KV(..)
   , select
+  , selectMany
+  , LookupKV(..)
+  , MemberKV(..)
+  , ManyMemberKV(..)
 
-    -- * Detects if a type is/is not in another list of types
+    -- * Tools for writing constraints on type lists
   , IsAbsent
+  , SubsetOf(..)
+  , IsSubsetOf(..)
   )
 where
 
@@ -53,6 +53,16 @@ import qualified GHC.TypeLits       as TL
 {-| Obtain the first element of a 'HList'. -}
 hHead :: HList (a ': as) -> a
 hHead (x `HCons` _) = x
+
+
+{-| Get a subset of the terms in a 'HList'. -}
+hSubset :: IsSubsetOf ys xs => HList xs -> HList ys
+hSubset = go ssProof
+  where
+    go :: SubsetOf ys xs -> HList xs -> HList ys
+    go SSNil HNil                   = HNil
+    go (SSBoth cons) (y `HCons` x)  = y `HCons` go cons x
+    go (SSOuter cons) (_ `HCons` x) = go cons x
 
 
 {-| A Heterogenous list -}
@@ -89,46 +99,6 @@ type family If (b :: Bool) tv fv where
   If 'True  tv _  = tv
 
 
-{-| Determines if a given symbol belongs to the 'KV' at head of type-level 'List'. -}
-type family IsHead (s :: Symbol) (xs :: [*]) :: Bool where
-  IsHead s (KV s' _ ': _) = s T.== s'
-  IsHead s _              = 'False
-
-
-{-| KVLookup finds the type corresponding to a symbol in an 'HList' of 'KV'. -}
-type family KVLookup (s :: Symbol) (xs :: [*]) :: * where
-  KVLookup s '[] = TypeError (('TL.Text "KVLookup:cannot find a KV with key:") ':<>: ('TL.ShowType s))
-  KVLookup s (KV s' t ': tail) = If (s T.== s') t (KVLookup s tail)
-  KVLookup s (badType ': tail) =
-    TypeError (('TL.Text "KVLookup: expected KVs in the type list, instead have: ")
-               ':<>:
-               ('TL.ShowType badType))
-
-
-{-| Specifies how obtain a 'KV' by key from a HList of types. -}
-class Member (s :: Symbol) xs t (isHead :: Bool) where
-  select' :: HList xs -> t
-
-instance Member s (KV s t ': tail) t 'True where
-  select' (HCons (V t) _) = t
-
-instance Member s tail t (IsHead s tail)
-  => Member s (KV s' t' ': tail) t 'False where
-  select' (HCons _ xs) = select' @s @tail @t @(IsHead s tail) xs
-
-
-{-| Simplifies writing constraint that use 'Member'. -}
-type KVMember s xs = Member s xs (KVLookup s xs) (IsHead s xs)
-
-
-{-| Select an item by 'HList' of '@'KV's@ by 'key'. -}
-select
-  :: forall s xs . KVMember s xs
-  => HList xs
-  -> KVLookup s xs
-select = select' @s @xs @(KVLookup s xs) @(IsHead s xs)
-
-
 {-| A constraint that confirms type @e@ is not an element of type list @r@. -}
 type family IsAbsent e r :: Constraint where
   IsAbsent e '[]           = ()
@@ -137,3 +107,101 @@ type family IsAbsent e r :: Constraint where
 type (NotAbsentErr e) =
   ('TL.Text " type " ':<>: 'TL.ShowType e) ':<>:
   ('TL.Text " is already in this type list, and is not allowed again")
+
+
+{-| Proves that a list of types are a subset of another list of types. -}
+data SubsetOf (ys :: [*]) (xs :: [*]) where
+  SSNil :: SubsetOf '[] '[]
+  SSBoth :: SubsetOf ys xs -> SubsetOf (a : ys) (a : xs)
+  SSOuter :: SubsetOf ys xs -> SubsetOf ys (a : xs)
+
+
+{-| Generate proof instances of 'SubsetOf'. -}
+class IsSubsetOf (ys :: [*]) (xs :: [*]) where
+  ssProof :: SubsetOf ys xs
+
+instance IsSubsetOf '[] '[] where
+  ssProof = SSNil
+
+instance IsSubsetOf ys xs => IsSubsetOf (a : ys) (a : xs) where
+  ssProof = SSBoth ssProof
+
+instance IsSubsetOf ys xs => IsSubsetOf ys (a : xs) where
+  ssProof = SSOuter ssProof
+
+
+{-| Proves a symbols its type occur together as a 'KV' in a list of 'KV' types. -}
+data LookupKV (k :: Symbol) t (xs :: [*]) where
+  AtHead :: LookupKV k t (KV k t ': kvs)
+  OtherKeys :: LookupKV k t kvs -> LookupKV k t (KV ok ot ': kvs)
+
+
+{-| Generate proof instances of 'LookupKV'. -}
+class MemberKV (k :: Symbol) (t :: *) (xs :: [*]) where
+  lookupProof :: LookupKV k t xs
+
+instance {-# Overlapping #-} MemberKV k t '[KV k t] where
+  lookupProof = AtHead @k @t @'[]
+
+instance {-# Overlapping #-} MemberKV k t (KV k t ': kvs) where
+  lookupProof = AtHead @k @t @kvs
+
+instance MemberKV k t kvs => MemberKV k t (KV ok ot ': kvs) where
+  lookupProof = OtherKeys lookupProof
+
+
+{-| Select an item in a 'HList' of '@'KV's@ by 'key'. -}
+select
+  :: forall k t xs . MemberKV k t xs
+  => HList xs
+  -> t
+select = go $ lookupProof @k @t @xs
+  where
+    go :: LookupKV k1 t1 xs1 -> HList xs1 -> t1
+    go AtHead (V x `HCons` _)         = x
+    go (OtherKeys cons) (_ `HCons` y) = go cons y
+
+
+{-| Proves that some symbols and corresponding types occur together as a 'KV' in a
+  list of 'KV' types. -}
+data LookupMany (keys :: [Symbol]) (t :: [*]) (xs :: [*]) where
+  FirstOfMany :: LookupMany (k ': '[]) (t ': '[]) (KV k t ': kvs)
+
+  NextOfMany
+    :: LookupMany ks ts kvs
+    -> LookupMany (k ': ks) (t ': ts) (KV k t ': kvs)
+
+  ManyOthers :: LookupMany ks ts kvs -> LookupMany ks ts (KV ok ot ': kvs)
+
+
+{-| Generate proof instances of 'LookupMany'. -}
+class ManyMemberKV (ks :: [Symbol]) (ts :: [*]) (kvs :: [*])  where
+  manyProof :: LookupMany ks ts kvs
+
+instance {-# Overlapping #-} ManyMemberKV '[k] '[t] (KV k t ': ks) where
+  manyProof = FirstOfMany @k @t @ks
+
+instance {-# Overlapping #-} ManyMemberKV ks ts kvs => ManyMemberKV (k ': ks) (t ': ts) (KV k t ': kvs) where
+  manyProof = NextOfMany manyProof
+
+instance ManyMemberKV ks ts kvs  => ManyMemberKV ks ts (KV ok ot ': kvs) where
+  manyProof = ManyOthers manyProof
+
+
+{-| Select items with specified keys from an 'HList' of '@'KV's@ by 'key'.
+
+Note: there is a known bug; the specified keys have to be provided in the same
+order as they are in the HList, any other order will usually result in an
+compiler error.
+
+-}
+selectMany
+  :: forall ks ts xs . ManyMemberKV ks ts xs
+  => HList xs
+  -> HList ts
+selectMany = go $ manyProof @ks @ts @xs
+  where
+    go :: LookupMany ks1 ts1 xs1 -> HList xs1 -> HList ts1
+    go FirstOfMany (V x `HCons` _)       = x `HCons` HNil
+    go (NextOfMany cons) (V x `HCons` y) = x `HCons` go cons y
+    go (ManyOthers cons) (_ `HCons` y)   = go cons y

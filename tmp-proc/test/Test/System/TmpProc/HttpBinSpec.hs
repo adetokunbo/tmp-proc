@@ -37,3 +37,8 @@ checkHttpBin desc =  beforeAll setupHandles $ afterAll terminateAll $ do
 
         it "should succeed" $ \hs
           -> ixReset @"http-bin-test" Proxy hs `shouldReturn`()
+
+      context "ixReset" $ do
+
+        it "should succeed" $ \hs
+          -> ixReset @"http-bin-test-3" Proxy hs `shouldReturn`()
