@@ -42,6 +42,11 @@ module System.TmpProc.Docker
   , connected
   , withTmpConn
   , withNamedConn
+  , openAll
+  , closeAll
+  , withConns
+  , withKnownConns
+  , withNamedConns
 
     -- * @'ProcHandle'@ and functions for using HLists of @'ProcHandle's@
   , ProcHandle(..)
@@ -309,29 +314,11 @@ type HasNamedHandle s a xs =
   )
 
 
-{-| Constraint alias used to constrain types where several 'Names' looks up
-  a types in an 'HList' of 'ProcHandle'.
--}
-type SomeNamedHandles names ps xs =
-  ( names ~ Proc2Name ps
-  , ManyMemberKV (Proc2Name ps) (Proc2Handle ps) (Handle2KV (Proc2Handle xs))
-  , AreProcs ps
-  , AreProcs xs
-  )
-
-
 {-| The named handle from an  @'HList'@ of @'ProcHandle'@. -}
 named
   :: HasNamedHandle s a xs
   => Proxy s -> HList (Proc2Handle xs) -> ProcHandle a
 named proxy xs = named' proxy $ toKVs xs
-
-
-{-| The named @'ProcHandle's@ from an 'HList' of @'ProcHandle'@. -}
-manyNamed
-  :: SomeNamedHandles names ps xs
-  => Proxy names -> HList (Proc2Handle xs) -> HList (Proc2Handle ps)
-manyNamed proxy xs = manyNamed' proxy $ toKVs xs
 
 
 {-| Liked 'named', but constrains the handle to be 'Connectable'. -}
@@ -351,6 +338,7 @@ withNamedConn proxy xs action = flip withTmpConn action $ named' proxy $ toKVs x
 {-| Run an action on a 'Connectable' handle as a callback on its 'Conn' -}
 withTmpConn :: Connectable a => ProcHandle a -> (Conn a -> IO b) -> IO b
 withTmpConn handle action = bracket (openConn handle) closeConn action
+
 
 named'
   :: forall (s :: Symbol) a (xs :: [*]) .
@@ -416,6 +404,24 @@ ixUriOf'
 ixUriOf' _ kvs = hUri $ select @s @(ProcHandle a) kvs
 
 
+{-| Constraint alias used to constrain types where several 'Names' looks up
+  a types in an 'HList' of 'ProcHandle'.
+-}
+type SomeNamedHandles names ps xs =
+  ( names ~ Proc2Name ps
+  , ManyMemberKV (Proc2Name ps) (Proc2Handle ps) (Handle2KV (Proc2Handle xs))
+  , AreProcs ps
+  , AreProcs xs
+  )
+
+
+{-| The named @'ProcHandle's@ from an 'HList' of @'ProcHandle'@. -}
+manyNamed
+  :: SomeNamedHandles names ps xs
+  => Proxy names -> HList (Proc2Handle xs) -> HList (Proc2Handle ps)
+manyNamed proxy xs = manyNamed' proxy $ toKVs xs
+
+
 {-| Create a 'HList' of @'KV's@ from a 'HList' of @'ProcHandle's@. -}
 toKVs :: AreProcs xs => HList (Proc2Handle xs) -> HList (Handle2KV (Proc2Handle xs))
 toKVs = go $ p2h procProof
@@ -476,16 +482,78 @@ p2h SomeProcsNil         = SomeHandlesNil
 p2h (SomeProcsCons cons) = SomeHandlesCons (p2h cons)
 
 
+{-| Used by @'Connectables'@ to prove a list of types just contains @'Connectable's@. -}
+data SomeConns (as :: [*]) where
+  SomeConnsNil  :: SomeConns '[]
+  SomeConnsCons :: (Connectable a, IsAbsent a as) => SomeConns as -> SomeConns (a ': as)
+
+
 {-| Declares a proof that a list of types only contains @'Connectable's@. -}
 class Connectables as where
-  connProof :: SomeProcs as
+  connProof :: SomeConns as
 
 instance Connectables '[] where
-  connProof = SomeProcsNil
+  connProof = SomeConnsNil
 
 instance (Connectable a, Connectables as, IsAbsent a as) => Connectables (a ': as) where
-  connProof = SomeProcsCons connProof
+  connProof = SomeConnsCons connProof
 
 
-justConnectables :: (IsSubsetOf ys xs, Connectables ys, AreProcs xs) => HList xs -> HList ys
-justConnectables = hSubset
+{-| Convert list of 'Connectable' types to corresponding 'Conn' types. -}
+type family ConnsOf (cs :: [*]) = (conns :: [*]) | conns -> cs where
+  ConnsOf '[]        = '[]
+  ConnsOf (c ':  cs) = Conn c ': ConnsOf cs
+
+
+{-| Open all the 'Connectable' types to corresponding 'Conn' types. -}
+openAll :: Connectables xs => HList (Proc2Handle xs) -> IO (HList (ConnsOf xs))
+openAll =  go connProof
+  where
+    go :: SomeConns as -> HList (Proc2Handle as) -> IO (HList (ConnsOf as))
+    go SomeConnsNil HNil = pure HNil
+    go (SomeConnsCons cons) (x `HCons` y) = do
+      c <- openConn x
+      others <- go cons y `onException` closeConn c
+      pure $ c `HCons` others
+
+
+{-| Close all the 'Conns'. -}
+closeAll :: Connectables xs => HList (ConnsOf xs) -> IO ()
+closeAll = go connProof
+  where
+    go :: SomeConns as -> HList (ConnsOf as) -> IO ()
+    go SomeConnsNil HNil = pure ()
+    go (SomeConnsCons cons) (x `HCons` y) = closeConn x >> go cons y
+
+
+{-| Open some connections, use them in an action; close them. -}
+withConns
+  :: Connectables xs
+  => HList (Proc2Handle xs)
+  -> (HList (ConnsOf xs) -> IO b)
+  -> IO b
+withConns handles = bracket (openAll handles) closeAll
+
+
+{-| Open all known connections; use them in an action; close them. -}
+withKnownConns
+  :: (AreProcs ps,
+      Connectables cs,
+      IsSubsetOf (Proc2Handle cs) (Proc2Handle ps)
+     )
+  => HList (Proc2Handle ps)
+  -> (HList (ConnsOf cs) -> IO b)
+  -> IO b
+withKnownConns = withConns . hSubset
+
+
+{-| Open the named connections; use them in an action; close them. -}
+withNamedConns
+  :: ( SomeNamedHandles names cs ps
+     , Connectables cs
+     )
+  => Proxy names
+  -> HList (Proc2Handle ps)
+  -> (HList (ConnsOf cs) -> IO b)
+  -> IO b
+withNamedConns proxy = withConns . manyNamed proxy

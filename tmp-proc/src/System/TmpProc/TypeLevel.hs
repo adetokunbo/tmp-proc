@@ -109,6 +109,7 @@ type (NotAbsentErr e) =
   ('TL.Text " is already in this type list, and is not allowed again")
 
 
+{-| Proves that a list of types are a subset of another list of types. -}
 data SubsetOf (ys :: [*]) (xs :: [*]) where
   SSNil :: SubsetOf '[] '[]
   SSBoth :: SubsetOf ys xs -> SubsetOf (a : ys) (a : xs)
@@ -165,6 +166,7 @@ select = go $ lookupProof @k @t @xs
   list of 'KV' types. -}
 data LookupMany (keys :: [Symbol]) (t :: [*]) (xs :: [*]) where
   FirstOfMany :: LookupMany (k ': '[]) (t ': '[]) (KV k t ': kvs)
+
   NextOfMany
     :: LookupMany ks ts kvs
     -> LookupMany (k ': ks) (t ': ts) (KV k t ': kvs)
@@ -176,8 +178,8 @@ data LookupMany (keys :: [Symbol]) (t :: [*]) (xs :: [*]) where
 class ManyMemberKV (ks :: [Symbol]) (ts :: [*]) (kvs :: [*])  where
   manyProof :: LookupMany ks ts kvs
 
-instance {-# Overlapping #-} ManyMemberKV '[k] '[t] '[KV k t] where
-  manyProof = FirstOfMany @k @t @'[]
+instance {-# Overlapping #-} ManyMemberKV '[k] '[t] (KV k t ': ks) where
+  manyProof = FirstOfMany @k @t @ks
 
 instance {-# Overlapping #-} ManyMemberKV ks ts kvs => ManyMemberKV (k ': ks) (t ': ts) (KV k t ': kvs) where
   manyProof = NextOfMany manyProof
@@ -200,6 +202,6 @@ selectMany
 selectMany = go $ manyProof @ks @ts @xs
   where
     go :: LookupMany ks1 ts1 xs1 -> HList xs1 -> HList ts1
-    go FirstOfMany (V x `HCons` _)        = x `HCons` HNil
-    go (NextOfMany cons) (V x `HCons` y)  = x `HCons` go cons y
-    go (ManyOthers cons) (_ `HCons` y)    = go cons y
+    go FirstOfMany (V x `HCons` _)       = x `HCons` HNil
+    go (NextOfMany cons) (V x `HCons` y) = x `HCons` go cons y
+    go (ManyOthers cons) (_ `HCons` y)   = go cons y
