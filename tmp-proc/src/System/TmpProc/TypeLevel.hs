@@ -26,7 +26,8 @@ module System.TmpProc.TypeLevel
     HList(..)
   , (%:)
   , hHead
-  , hSubset
+  , hOf
+  , ReorderH(..)
 
     -- * A Key/Value type where the keys are type-level strings
   , KV(..)
@@ -38,16 +39,20 @@ module System.TmpProc.TypeLevel
 
     -- * Tools for writing constraints on type lists
   , IsAbsent
-  , SubsetOf(..)
-  , IsSubsetOf(..)
   )
 where
 
+import           Data.Kind                     (Type)
+import           Data.Proxy                    (Proxy (..))
+import           GHC.Exts                      (Constraint)
+import           GHC.TypeLits                  (ErrorMessage (..), Symbol,
+                                                TypeError)
+import qualified GHC.TypeLits                  as TL
 
-import qualified Data.Type.Equality as T
-import           GHC.Exts           (Constraint)
-import           GHC.TypeLits       (ErrorMessage (..), Symbol, TypeError)
-import qualified GHC.TypeLits       as TL
+-- $setup
+-- >>> import Data.Proxy
+-- >>> :set -XDataKinds
+-- >>> :set -XTypeApplications
 
 
 {-| Obtain the first element of a 'HList'. -}
@@ -55,20 +60,20 @@ hHead :: HList (a ': as) -> a
 hHead (x `HCons` _) = x
 
 
-{-| Get a subset of the terms in a 'HList'. -}
-hSubset :: IsSubsetOf ys xs => HList xs -> HList ys
-hSubset = go ssProof
+{-| Get an item in an 'HList' given its type. -}
+hOf :: forall y xs . IsInProof y xs => Proxy y -> HList xs -> y
+hOf proxy = go proxy provedIsIn
   where
-    go :: SubsetOf ys xs -> HList xs -> HList ys
-    go SSNil HNil                   = HNil
-    go (SSBoth cons) (y `HCons` x)  = y `HCons` go cons x
-    go (SSOuter cons) (_ `HCons` x) = go cons x
+    go :: Proxy x -> IsIn x ys -> HList ys -> x
+    go pxy IsHead          (y `HCons` _)    = y
+    go pxy (IsInTail cons) (_ `HCons` rest) = go pxy cons rest
 
 
-{-| A Heterogenous list -}
+{-| A Heterogenous list. -}
 data HList :: [*] -> * where
   HNil  :: HList '[]
-  HCons :: x -> HList xs -> HList (x ': xs)
+  HCons :: anyTy -> HList manyTys -> HList (anyTy ': manyTys)
+
 
 infixr 5 `HCons`
 infixr 5 %:
@@ -103,27 +108,6 @@ type family IsAbsent e r :: Constraint where
 type NotAbsentErr e =
   ('TL.Text " type " ':<>: 'TL.ShowType e) ':<>:
   ('TL.Text " is already in this type list, and is not allowed again")
-
-
-{-| Proves that a list of types are a subset of another list of types. -}
-data SubsetOf (ys :: [*]) (xs :: [*]) where
-  SSNil :: SubsetOf '[] '[]
-  SSBoth :: SubsetOf ys xs -> SubsetOf (a : ys) (a : xs)
-  SSOuter :: SubsetOf ys xs -> SubsetOf ys (a : xs)
-
-
-{-| Generate proof instances of 'SubsetOf'. -}
-class IsSubsetOf (ys :: [*]) (xs :: [*]) where
-  ssProof :: SubsetOf ys xs
-
-instance IsSubsetOf '[] '[] where
-  ssProof = SSNil
-
-instance IsSubsetOf ys xs => IsSubsetOf (a : ys) (a : xs) where
-  ssProof = SSBoth ssProof
-
-instance IsSubsetOf ys xs => IsSubsetOf ys (a : xs) where
-  ssProof = SSOuter ssProof
 
 
 {-| Proves a symbols its type occur together as a 'KV' in a list of 'KV' types. -}
@@ -201,3 +185,39 @@ selectMany = go $ manyProof @ks @ts @xs
     go FirstOfMany (V x `HCons` _)       = x `HCons` HNil
     go (NextOfMany cons) (V x `HCons` y) = x `HCons` go cons y
     go (ManyOthers cons) (_ `HCons` y)   = go cons y
+
+
+{-| Allows reordering of similar HLists.
+
+>>> hReorder @_ @'[Bool, Int] ('c' %: (3 :: Int) %: True %: (3.1 :: Double) %:HNil)
+True %: 3 %: HNil
+
+>>> hReorder @_ @'[Double, Bool, Int] ('c' %: (3 :: Int) %: True %: (3.1 :: Double) %:HNil)
+3.1 %: True %: 3 %: HNil
+
+-}
+class ReorderH xs ys where
+  hReorder :: HList xs -> HList ys
+
+instance ReorderH xs '[] where
+  hReorder _ = HNil
+
+instance (IsInProof y xs, ReorderH xs ys) => ReorderH xs (y ': ys) where
+  hReorder xs = hOf @y Proxy xs `HCons` hReorder xs
+
+
+{-| Proves a type is present in a list of other types. -}
+data IsIn t (xs :: [Type]) where
+  IsHead   :: IsIn t (t ': tys)
+  IsInTail :: IsIn t tys -> IsIn t (otherTy ': tys)
+
+
+{-| Generate proof instances of 'IsIn'. -}
+class IsInProof t (tys :: [Type]) where
+  provedIsIn :: IsIn t tys
+
+instance {-# Overlapping #-} IsInProof t (t ': tys) where
+  provedIsIn = IsHead @t @tys
+
+instance IsInProof t tys => IsInProof t (a : tys) where
+  provedIsIn = IsInTail provedIsIn

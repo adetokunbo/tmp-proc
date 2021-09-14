@@ -92,7 +92,7 @@ import           System.Process           (StdStream (..), proc, readProcess,
                                            std_err, std_out, waitForProcess,
                                            withCreateProcess)
 
-import           System.TmpProc.TypeLevel (IsSubsetOf, SubsetOf, hSubset)
+import           System.TmpProc.TypeLevel (ReorderH(..))
 import           System.TmpProc.TypeLevel (HList (..), IsAbsent,
                                            KV (..), ManyMemberKV,
                                            MemberKV, select, selectMany)
@@ -539,12 +539,12 @@ withConns handles = bracket (openAll handles) closeAll
 withKnownConns
   :: (AreProcs ps,
       Connectables cs,
-      IsSubsetOf (Proc2Handle cs) (Proc2Handle ps)
+      ReorderH (Proc2Handle ps) (Proc2Handle cs)
      )
   => HList (Proc2Handle ps)
   -> (HList (ConnsOf cs) -> IO b)
   -> IO b
-withKnownConns = withConns . hSubset
+withKnownConns = withConns . hReorder
 
 
 {-| Open the named connections; use them in an action; close them. -}
