@@ -93,18 +93,14 @@ data KV :: Symbol -> * -> * where
   V :: a -> KV s a
 
 
-{-| Choose between two types. -}
-type family If (b :: Bool) tv fv where
-  If 'False _ fv  = fv
-  If 'True  tv _  = tv
-
-
 {-| A constraint that confirms type @e@ is not an element of type list @r@. -}
 type family IsAbsent e r :: Constraint where
   IsAbsent e '[]           = ()
-  IsAbsent e (e' ': tail)  = If (e T.== e') (TypeError (NotAbsentErr e)) (IsAbsent e tail)
+  IsAbsent e (e ': _)      = TypeError (NotAbsentErr e)
+  IsAbsent e (e' ': tail)  = IsAbsent e tail
 
-type (NotAbsentErr e) =
+
+type NotAbsentErr e =
   ('TL.Text " type " ':<>: 'TL.ShowType e) ':<>:
   ('TL.Text " is already in this type list, and is not allowed again")
 
