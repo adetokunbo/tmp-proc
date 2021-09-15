@@ -11,7 +11,7 @@
 {-# LANGUAGE PolyKinds              #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeApplications       #-}
-{-# LANGUAGE TypeFamilies           #-}
+{-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE TypeOperators          #-}
 {-# LANGUAGE UndecidableInstances   #-}
 {-|
@@ -37,8 +37,11 @@ module System.TmpProc.TypeLevel
   , MemberKV(..)
   , ManyMemberKV(..)
 
-    -- * Tools for writing constraints on type lists
+    -- * Other useful constraints
   , IsAbsent
+
+    -- * Re-export the Sort combinators
+  , module System.TmpProc.TypeLevel.Sort
   )
 where
 
@@ -48,6 +51,7 @@ import           GHC.Exts                      (Constraint)
 import           GHC.TypeLits                  (ErrorMessage (..), Symbol,
                                                 TypeError)
 import qualified GHC.TypeLits                  as TL
+import           System.TmpProc.TypeLevel.Sort
 
 -- $setup
 -- >>> import Data.Proxy
@@ -65,7 +69,7 @@ hOf :: forall y xs . IsInProof y xs => Proxy y -> HList xs -> y
 hOf proxy = go proxy provedIsIn
   where
     go :: Proxy x -> IsIn x ys -> HList ys -> x
-    go pxy IsHead          (y `HCons` _)    = y
+    go _ IsHead            (y `HCons` _)    = y
     go pxy (IsInTail cons) (_ `HCons` rest) = go pxy cons rest
 
 
@@ -110,7 +114,7 @@ type NotAbsentErr e =
   ('TL.Text " is already in this type list, and is not allowed again")
 
 
-{-| Proves a symbols its type occur together as a 'KV' in a list of 'KV' types. -}
+{-| Proves a symbol and its type occur as entry in a list of @'KV'@ types. -}
 data LookupKV (k :: Symbol) t (xs :: [*]) where
   AtHead :: LookupKV k t (KV k t ': kvs)
   OtherKeys :: LookupKV k t kvs -> LookupKV k t (KV ok ot ': kvs)
@@ -142,8 +146,15 @@ select = go $ lookupProof @k @t @xs
     go (OtherKeys cons) (_ `HCons` y) = go cons y
 
 
-{-| Proves that some symbols and corresponding types occur together as a 'KV' in a
-  list of 'KV' types. -}
+{-| Proves that symbols with corresponding types occur as a 'KV' in a
+  list of 'KV' types
+
+Note - both the list symbols and @'KV'@ types need to be sorted, with @'KV'@
+types sorted by key.
+
+TODO: is there an easy way to incorporate this rule into the proof ?
+
+-}
 data LookupMany (keys :: [Symbol]) (t :: [*]) (xs :: [*]) where
   FirstOfMany :: LookupMany (k ': '[]) (t ': '[]) (KV k t ': kvs)
 
@@ -168,11 +179,15 @@ instance ManyMemberKV ks ts kvs  => ManyMemberKV ks ts (KV ok ot ': kvs) where
   manyProof = ManyOthers manyProof
 
 
-{-| Select items with specified keys from an 'HList' of '@'KV's@ by 'key'.
+{-| Select items with specified keys from an @'HList'@ of '@'KV's@ by 'key'.
 
-Note: there is a known bug; the specified keys have to be provided in the same
-order as they are in the HList, any other order will usually result in an
-compiler error.
+Note this this is an internal function.
+
+The specified keys have to be provided in the same order as they are in the
+HList, any other order will usually result in an compiler error.
+
+The function has to be used with various type-directed functions that allow
+heterogenous list of types to be sorted.
 
 -}
 selectMany
