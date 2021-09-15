@@ -79,12 +79,14 @@ import           Control.Exception        (IOException, bracket, catch,
                                            onException, throw)
 import           Control.Monad            (void)
 import qualified Data.ByteString.Char8    as C8
+import           Data.Kind                (Type)
 import           Data.List                (dropWhileEnd)
 import           Data.Proxy               (Proxy (..))
 import           Data.Text                (Text)
 import qualified Data.Text                as Text
 import qualified Data.Text.IO             as Text
-import           GHC.TypeLits             (KnownSymbol, Symbol, symbolVal)
+import           GHC.TypeLits             (CmpSymbol, KnownSymbol, Nat, Symbol,
+                                           symbolVal)
 import           Numeric.Natural          (Natural)
 import           System.Exit              (ExitCode (..))
 import           System.IO                (stderr)
@@ -92,10 +94,10 @@ import           System.Process           (StdStream (..), proc, readProcess,
                                            std_err, std_out, waitForProcess,
                                            withCreateProcess)
 
-import           System.TmpProc.TypeLevel (ReorderH(..))
-import           System.TmpProc.TypeLevel (HList (..), IsAbsent,
-                                           KV (..), ManyMemberKV,
-                                           MemberKV, select, selectMany)
+import           System.TmpProc.TypeLevel (Drop, HList (..), HalfOf, IsAbsent,
+                                           KV (..), LengthOf, ManyMemberKV,
+                                           MemberKV, ReorderH (..), SymbolSort,
+                                           Take, select, selectMany)
 
 
 {-| Determines if the docker daemon is accessible. -}
@@ -348,15 +350,41 @@ named'
 named' _ kvs = select @s @(ProcHandle a) kvs
 
 
+{-| Constraint alias used to constrain types when several 'Names' find matching
+ types in an 'HList' of 'ProcHandle'.
+-}
+type SomeNamedHandles names procs someProcs sortedProcs =
+  ( names ~ Proc2Name procs
+  , ManyMemberKV
+    (SymbolSort names)
+    (HandleSort (Proc2Handle procs))
+    (Handle2KV (Proc2Handle sortedProcs))
+
+  , ReorderH (HandleSort (Proc2Handle procs)) (Proc2Handle procs)
+  , ReorderH (Proc2Handle someProcs) (Proc2Handle sortedProcs)
+
+  , AreProcs sortedProcs
+  , HandleSort (Proc2Handle someProcs) ~ Proc2Handle sortedProcs
+  )
+
+
+{-| Select the named @'ProcHandle's@ from an 'HList' of @'ProcHandle'@. -}
+manyNamed
+  :: SomeNamedHandles names procs someProcs sortedProcs
+  => Proxy names -> HList (Proc2Handle someProcs) -> HList (Proc2Handle procs)
+manyNamed proxy xs = manyNamed' proxy $ toSortedKVs xs
+
+
 manyNamed'
-  :: forall (ps :: [*]) (handles :: [*]) (names :: [Symbol]) (xs :: [*]) .
-     ( handles ~ Proc2Handle ps
-     , names ~ Proc2Name ps
-     , ManyMemberKV names handles xs
-     , AreProcs ps
+  :: forall (names :: [Symbol]) sortedNames (procs :: [*]) (ordered :: [*]) someProcs.
+     ( names ~ Proc2Name procs
+     , sortedNames ~ SymbolSort names
+     , ordered ~ HandleSort (Proc2Handle procs)
+     , ManyMemberKV sortedNames ordered (Handle2KV someProcs)
+     , ReorderH ordered (Proc2Handle procs)
      )
-  => Proxy names -> HList xs -> HList (Proc2Handle ps)
-manyNamed' _ kvs = selectMany @names @handles kvs
+  => Proxy names -> HList (Handle2KV someProcs) -> HList (Proc2Handle procs)
+manyNamed' _ kvs = unsortHandles $ selectMany @sortedNames @ordered kvs
 
 
 {-| Resets the handle with the given @'Name'@ in a list of Handles. -}
@@ -404,26 +432,8 @@ ixUriOf'
 ixUriOf' _ kvs = hUri $ select @s @(ProcHandle a) kvs
 
 
-{-| Constraint alias used to constrain types where several 'Names' looks up
-  a types in an 'HList' of 'ProcHandle'.
--}
-type SomeNamedHandles names ps xs =
-  ( names ~ Proc2Name ps
-  , ManyMemberKV (Proc2Name ps) (Proc2Handle ps) (Handle2KV (Proc2Handle xs))
-  , AreProcs ps
-  , AreProcs xs
-  )
-
-
-{-| The named @'ProcHandle's@ from an 'HList' of @'ProcHandle'@. -}
-manyNamed
-  :: SomeNamedHandles names ps xs
-  => Proxy names -> HList (Proc2Handle xs) -> HList (Proc2Handle ps)
-manyNamed proxy xs = manyNamed' proxy $ toKVs xs
-
-
 {-| Create a 'HList' of @'KV's@ from a 'HList' of @'ProcHandle's@. -}
-toKVs :: AreProcs xs => HList (Proc2Handle xs) -> HList (Handle2KV (Proc2Handle xs))
+toKVs :: (handles ~ Proc2Handle xs, AreProcs xs) => HList handles -> HList (Handle2KV handles)
 toKVs = go $ p2h procProof
   where
     go :: SomeHandles as -> HList as -> HList (Handle2KV as)
@@ -431,24 +441,35 @@ toKVs = go $ p2h procProof
     go (SomeHandlesCons cons) (x `HCons` y) = toKV x `HCons` go cons y
 
 
+toSortedKVs
+  :: ( handles ~ Proc2Handle someProcs
+     , sorted ~ HandleSort handles
+     , ReorderH handles sorted
+     , AreProcs sortedProcs
+     , Proc2Handle sortedProcs ~ sorted
+     )
+  => HList handles -> HList (Handle2KV sorted)
+toSortedKVs procHandles = toKVs $ sortHandles procHandles
+
+
 {-| Convert a 'ProcHandle' to a 'KV'. -}
 toKV :: Proc a => ProcHandle a -> KV (Name a) (ProcHandle a)
 toKV h = V h
 
 
-{-| Converts list of types to the corresponding 'ProcHandle' types. -}
+{-| Converts list of types to the corresponding @'ProcHandle'@ types. -}
 type family Proc2Handle (as :: [*]) = (handleTys :: [*]) | handleTys -> as where
   Proc2Handle '[]        = '[]
   Proc2Handle (a ':  as) = ProcHandle a ': Proc2Handle as
 
 
-{-| Converts list of 'Proc' the corresponding 'Name' symbols. -}
+{-| Converts list of 'Proc' the corresponding @'Name'@ symbols. -}
 type family Proc2Name (as :: [*]) = (nameTys :: [Symbol]) | nameTys -> as where
   Proc2Name '[]          = '[]
   Proc2Name (a ':  as)   = Name a ': Proc2Name as
 
 
-{-| Convert list of 'ProcHandle' types to corresponding 'KV' types. -}
+{-| Convert list of 'ProcHandle' types to corresponding @'KV'@ types. -}
 type family Handle2KV (ts :: [*]) = (kvTys :: [*]) | kvTys -> ts where
   Handle2KV '[]                   = '[]
   Handle2KV (ProcHandle t ':  ts) = KV (Name t) (ProcHandle t) ': Handle2KV ts
@@ -522,7 +543,7 @@ closeAll :: Connectables xs => HList (ConnsOf xs) -> IO ()
 closeAll = go connProof
   where
     go :: SomeConns as -> HList (ConnsOf as) -> IO ()
-    go SomeConnsNil HNil = pure ()
+    go SomeConnsNil HNil                  = pure ()
     go (SomeConnsCons cons) (x `HCons` y) = closeConn x >> go cons y
 
 
@@ -549,7 +570,7 @@ withKnownConns = withConns . hReorder
 
 {-| Open the named connections; use them in an action; close them. -}
 withNamedConns
-  :: ( SomeNamedHandles names cs ps
+  :: ( SomeNamedHandles names cs ps sortedProcs
      , Connectables cs
      )
   => Proxy names
@@ -557,3 +578,45 @@ withNamedConns
   -> (HList (ConnsOf cs) -> IO b)
   -> IO b
 withNamedConns proxy = withConns . manyNamed proxy
+
+
+sortHandles
+  :: ( handles ~ Proc2Handle ps
+     , sorted ~ HandleSort (handles)
+     , ReorderH handles sorted
+     )
+  => HList handles -> HList sorted
+sortHandles = hReorder
+
+
+unsortHandles
+  :: ( sorted ~ HandleSort (handles)
+     , handles ~ Proc2Handle ps
+     , ReorderH sorted handles
+     )
+  => HList sorted -> HList handles
+unsortHandles = hReorder
+
+
+{-| Sort lists of @'ProcHandle'@ types. -}
+type family HandleSort (xs :: [Type]) :: [Type] where
+    HandleSort '[] = '[]
+    HandleSort '[x] = '[x]
+    HandleSort '[x, y] = HandleMerge '[x] '[y] -- just an optimization, not required
+    HandleSort xs = HandleSortStep xs (HalfOf (LengthOf xs))
+
+type family HandleSortStep (xs :: [Type]) (halfLen :: Nat) :: [Type] where
+    HandleSortStep xs halfLen = HandleMerge (HandleSort (Take xs halfLen)) (HandleSort (Drop xs halfLen))
+
+type family HandleMerge (xs :: [Type]) (ys :: [Type]) :: [Type] where
+    HandleMerge xs '[] = xs
+    HandleMerge '[] ys = ys
+    HandleMerge (ProcHandle x ': xs) (ProcHandle y ': ys) =
+        HandleMergeImpl (ProcHandle x ': xs) (ProcHandle y ': ys) (CmpSymbol (Name x) (Name y))
+
+type family HandleMergeImpl (xs :: [Type]) (ys :: [Type]) (o :: Ordering) :: [Type] where
+    HandleMergeImpl (ProcHandle x ': xs) (ProcHandle y ': ys) 'GT =
+        ProcHandle y ': HandleMerge (ProcHandle x ': xs) ys
+
+    HandleMergeImpl (ProcHandle x ': xs) (ProcHandle y ': ys) leq =
+        ProcHandle x ': HandleMerge xs (ProcHandle y ': ys)
