@@ -118,15 +118,14 @@ typeLevelCheck2 = do
   allHandles <- setupHandles
   pure $ manyNamed @'["http-bin-test", "http-bin-test-3"] Proxy  allHandles
 
-{-| Verify that various compile time type computations work ok.
 
-N.B. Fixme
+typeLevelCheck3 :: IO (HList (Proc2Handle '[HttpBinTest3, HttpBinTest]))
+typeLevelCheck3 = do
+  allHandles <- setupHandles
+  pure $ manyNamed @'["http-bin-test-3", "http-bin-test"] Proxy  allHandles
 
-This fails because of a known bug. The workaround is always ensure that the
-names are provided it same order as they occur in the handle.
 
--}
--- typeLevelCheck3 :: IO (HList (Proc2Handle '[HttpBinTest3, HttpBinTest]))
--- typeLevelCheck3 = do
---   allHandles <- setupHandles
---   pure $ manyNamed @'["http-bin-test-3", "http-bin-test"] Proxy  allHandles
+typeLevelCheck4 :: IO (HList (Proc2Handle '[HttpBinTest2, HttpBinTest3, HttpBinTest]))
+typeLevelCheck4 = do
+  allHandles <- setupHandles
+  pure $ manyNamed @'["http-bin-test-2", "http-bin-test-3", "http-bin-test"] Proxy allHandles
