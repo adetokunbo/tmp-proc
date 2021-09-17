@@ -40,4 +40,7 @@ jobs:
         nix-shell --run "cabal new-test --test-show-details=streaming tmp-proc-postgres"
     - name: Run the redis tests in a nix-shell
       run: |
-        nix-shell --run "cabal new-test --test-show-details=streaming tmp-proc-postgres"
+        nix-shell --run "cabal new-test --test-show-details=streaming tmp-proc-redis"
+    - name: Run the rabbitmq tests in a nix-shell
+      run: |
+        nix-shell --run "cabal new-test --test-show-details=streaming tmp-proc-rabbitmq"

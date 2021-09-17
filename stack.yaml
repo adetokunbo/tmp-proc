@@ -35,6 +35,7 @@ resolver: lts-17.2
 packages:
 - tmp-proc
 - tmp-proc-postgres
+- tmp-proc-rabbitmq
 - tmp-proc-redis
 
 # Dependency packages to be pulled from upstream that are not in the resolver.
