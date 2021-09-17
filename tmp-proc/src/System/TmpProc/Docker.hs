@@ -75,7 +75,7 @@ module System.TmpProc.Docker
 where
 
 import           Control.Concurrent       (threadDelay)
-import           Control.Exception        (IOException, bracket, catch,
+import           Control.Exception        (SomeException, bracket, catch,
                                            onException, throw)
 import           Control.Monad            (void)
 import qualified Data.ByteString.Char8    as C8
@@ -291,18 +291,22 @@ startup x = do
 nPings :: Proc a => ProcHandle a -> IO ()
 nPings h@ProcHandle{hProc = p} =
   let
-    errMsg = "tmp.proc: startup failed for " <> nameOf p
+    count  = fromEnum $ pingCount' p
+    gap    = fromEnum $ pingGap' p
+
+    lastMsg = "tmp.proc: could not start " <> nameOf p <> "; all pings failed"
+    lastErr  = Text.hPutStrLn stderr lastMsg
+
+    pingMsg i = "tmp.proc: ping #" <> (Text.pack $ show i) <> " failed; will retry"
+    nthErr n  = Text.hPutStrLn stderr $ pingMsg $ count + 1 - n
 
     go 0 =
-      ping h `catch` (\(e :: IOException) -> do
-                         Text.hPutStrLn stderr errMsg
-                         throw e )
+      ping h `catch` (\(e :: SomeException) -> lastErr >> throw e)
     go n =
-      ping h `catch` (\(_ :: IOException) -> do
-                             threadDelay $ fromEnum $ pingGap' p
-                             go (n - 1) )
+      ping h `catch` (\(_ :: SomeException) -> do
+                             threadDelay gap >> nthErr n >> go (n - 1))
   in
-    go $ fromEnum $ pingCount' p
+    go count
 
 
 {-| Constraint alias used to constrain types where a 'Name' looks up
