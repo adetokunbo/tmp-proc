@@ -4,3 +4,4 @@ packages:
   ./tmp-proc-postgres
   ./tmp-proc-rabbitmq
   ./tmp-proc-redis
+  ./tmp-proc-zipkin
