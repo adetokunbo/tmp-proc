@@ -1,5 +1,4 @@
 packages:
-  ./docker-tmp-proc
   ./tmp-proc
   ./tmp-proc-postgres
   ./tmp-proc-rabbitmq
