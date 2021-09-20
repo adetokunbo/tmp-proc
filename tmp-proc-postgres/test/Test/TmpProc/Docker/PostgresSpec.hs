@@ -4,6 +4,7 @@
 module Test.TmpProc.Docker.PostgresSpec where
 
 import           Test.Hspec
+import           Test.Hspec.TmpProc
 
 import           Control.Exception              (onException)
 import           Data.Proxy                     (Proxy (..))
@@ -15,21 +16,9 @@ import           System.TmpProc.Docker
 import           System.TmpProc.Docker.Postgres
 
 
--- | Used as pending alternative when docker is unavailable.
-noDockerSpec :: String -> Spec
-noDockerSpec desc = describe desc $
-  it "cannot run as docker is unavailable" pending
-
-
-spec :: Bool -> Spec
-spec noDocker = do
-  let desc = "Tmp.Proc:Postgres:" ++ Text.unpack (nameOf testProc)
-  if noDocker then noDockerSpec desc else checkPostgres desc
-
-
-checkPostgres :: String -> Spec
-checkPostgres desc =  beforeAll setupHandles $ afterAll terminateAll $ do
-  describe desc $ do
+spec :: Spec
+spec = tdescribe desc $ do
+  beforeAll setupHandles $ afterAll terminateAll $ do
     context "when using the Proc from the HList by its 'Name'" $ do
 
       context "ixPing" $ do
@@ -69,3 +58,7 @@ createTestTable handle = withTmpConn handle $ \c -> do
         , "INSERT INTO to_be_reset VALUES (347)"
         ]
   mapM_ (execute_ c) commands
+
+
+desc :: String
+desc = "Tmp.Proc:Postgres:" ++ Text.unpack (nameOf testProc)

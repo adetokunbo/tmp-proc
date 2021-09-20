@@ -6,6 +6,7 @@
 module Test.TmpProc.Docker.RedisSpec where
 
 import           Test.Hspec
+import           Test.Hspec.TmpProc
 
 import           Control.Exception           (onException)
 import           Control.Monad.IO.Class      (liftIO)
@@ -18,21 +19,9 @@ import           System.TmpProc.Docker
 import           System.TmpProc.Docker.Redis
 
 
--- | Used as pending alternative when docker is unavailable.
-noDockerSpec :: String -> Spec
-noDockerSpec desc = describe desc $
-  it "cannot run as docker is unavailable" pending
-
-
-spec :: Bool -> Spec
-spec noDocker = do
-  let desc = "Tmp.Proc:Redis:" ++ Text.unpack (nameOf $ TmpRedis [])
-  if noDocker then noDockerSpec desc else checkRedis desc
-
-
-checkRedis :: String -> Spec
-checkRedis desc =  beforeAll setupHandles $ afterAll terminateAll $ do
-  describe desc $ do
+spec :: Spec
+spec = tdescribe desc $ do
+  beforeAll setupHandles $ afterAll terminateAll $ do
     context "when using the Proc from the HList by its 'Name'" $ do
 
       context "ixPing" $ do
@@ -89,3 +78,7 @@ checkTestKey handle = withTmpConn handle $ \conn -> do
   liftIO (runRedis conn $ exists testKey) >>= \case
     Left e  -> fail $ "redis operation failed: " ++ show e
     Right x -> pure x
+
+
+desc :: String
+desc = "Tmp.Proc:Redis:" ++ Text.unpack (nameOf $ TmpRedis [])

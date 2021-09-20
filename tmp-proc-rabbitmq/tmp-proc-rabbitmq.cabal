@@ -39,6 +39,7 @@ test-suite integration-test
                   , amqp
                   , bytestring
                   , hspec
+                  , hspec-tmp-proc
                   , text
                   , tmp-proc-rabbitmq
                   , tmp-proc

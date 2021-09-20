@@ -23,12 +23,12 @@ import           System.TmpProc.Warp       (ServerHandle, handles, runServer,
 import           Test.HttpBin
 import           Test.SimpleServer         (defaultTLSSettings, statusOfGet,
                                             statusOfGet')
-import           Test.System.TmpProc.Hspec (noDockerSpec)
+import           Test.Hspec.TmpProc        (tdescribe)
 
-spec :: Bool -> Spec
-spec noDocker = do
-  let desc = "Tmp.Proc: run a warp server with a Tmp.Proc dependency"
-  if noDocker then noDockerSpec desc else beforeAllSpec >> aroundSpec
+
+spec :: Spec
+spec = tdescribe "Tmp.Proc: Warp server with Tmp.Proc dependency" $ do
+  beforeAllSpec >> aroundSpec
 
 
 testProcs :: HList '[HttpBinTest]
@@ -49,8 +49,8 @@ setupBeforeAllTls = runTLSServer defaultTLSSettings testProcs testApp
 suffixAround, suffixBeforeAll, prefixHttp, prefixHttps :: String
 suffixAround = " when the server is restarted for each test"
 suffixBeforeAll = " when the server starts beforeAll tests"
-prefixHttp = "System.TmpProc.Warp:HTTP:"
-prefixHttps = "System.TmpProc.Warp:HTTPS:"
+prefixHttp = "Warp+HTTP:"
+prefixHttps = "Warp+HTTPS:"
 
 
 beforeAllSpec :: Spec
@@ -66,13 +66,11 @@ checkBeforeAll
 checkBeforeAll descPrefix setup getter =  beforeAll setup $ afterAll shutdown $ do
   describe (descPrefix ++ suffixBeforeAll) $ do
 
-    context "handle" $ do
-      it "should ping the process ok" $ \sh ->
-        ixPing @"http-bin-test" Proxy (handles sh) `shouldReturn` ()
+    it "should ping the proc handle" $ \sh ->
+      ixPing @"http-bin-test" Proxy (handles sh) `shouldReturn` ()
 
-    context "serverPort" $ do
-      it "should invoke the server via the warp ok" $ \sh ->
-        getter (serverPort sh) "test" `shouldReturn` 200
+    it "should invoke the warp server via its port" $ \sh ->
+      getter (serverPort sh) "test" `shouldReturn` 200
 
 
 setupAround :: ((HList '[ProcHandle HttpBinTest], Int) -> IO a) -> IO a
@@ -97,12 +95,10 @@ checkEachTest
 checkEachTest descPrefix setup getter = around setup $ do
   describe (descPrefix ++ suffixAround) $ do
 
-    context "handle" $ do
-      it "should ping the process ok" $ \(h, _) ->
+    it "should ping the proc handle" $ \(h, _) ->
         ixPing @"http-bin-test" Proxy h `shouldReturn` ()
 
-    context "serverPort" $ do
-      it "should invoke the server via the warp ok" $ \(_, p) ->
+    it "should invoke the warp server via its port" $ \(_, p) ->
         getter p "test" `shouldReturn` 200
 
 

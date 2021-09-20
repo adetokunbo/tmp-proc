@@ -39,6 +39,7 @@ test-suite integration-test
   build-depends:    base
                   , bytestring
                   , hspec
+                  , hspec-tmp-proc
                   , hedis
                   , text
                   , tmp-proc-redis

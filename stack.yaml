@@ -33,10 +33,12 @@ resolver: lts-17.2
 #   - auto-update
 #   - wai
 packages:
+- hspec-tmp-proc
 - tmp-proc
 - tmp-proc-postgres
 - tmp-proc-rabbitmq
 - tmp-proc-redis
+- tmp-proc-zipkin
 
 # Dependency packages to be pulled from upstream that are not in the resolver.
 # These entries can reference officially published versions as well as
@@ -72,3 +74,4 @@ packages:
 #
 # Allow a newer minor version of GHC than the snapshot specifies
 compiler-check: newer-minor
+allow-newer: true

@@ -13,19 +13,13 @@ import qualified Data.Text                 as Text
 
 import           System.TmpProc.Docker     (ixPing, ixReset, nameOf,
                                             terminateAll)
+import           Test.Hspec.TmpProc        (tdescribe)
 import           Test.HttpBin
-import           Test.System.TmpProc.Hspec (noDockerSpec)
 
 
-spec :: Bool -> Spec
-spec noDocker = do
-  let desc = "Tmp.Proc: " ++ Text.unpack (nameOf HttpBinTest)
-  if noDocker then noDockerSpec desc else checkHttpBin desc
-
-
-checkHttpBin :: String -> Spec
-checkHttpBin desc =  beforeAll setupHandles $ afterAll terminateAll $ do
-  describe desc $ do
+spec :: Spec
+spec = tdescribe ("Tmp.Proc: " ++ Text.unpack (nameOf HttpBinTest)) $ do
+  beforeAll setupHandles $ afterAll terminateAll $ do
     context "when using the Proc from the HList by Name" $ do
 
       context "ixPing" $ do
