@@ -9,7 +9,7 @@ Module      : System.TmpProc.Docker.Redis
 Description : Provides an instance of @Proc@ for launching redis as a tmp process.
 Copyright   : (c) 2021, Tim Emiola
 License     : BSD
-Maintainer  : tim.emiola@gmail.com
+Maintainer  : adetokunbo@users.noreply.github.com
 Stability   : experimental
 -}
 module System.TmpProc.Docker.Redis

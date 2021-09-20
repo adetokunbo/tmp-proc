@@ -8,16 +8,16 @@ license:            BSD-3-Clause
 license-file:       LICENSE
 copyright:          2021 Tim Emiola
 author:             Tim Emiola
-Maintainer:         tim.emiola@gmail.com
+Maintainer:         adetokunbo@users.noreply.github.com
 category:           Testing
-homepage:           https://github.com/adetokunbo/docker-tmp-proc
+homepage:           https://github.com/adetokunbo/tmp-proc
 build-type:         Simple
 extra-source-files: ChangeLog.md
                     README.md
 
 source-repository head
   type:     git
-  location: https://github.com/adetokunbo/docker-tmp-proc.git
+  location: https://github.com/adetokunbo/tmp-proc.git
 
 library
   exposed-modules:  System.TmpProc.Docker.Redis

@@ -7,7 +7,7 @@ license:            BSD-3-Clause
 license-file:       LICENSE
 copyright:          2021 Tim Emiola
 author:             Tim Emiola
-maintainer:         tim.emiola@gmail.com
+maintainer:         adetokunbo@users.noreply.github.com
 category:           Testing
 homepage:           https://github.com/adetokunbo/tmp-proc
 build-type:         Simple
