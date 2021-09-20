@@ -9,7 +9,7 @@ Module      : System.TmpProc.Docker.Postgres
 Description : Provides an instance of @Proc@ for launching postgres as a tmp process.
 Copyright   : (c) 2021, Tim Emiola
 License     : BSD
-Maintainer  : tim.emiola@gmail.com
+Maintainer  : adetokunbo@users.noreply.github.com
 Stability   : experimental
 -}
 module System.TmpProc.Docker.Postgres
