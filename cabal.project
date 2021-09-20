@@ -5,3 +5,4 @@ packages:
   ./tmp-proc-rabbitmq
   ./tmp-proc-redis
   ./tmp-proc-zipkin
+  ./hspec-tmp-proc
