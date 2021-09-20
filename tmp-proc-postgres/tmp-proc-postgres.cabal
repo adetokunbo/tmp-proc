@@ -38,6 +38,7 @@ test-suite integration-test
   build-depends:    base
                   , bytestring
                   , hspec
+                  , hspec-tmp-proc
                   , postgresql-simple
                   , text
                   , tmp-proc-postgres
