@@ -33,6 +33,7 @@ resolver: lts-17.2
 #   - auto-update
 #   - wai
 packages:
+- hspec-tmp-proc
 - tmp-proc
 - tmp-proc-postgres
 - tmp-proc-rabbitmq
