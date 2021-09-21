@@ -3,27 +3,31 @@
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE TypeFamilies          #-}
-
+{-# OPTIONS_HADDOCK prune not-home #-}
 {-|
-Module      : System.TmpProc.Docker.Redis
-Description : Provides an instance of @Proc@ for launching redis as a tmp process.
-Copyright   : (c) 2021, Tim Emiola
-License     : BSD
-Maintainer  : adetokunbo@users.noreply.github.com
-Stability   : experimental
+Copyright   : (c) 2020-2021 Tim Emiola
+SPDX-License-Identifier: BSD3
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com >
+
+Provides an instance of 'Proc' that launches @redis@ as a @tmp proc@.
+
+The instance this module provides can be used in integration tests as is.
+
+It's also possible to write other instances that launch @redis@ in different
+ways; for those, this instance can be used as a reference example.
+
 -}
+
 module System.TmpProc.Docker.Redis
-  ( -- * data types
+  ( -- * 'Proc' instance
     TmpRedis(..)
 
-    -- * useful definitions
+    -- * Useful definitions
   , aProc
   , aHandle
-
-    -- * key names
   , KeyName
 
-    -- * module re-exports
+    -- * Re-exports
   , module System.TmpProc.Docker
   )
 where
@@ -54,15 +58,15 @@ aHandle = startupAll aProc
 type KeyName = C8.ByteString
 
 
-{-| Represents a tmp redis instance that wi
+{-| Provides the capability to launch a redis instance as @tmp proc@.
 
-It specifies the names of keys to be dropped during a reset.
+The constructor receives the names of keys to be dropped on 'reset'.
 
 -}
 data TmpRedis = TmpRedis [KeyName]
 
 
-{-| A 'Proc' for running redis as a tmp process. -}
+{-| Specifies how to run @redis@ as a @tmp proc@. -}
 instance Proc TmpRedis where
   type Image TmpRedis = "redis:5.0"
   type Name TmpRedis = "a-redis-db"
@@ -72,6 +76,7 @@ instance Proc TmpRedis where
   ping = flip withTmpConn (const $ pure ())
   reset = clearKeys
 
+{-| Specifies how to connect to a tmp @redis@ service. -}
 instance Connectable TmpRedis where
   type Conn TmpRedis = Connection
 

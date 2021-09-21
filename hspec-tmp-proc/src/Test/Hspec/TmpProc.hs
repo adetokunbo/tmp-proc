@@ -1,14 +1,14 @@
+{-# OPTIONS_HADDOCK prune not-home #-}
 {-|
 Copyright   : (c) 2020-2021 Tim Emiola
 SPDX-License-Identifier: BSD3
 Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com >
 
-Simplifies using @TmpProc@ with @HSpec@.
+Simplify use of @tmp-proc@ with @hspec@.
 
 -}
 module Test.Hspec.TmpProc
-  (  -- * functions
-    tdescribe
+  ( tdescribe
   )
 where
 

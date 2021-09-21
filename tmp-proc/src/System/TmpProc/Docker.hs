@@ -14,31 +14,55 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE TypeOperators          #-}
 {-# LANGUAGE UndecidableInstances   #-}
+{-# OPTIONS_HADDOCK prune not-home #-}
 
 {-|
 Copyright   : (c) 2020-2021 Tim Emiola
 SPDX-License-Identifier: BSD3
-Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com >
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
 
-Implements core data types and combinators for launching temporary processes as
-docker images.
+Provides the core data types and combinators used to launch temporary /(tmp)/
+processes /(procs)/ using docker.
+
+@tmp-proc@ aims to simplify integration tests that use dockerizable services.
+
+* Basically, @tmp-proc@ helps launch services used in integration test on docker
+
+* Obviously, it's possible to write integration tests that use services hosted
+  on docker /without/ @tmp-proc@
+
+* However, @tmp-proc@ aims to make those kind of tests easier - it
+  takes care of
+
+    * launching services on docker
+    * obtaining references to the launched service
+    * cleaning up docker once the tests are finished
+
+This module does this via its data types:
+
+* A /'Proc'/ specifies a docker image that provides a service and details
+  related to its use in tests.
+
+* A /'ProcHandle'/ is created whenever a /'Proc'/ is started, and is used to access
+and eventually terminate the running service.
+
+* Some @'Proc's@ will also be /'Connectable'/; these specify how access the
+service via some /'Conn'-ection/ type.
 
 -}
 module System.TmpProc.Docker
-  (
-    -- * type aliases
-    HostIpAddress
-  , SvcURI
-
-    -- * @'Proc'@ and related functions
-  , Proc(..)
+  ( -- * @'Proc'@
+    Proc(..)
+  , AreProcs
+  , SomeProcs(..)
   , startup
   , uriOf'
   , runArgs'
   , nameOf
 
-    -- * @'Connectable'@ and related types and functions
+    -- * @'Connectable'@
   , Connectable(..)
+  , Connectables
   , connected
   , withTmpConn
   , withNamedConn
@@ -48,9 +72,11 @@ module System.TmpProc.Docker
   , withKnownConns
   , withNamedConns
 
-    -- * @'ProcHandle'@ and functions for using HLists of @'ProcHandle's@
+    -- * @'ProcHandle'@
   , ProcHandle(..)
-  , imageTexts
+  , Proc2Handle
+  , HasNamedHandle
+  , SomeNamedHandles
   , startupAll
   , terminateAll
   , withTmpProcs
@@ -60,16 +86,15 @@ module System.TmpProc.Docker
   , named
   , manyNamed
 
-    -- * type families and constraints
-  , Proc2Handle
-  , AreProcs
-  , SomeProcs(..)
-  , HasNamedHandle
 
-    -- * Docker-related functions
+    -- * Docker status
   , hasDocker
 
-    -- * module re-exports
+    -- * Aliases
+  , HostIpAddress
+  , SvcURI
+
+    -- * Re-exports
   , module System.TmpProc.TypeLevel
   )
 where
@@ -96,7 +121,7 @@ import           System.Process           (StdStream (..), proc, readProcess,
 
 import           System.TmpProc.TypeLevel (Drop, HList (..), HalfOf, IsAbsent,
                                            KV (..), LengthOf, ManyMemberKV,
-                                           MemberKV, ReorderH (..), SymbolSort,
+                                           MemberKV, ReorderH (..), SortSymbols,
                                            Take, select, selectMany)
 
 
@@ -163,14 +188,6 @@ terminate handle = do
   void $ readProcess "docker" [ "rm", pid ] ""
 
 
-imageTexts :: AreProcs as => HList as -> [Text]
-imageTexts = go procProof
-  where
-    go :: SomeProcs as -> HList as -> [Text]
-    go SomeProcsNil          HNil          = []
-    go (SomeProcsCons cons)  (x `HCons` y) = imageText x : (go cons y)
-
-
 {-| Specifies how to a get a connection to a 'Proc'. -}
 class Proc a => Connectable a where
   {-| The connection type. -}
@@ -186,26 +203,27 @@ class Proc a => Connectable a where
 
 {-| Specifies how to launch a temporary process using Docker. -}
 class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
-  {-| The image name of the docker image. -}
+  {-| The image name of the docker image, e.g, /postgres:10.6/ -}
   type Image a :: Symbol
 
-  {-| A label to use when referencing the process created from this image. -}
+  {-| A label used to refer to running process created from this image, e.g,
+  /a-postgres-db/ -}
   type Name a = (labelName :: Symbol) | labelName -> a
 
-  {-| Additional arguments for launching the temporary process. -}
+  {-| Additional arguments to the docker command that launches the tmp proc. -}
   runArgs :: [Text]
   runArgs = mempty
 
-  {-| Resets the state of a temporary process. -}
-  reset :: ProcHandle a -> IO ()
-
-  {-| Determines the service URI of the process. -}
+  {-| Determines the service URI of the process, when applicable. -}
   uriOf :: HostIpAddress -> SvcURI
 
-  {-| Checks if the temporary process started ok. -}
+  {-| Resets some state in a tmp proc service. -}
+  reset :: ProcHandle a -> IO ()
+
+  {-| Checks if the tmp proc started ok. -}
   ping :: ProcHandle a -> IO ()
 
-  {-| Maximum number of pings to perform. -}
+  {-| Maximum number of pings to perform during startup. -}
   pingCount :: Natural
   pingCount = 4
 
@@ -214,31 +232,27 @@ class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
   pingGap = 1000000
 
 
-{-| Image of process. -}
-imageText :: forall a . (Proc a) => a -> Text
-imageText _  = Text.pack $ symbolVal (Proxy :: Proxy (Image a))
-
-
 {-| Name of a process. -}
 nameOf :: forall a . (Proc a) => a -> Text
 nameOf _  = Text.pack $ symbolVal (Proxy :: Proxy (Name a))
 
 
-{-| Simplifies use of @'runArgs'. -}
+{-| Simplifies use of 'runArgs'. -}
 runArgs' :: forall a . (Proc a) => a -> [Text]
 runArgs' _  = runArgs @a
 
-{-| Simplifies use of @'pingCount'. -}
+
+{-| Simplifies use of 'pingCount'. -}
 pingCount' :: forall a . (Proc a) => a -> Natural
 pingCount' _  = pingCount @a
 
 
-{-| Simplifies use of @'pingGap'. -}
+{-| Simplifies use of 'pingGap'. -}
 pingGap' :: forall a . (Proc a) => a -> Natural
 pingGap' _  = pingGap @a
 
 
-{-| Simplifies use of @'uriOf'. -}
+{-| Simplifies use of 'uriOf'. -}
 uriOf' :: forall a . (Proc a) => a -> HostIpAddress -> SvcURI
 uriOf' _ addr  = uriOf @a addr
 
@@ -257,17 +271,21 @@ imageText' :: forall a . (Proc a) => Text
 imageText' = Text.pack $ symbolVal (Proxy :: Proxy (Image a))
 
 
--- | The ip address of the virtual host.
+-- | The IP address of the docker host.
 type HostIpAddress = Text
 
 
--- | Connection string used to access the service once its running.
+-- | A connection string used to access the service once its running.
 type SvcURI = C8.ByteString
 
 
 {-| Starts a 'Proc'.
 
-Returns the 'ProcHandle' used to control the started process.
+It uses 'ping' to determine if the 'Proc' started up ok, and will fail by
+throwing an exception if it did not.
+
+Returns the 'ProcHandle' used to control the 'Proc' once a ping has succeeded.
+
 -}
 startup :: forall a . Proc a => a -> IO (ProcHandle a)
 startup x = do
@@ -287,7 +305,7 @@ startup x = do
   pure h
 
 
-{-| Ping a ProcHandle several times. -}
+{-| Ping a 'ProcHandle' several times. -}
 nPings :: Proc a => ProcHandle a -> IO ()
 nPings h@ProcHandle{hProc = p} =
   let
@@ -354,21 +372,21 @@ named'
 named' _ kvs = select @s @(ProcHandle a) kvs
 
 
-{-| Constraint alias used to constrain types when several 'Names' find matching
+{-| Constraint alias when several @'Name's@ are used to find matching
  types in an 'HList' of 'ProcHandle'.
 -}
 type SomeNamedHandles names procs someProcs sortedProcs =
   ( names ~ Proc2Name procs
   , ManyMemberKV
-    (SymbolSort names)
-    (HandleSort (Proc2Handle procs))
+    (SortSymbols names)
+    (SortHandles (Proc2Handle procs))
     (Handle2KV (Proc2Handle sortedProcs))
 
-  , ReorderH (HandleSort (Proc2Handle procs)) (Proc2Handle procs)
+  , ReorderH (SortHandles (Proc2Handle procs)) (Proc2Handle procs)
   , ReorderH (Proc2Handle someProcs) (Proc2Handle sortedProcs)
 
   , AreProcs sortedProcs
-  , HandleSort (Proc2Handle someProcs) ~ Proc2Handle sortedProcs
+  , SortHandles (Proc2Handle someProcs) ~ Proc2Handle sortedProcs
   )
 
 
@@ -382,8 +400,8 @@ manyNamed proxy xs = manyNamed' proxy $ toSortedKVs xs
 manyNamed'
   :: forall (names :: [Symbol]) sortedNames (procs :: [*]) (ordered :: [*]) someProcs.
      ( names ~ Proc2Name procs
-     , sortedNames ~ SymbolSort names
-     , ordered ~ HandleSort (Proc2Handle procs)
+     , sortedNames ~ SortSymbols names
+     , ordered ~ SortHandles (Proc2Handle procs)
      , ManyMemberKV sortedNames ordered (Handle2KV someProcs)
      , ReorderH ordered (Proc2Handle procs)
      )
@@ -447,7 +465,7 @@ toKVs = go $ p2h procProof
 
 toSortedKVs
   :: ( handles ~ Proc2Handle someProcs
-     , sorted ~ HandleSort handles
+     , sorted ~ SortHandles handles
      , ReorderH handles sorted
      , AreProcs sortedProcs
      , Proc2Handle sortedProcs ~ sorted
@@ -542,7 +560,7 @@ openAll =  go connProof
       pure $ c `HCons` others
 
 
-{-| Close all the 'Conns'. -}
+{-| Close some 'Connectable' types. -}
 closeAll :: Connectables xs => HList (ConnsOf xs) -> IO ()
 closeAll = go connProof
   where
@@ -586,7 +604,7 @@ withNamedConns proxy = withConns . manyNamed proxy
 
 sortHandles
   :: ( handles ~ Proc2Handle ps
-     , sorted ~ HandleSort (handles)
+     , sorted ~ SortHandles (handles)
      , ReorderH handles sorted
      )
   => HList handles -> HList sorted
@@ -594,7 +612,7 @@ sortHandles = hReorder
 
 
 unsortHandles
-  :: ( sorted ~ HandleSort (handles)
+  :: ( sorted ~ SortHandles (handles)
      , handles ~ Proc2Handle ps
      , ReorderH sorted handles
      )
@@ -603,24 +621,24 @@ unsortHandles = hReorder
 
 
 {-| Sort lists of @'ProcHandle'@ types. -}
-type family HandleSort (xs :: [Type]) :: [Type] where
-    HandleSort '[] = '[]
-    HandleSort '[x] = '[x]
-    HandleSort '[x, y] = HandleMerge '[x] '[y] -- just an optimization, not required
-    HandleSort xs = HandleSortStep xs (HalfOf (LengthOf xs))
+type family SortHandles (xs :: [Type]) :: [Type] where
+    SortHandles '[] = '[]
+    SortHandles '[x] = '[x]
+    SortHandles '[x, y] = MergeHandles '[x] '[y] -- just an optimization, not required
+    SortHandles xs = SortHandlesStep xs (HalfOf (LengthOf xs))
 
-type family HandleSortStep (xs :: [Type]) (halfLen :: Nat) :: [Type] where
-    HandleSortStep xs halfLen = HandleMerge (HandleSort (Take xs halfLen)) (HandleSort (Drop xs halfLen))
+type family SortHandlesStep (xs :: [Type]) (halfLen :: Nat) :: [Type] where
+    SortHandlesStep xs halfLen = MergeHandles (SortHandles (Take xs halfLen)) (SortHandles (Drop xs halfLen))
 
-type family HandleMerge (xs :: [Type]) (ys :: [Type]) :: [Type] where
-    HandleMerge xs '[] = xs
-    HandleMerge '[] ys = ys
-    HandleMerge (ProcHandle x ': xs) (ProcHandle y ': ys) =
-        HandleMergeImpl (ProcHandle x ': xs) (ProcHandle y ': ys) (CmpSymbol (Name x) (Name y))
+type family MergeHandles (xs :: [Type]) (ys :: [Type]) :: [Type] where
+    MergeHandles xs '[] = xs
+    MergeHandles '[] ys = ys
+    MergeHandles (ProcHandle x ': xs) (ProcHandle y ': ys) =
+        MergeHandlesImpl (ProcHandle x ': xs) (ProcHandle y ': ys) (CmpSymbol (Name x) (Name y))
 
-type family HandleMergeImpl (xs :: [Type]) (ys :: [Type]) (o :: Ordering) :: [Type] where
-    HandleMergeImpl (ProcHandle x ': xs) (ProcHandle y ': ys) 'GT =
-        ProcHandle y ': HandleMerge (ProcHandle x ': xs) ys
+type family MergeHandlesImpl (xs :: [Type]) (ys :: [Type]) (o :: Ordering) :: [Type] where
+    MergeHandlesImpl (ProcHandle x ': xs) (ProcHandle y ': ys) 'GT =
+        ProcHandle y ': MergeHandles (ProcHandle x ': xs) ys
 
-    HandleMergeImpl (ProcHandle x ': xs) (ProcHandle y ': ys) leq =
-        ProcHandle x ': HandleMerge xs (ProcHandle y ': ys)
+    MergeHandlesImpl (ProcHandle x ': xs) (ProcHandle y ': ys) leq =
+        ProcHandle x ': MergeHandles xs (ProcHandle y ': ys)

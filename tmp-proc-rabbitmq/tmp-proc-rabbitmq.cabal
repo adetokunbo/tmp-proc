@@ -1,8 +1,8 @@
 cabal-version:      3.0
 name:               tmp-proc-rabbitmq
 version:            0.4.0.0
-synopsis:           Run 'tmp' rabbitmq process
-description:        Runs RabbitMQ in a docker container, providing a tmp-proc ProcHandle
+synopsis:           Run a tmp RabbitMQ proc
+description:        An example that demos using tmp-proc to launch RabbitMQ in docker.
 license:            BSD-3-Clause
 license-file:       LICENSE
 copyright:          2021 Tim Emiola

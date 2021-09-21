@@ -14,22 +14,31 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE TypeOperators          #-}
 {-# LANGUAGE UndecidableInstances   #-}
+{-# OPTIONS_HADDOCK prune not-home #-}
 {-|
 Copyright   : (c) 2020-2021 Tim Emiola
 SPDX-License-Identifier: BSD3
-Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com >
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
 
-Defines TypeLevel combinators used by the other System.TmpProc.* modules
+Defines type-level data structures and combinators used by
+"System.TmpProc.Docker" and "System.TmpProc.Warp".
+
+'HList' implements a heterogenous list used to define types that represent
+multiple concurrent @tmp procs@.
+
+'KV' is intended for internal use within the @tmp-proc@ package. It allows
+indexing and sorting of lists of tmp procs.
+
 -}
 module System.TmpProc.TypeLevel
-  ( -- * HList
+  ( -- * Heterogenous List
     HList(..)
   , (%:)
   , hHead
   , hOf
   , ReorderH(..)
 
-    -- * A Key/Value type where the keys are type-level strings
+    -- * A type-level Key-Value
   , KV(..)
   , select
   , selectMany
@@ -37,10 +46,10 @@ module System.TmpProc.TypeLevel
   , MemberKV(..)
   , ManyMemberKV(..)
 
-    -- * Other useful constraints
+    -- * Other combinators
   , IsAbsent
 
-    -- * Re-export the Sort combinators
+    -- * Re-exports
   , module System.TmpProc.TypeLevel.Sort
   )
 where
@@ -73,7 +82,7 @@ hOf proxy = go proxy provedIsIn
     go pxy (IsInTail cons) (_ `HCons` rest) = go pxy cons rest
 
 
-{-| A Heterogenous list. -}
+{-| Defines a Heterogenous list. -}
 data HList :: [*] -> * where
   HNil  :: HList '[]
   HCons :: anyTy -> HList manyTys -> HList (anyTy ': manyTys)
@@ -81,6 +90,8 @@ data HList :: [*] -> * where
 
 infixr 5 `HCons`
 infixr 5 %:
+
+{-| An infix alias for 'HCons'. -}
 (%:) :: x -> HList xs -> HList (x ': xs)
 (%:) = HCons
 
@@ -97,12 +108,12 @@ instance (Eq x, Eq (HList xs)) => Eq (HList (x ': xs)) where
   (HCons x xs) == (HCons y ys) = x == y && xs == ys
 
 
-{-| A key, a type-level string that indexes a value, another type  -}
+{-| Use a type-level symbol as /key/ type that indexes a /value/ type. -}
 data KV :: Symbol -> * -> * where
   V :: a -> KV s a
 
 
-{-| A constraint that confirms type @e@ is not an element of type list @r@. -}
+{-| A constraint that confirms that a type is not present in a type-level list. -}
 type family IsAbsent e r :: Constraint where
   IsAbsent e '[]           = ()
   IsAbsent e (e ': _)      = TypeError (NotAbsentErr e)
@@ -134,7 +145,20 @@ instance MemberKV k t kvs => MemberKV k t (KV ok ot ': kvs) where
   lookupProof = OtherKeys lookupProof
 
 
-{-| Select an item in a 'HList' of '@'KV's@ by 'key'. -}
+{-| Select an item from an 'HList' of @'KV's@ by /key/.
+
+
+/N.B/ Returns the first item. It assumes the keys in the KV HList are unique.
+/TODO:/ enforce this rule using a constraint.
+
+
+==== __Examples__
+
+
+>>> select @"d" @Double  @'[KV "b" Bool, KV "d" Double] (V True %:  V (3.1 :: Double) %: HNil)
+3.1
+
+-}
 select
   :: forall k t xs . MemberKV k t xs
   => HList xs
@@ -149,10 +173,9 @@ select = go $ lookupProof @k @t @xs
 {-| Proves that symbols with corresponding types occur as a 'KV' in a
   list of 'KV' types
 
-Note - both the list symbols and @'KV'@ types need to be sorted, with @'KV'@
-types sorted by key.
-
-TODO: is there an easy way to incorporate this rule into the proof ?
+/Note/ - both the list symbols and @'KV'@ types need to be sorted, with @'KV'@
+types sorted by key. /TODO:/ is there an easy way to incorporate this rule into
+the proof ?
 
 -}
 data LookupMany (keys :: [Symbol]) (t :: [*]) (xs :: [*]) where
@@ -179,15 +202,18 @@ instance ManyMemberKV ks ts kvs  => ManyMemberKV ks ts (KV ok ot ': kvs) where
   manyProof = ManyOthers manyProof
 
 
-{-| Select items with specified keys from an @'HList'@ of '@'KV's@ by 'key'.
+{-| Select items with specified keys from an @'HList'@ of @'KV's@ by /key/.
 
-Note this this is an internal function.
+/N.B./ this this is an internal function.
 
-The specified keys have to be provided in the same order as they are in the
-HList, any other order will usually result in an compiler error.
+The keys must be provided in the same order as they occur in the
+HList, any other order will likely result in an compiler error.
 
-The function has to be used with various type-directed functions that allow
-heterogenous list of types to be sorted.
+==== __Examples__
+
+
+>>> selectMany @'["b"] @'[Bool] @'[KV "b" Bool, KV "d" Double] (V True %:  V (3.1 :: Double) %: HNil)
+True %: HNil
 
 -}
 selectMany
@@ -202,12 +228,15 @@ selectMany = go $ manyProof @ks @ts @xs
     go (ManyOthers cons) (_ `HCons` y)   = go cons y
 
 
-{-| Allows reordering of similar HLists.
+{-| Allows reordering of similar @'HList's@.
 
->>> hReorder @_ @'[Bool, Int] ('c' %: (3 :: Int) %: True %: (3.1 :: Double) %:HNil)
+==== __Examples__
+
+
+>>> hReorder @_ @'[Bool, Int] ('c' %: (3 :: Int) %: True %: (3.1 :: Double) %: HNil)
 True %: 3 %: HNil
 
->>> hReorder @_ @'[Double, Bool, Int] ('c' %: (3 :: Int) %: True %: (3.1 :: Double) %:HNil)
+>>> hReorder @_ @'[Double, Bool, Int] ('c' %: (3 :: Int) %: True %: (3.1 :: Double) %: HNil)
 3.1 %: True %: 3 %: HNil
 
 -}
