@@ -1,5 +1,6 @@
 packages:
   ./tmp-proc
+  ./tmp-proc-example
   ./tmp-proc-postgres
   ./tmp-proc-rabbitmq
   ./tmp-proc-redis
