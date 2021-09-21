@@ -19,22 +19,29 @@
 {-|
 Copyright   : (c) 2020-2021 Tim Emiola
 SPDX-License-Identifier: BSD3
-Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com >
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
 
-Provides the core data types and combinators used to launch docker images as
-temporary /(tmp)/ processes /(procs)/.
+Provides the core data types and combinators used to launch temporary /(tmp)/
+processes /(procs)/ using docker.
 
-@tmp-proc@ intends to ease the writing of integration tests:
+@tmp-proc@ aims to simplify integration tests that use dockerizable services.
 
-* @tmp-proc@ launches services on docker
+* Basically, @tmp-proc@ helps launch services used in integration test on docker
 
 * Obviously, it's possible to write integration tests that use services hosted
-  on docker /without/ @tmp-proc@, i.e, there are other ways to write integration
-  tests that use docker
+  on docker /without/ @tmp-proc@
 
-* However, @tmp-proc@ aims to make writing docker tests simpler - it's
-  combinators take care of launching images, obtaining references to them for
-  use in tests, and cleaning up once tests are finished.
+* However, @tmp-proc@ aims to make writing docker tests simpler - it
+  takes care of launching services on docker, obtaining references to
+  them for use in tests, and clean up once the tests are finished.
+
+
+'Proc' specifies the docker image to run and other details related to its use in tests.
+
+'ProcHandle' is used to control and access a running instance of a 'Proc'.
+
+Some @'Proc's@ are also 'Connectable' and specify how to connect their services
+via a type of connection.
 
 -}
 module System.TmpProc.Docker
@@ -204,7 +211,7 @@ class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
   {-| Determines the service URI of the process, when applicable. -}
   uriOf :: HostIpAddress -> SvcURI
 
-  {-| Resets the state of a tmp proc. -}
+  {-| Resets some state in a tmp proc service. -}
   reset :: ProcHandle a -> IO ()
 
   {-| Checks if the tmp proc started ok. -}
@@ -366,14 +373,14 @@ type SomeNamedHandles names procs someProcs sortedProcs =
   ( names ~ Proc2Name procs
   , ManyMemberKV
     (SortSymbols names)
-    (HandleSort (Proc2Handle procs))
+    (SortHandles (Proc2Handle procs))
     (Handle2KV (Proc2Handle sortedProcs))
 
-  , ReorderH (HandleSort (Proc2Handle procs)) (Proc2Handle procs)
+  , ReorderH (SortHandles (Proc2Handle procs)) (Proc2Handle procs)
   , ReorderH (Proc2Handle someProcs) (Proc2Handle sortedProcs)
 
   , AreProcs sortedProcs
-  , HandleSort (Proc2Handle someProcs) ~ Proc2Handle sortedProcs
+  , SortHandles (Proc2Handle someProcs) ~ Proc2Handle sortedProcs
   )
 
 
@@ -388,7 +395,7 @@ manyNamed'
   :: forall (names :: [Symbol]) sortedNames (procs :: [*]) (ordered :: [*]) someProcs.
      ( names ~ Proc2Name procs
      , sortedNames ~ SortSymbols names
-     , ordered ~ HandleSort (Proc2Handle procs)
+     , ordered ~ SortHandles (Proc2Handle procs)
      , ManyMemberKV sortedNames ordered (Handle2KV someProcs)
      , ReorderH ordered (Proc2Handle procs)
      )
@@ -452,7 +459,7 @@ toKVs = go $ p2h procProof
 
 toSortedKVs
   :: ( handles ~ Proc2Handle someProcs
-     , sorted ~ HandleSort handles
+     , sorted ~ SortHandles handles
      , ReorderH handles sorted
      , AreProcs sortedProcs
      , Proc2Handle sortedProcs ~ sorted
@@ -591,7 +598,7 @@ withNamedConns proxy = withConns . manyNamed proxy
 
 sortHandles
   :: ( handles ~ Proc2Handle ps
-     , sorted ~ HandleSort (handles)
+     , sorted ~ SortHandles (handles)
      , ReorderH handles sorted
      )
   => HList handles -> HList sorted
@@ -599,7 +606,7 @@ sortHandles = hReorder
 
 
 unsortHandles
-  :: ( sorted ~ HandleSort (handles)
+  :: ( sorted ~ SortHandles (handles)
      , handles ~ Proc2Handle ps
      , ReorderH sorted handles
      )
@@ -608,24 +615,24 @@ unsortHandles = hReorder
 
 
 {-| Sort lists of @'ProcHandle'@ types. -}
-type family HandleSort (xs :: [Type]) :: [Type] where
-    HandleSort '[] = '[]
-    HandleSort '[x] = '[x]
-    HandleSort '[x, y] = HandleMerge '[x] '[y] -- just an optimization, not required
-    HandleSort xs = HandleSortStep xs (HalfOf (LengthOf xs))
+type family SortHandles (xs :: [Type]) :: [Type] where
+    SortHandles '[] = '[]
+    SortHandles '[x] = '[x]
+    SortHandles '[x, y] = MergeHandles '[x] '[y] -- just an optimization, not required
+    SortHandles xs = SortHandlesStep xs (HalfOf (LengthOf xs))
 
-type family HandleSortStep (xs :: [Type]) (halfLen :: Nat) :: [Type] where
-    HandleSortStep xs halfLen = HandleMerge (HandleSort (Take xs halfLen)) (HandleSort (Drop xs halfLen))
+type family SortHandlesStep (xs :: [Type]) (halfLen :: Nat) :: [Type] where
+    SortHandlesStep xs halfLen = MergeHandles (SortHandles (Take xs halfLen)) (SortHandles (Drop xs halfLen))
 
-type family HandleMerge (xs :: [Type]) (ys :: [Type]) :: [Type] where
-    HandleMerge xs '[] = xs
-    HandleMerge '[] ys = ys
-    HandleMerge (ProcHandle x ': xs) (ProcHandle y ': ys) =
-        HandleMergeImpl (ProcHandle x ': xs) (ProcHandle y ': ys) (CmpSymbol (Name x) (Name y))
+type family MergeHandles (xs :: [Type]) (ys :: [Type]) :: [Type] where
+    MergeHandles xs '[] = xs
+    MergeHandles '[] ys = ys
+    MergeHandles (ProcHandle x ': xs) (ProcHandle y ': ys) =
+        MergeHandlesImpl (ProcHandle x ': xs) (ProcHandle y ': ys) (CmpSymbol (Name x) (Name y))
 
-type family HandleMergeImpl (xs :: [Type]) (ys :: [Type]) (o :: Ordering) :: [Type] where
-    HandleMergeImpl (ProcHandle x ': xs) (ProcHandle y ': ys) 'GT =
-        ProcHandle y ': HandleMerge (ProcHandle x ': xs) ys
+type family MergeHandlesImpl (xs :: [Type]) (ys :: [Type]) (o :: Ordering) :: [Type] where
+    MergeHandlesImpl (ProcHandle x ': xs) (ProcHandle y ': ys) 'GT =
+        ProcHandle y ': MergeHandles (ProcHandle x ': xs) ys
 
-    HandleMergeImpl (ProcHandle x ': xs) (ProcHandle y ': ys) leq =
-        ProcHandle x ': HandleMerge xs (ProcHandle y ': ys)
+    MergeHandlesImpl (ProcHandle x ': xs) (ProcHandle y ': ys) leq =
+        ProcHandle x ': MergeHandles xs (ProcHandle y ': ys)
