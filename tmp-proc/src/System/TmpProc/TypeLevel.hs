@@ -20,13 +20,13 @@ Copyright   : (c) 2020-2021 Tim Emiola
 SPDX-License-Identifier: BSD3
 Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
 
-Defines type-level combinators used by "System.TmpProc.Docker" and
-"System.TmpProc.Warp".
+Defines type-level data structures and combinators used by
+"System.TmpProc.Docker" and "System.TmpProc.Warp".
 
 'HList' implements a heterogenous list used to define types that represent
 multiple concurrent @tmp procs@.
 
-'KV' is only intended for internal use in the @tmp-proc@ package. It allows
+'KV' is intended for internal use within the @tmp-proc@ package. It allows
 indexing and sorting of lists of tmp procs.
 
 -}
@@ -151,6 +151,13 @@ instance MemberKV k t kvs => MemberKV k t (KV ok ot ': kvs) where
 /N.B/ Returns the first item. It assumes the keys in the KV HList are unique.
 /TODO:/ enforce this rule using a constraint.
 
+
+==== __Examples__
+
+
+>>> select @"d" @Double  @'[KV "b" Bool, KV "d" Double] (V True %:  V (3.1 :: Double) %: HNil)
+3.1
+
 -}
 select
   :: forall k t xs . MemberKV k t xs
@@ -202,6 +209,12 @@ instance ManyMemberKV ks ts kvs  => ManyMemberKV ks ts (KV ok ot ': kvs) where
 The keys must be provided in the same order as they occur in the
 HList, any other order will likely result in an compiler error.
 
+==== __Examples__
+
+
+>>> selectMany @'["b"] @'[Bool] @'[KV "b" Bool, KV "d" Double] (V True %:  V (3.1 :: Double) %: HNil)
+True %: HNil
+
 -}
 selectMany
   :: forall ks ts xs . ManyMemberKV ks ts xs
@@ -220,10 +233,10 @@ selectMany = go $ manyProof @ks @ts @xs
 ==== __Examples__
 
 
->>> hReorder @_ @'[Bool, Int] ('c' %: (3 :: Int) %: True %: (3.1 :: Double) %:HNil)
+>>> hReorder @_ @'[Bool, Int] ('c' %: (3 :: Int) %: True %: (3.1 :: Double) %: HNil)
 True %: 3 %: HNil
 
->>> hReorder @_ @'[Double, Bool, Int] ('c' %: (3 :: Int) %: True %: (3.1 :: Double) %:HNil)
+>>> hReorder @_ @'[Double, Bool, Int] ('c' %: (3 :: Int) %: True %: (3.1 :: Double) %: HNil)
 3.1 %: True %: 3 %: HNil
 
 -}
