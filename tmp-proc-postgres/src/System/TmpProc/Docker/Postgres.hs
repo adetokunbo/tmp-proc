@@ -56,7 +56,7 @@ aHandle :: IO (HList (Proc2Handle '[TmpPostgres]))
 aHandle = startupAll aProc
 
 
-{-| Provides the capability to launch a Postgres database as @tmp proc@.
+{-| Provides the capability to launch a Postgres database as a @tmp proc@.
 
 The constructor receives the names of the tables to be dropped on 'reset'.
 

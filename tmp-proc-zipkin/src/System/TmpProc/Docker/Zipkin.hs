@@ -55,7 +55,7 @@ aHandle :: IO (HList (Proc2Handle '[TmpZipkin]))
 aHandle = startupAll aProc
 
 
-{-| Provides the capability to launch a Zipkin instance as @tmp proc@. -}
+{-| Provides the capability to launch a Zipkin instance as a @tmp proc@. -}
 data TmpZipkin = TmpZipkin
 
 

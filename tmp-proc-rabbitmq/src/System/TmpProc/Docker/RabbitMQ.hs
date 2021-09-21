@@ -52,7 +52,7 @@ aHandle :: IO (HList (Proc2Handle '[TmpRabbitMQ]))
 aHandle = startupAll aProc
 
 
-{-| Provides the capability to launch a RabbitMQ instance as @tmp proc@. -}
+{-| Provides the capability to launch a RabbitMQ instance as a @tmp proc@. -}
 data TmpRabbitMQ = TmpRabbitMQ
 
 
