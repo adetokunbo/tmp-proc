@@ -54,13 +54,9 @@ import           GHC.TypeLits (CmpNat, CmpSymbol, Nat, Symbol, type (*),
 
 ==== __Examples__
 
->>> :{
-_testTake1 :: ( Take '[1, 2, 3, 4] 2 ~ x, x ~ '[1, 2] ) => Proxy x
-_testTake1 = Proxy
-:}
-
->>> :t _testTake1
-_testTake1 :: Proxy '[1, 2]
+>>> :kind! Take '[1, 2, 3, 4] 2
+Take '[1, 2, 3, 4] 2 :: [Nat]
+= '[1, 2]
 
 -}
 type family Take (xs :: [k]) (n :: Nat) :: [k] where
@@ -73,21 +69,14 @@ type family Take (xs :: [k]) (n :: Nat) :: [k] where
 
 ==== __Examples__
 
->>> :{
-_testDrop1 :: ( Drop '[1, 2, 3, 4] 2 ~ x, x ~ '[3, 4] ) => Proxy x
-_testDrop1 = Proxy
-:}
+>>> :kind! Drop '[1, 2, 3, 4] 2
+Drop '[1, 2, 3, 4] 2 :: [Nat]
+= '[3, 4]
 
->>> :t _testDrop1
-_testDrop1 :: Proxy '[3, 4]
 
->>> :{
-_testDrop2 :: ( Drop '[1] 2 ~ x, x ~ '[] ) => Proxy x
-_testDrop2 = Proxy
-:}
-
->>> :t _testDrop2
-_testDrop2 :: Proxy '[]
+>>> :kind! Drop '[1] 2
+Drop '[1] 2 :: [Nat]
+= '[]
 
 -}
 type family Drop (xs :: [k]) (n :: Nat) :: [k] where
@@ -100,13 +89,9 @@ type family Drop (xs :: [k]) (n :: Nat) :: [k] where
 
 ==== __Examples__
 
->>> :{
-_testLengthOf :: ( LengthOf '[1, 2, 3, 4] ~ x, x ~ 4 ) => Proxy x
-_testLengthOf = Proxy
-:}
-
->>> :t _testLengthOf
-_testLengthOf :: Proxy 4
+>>> :kind! LengthOf '[1, 2, 3, 4]
+LengthOf '[1, 2, 3, 4] :: Nat
+= 4
 
 -}
 type family LengthOf (xs :: [k]) :: Nat where
@@ -121,21 +106,13 @@ type-checker.
 
 ==== __Examples__
 
->>> :{
-_testHalfOf :: ( HalfOf 99 ~ x, x ~ 49 ) => Proxy x
-_testHalfOf = Proxy
-:}
+>>> :kind! HalfOf 99
+HalfOf 99 :: Nat
+= 49
 
->>> :t _testHalfOf
-_testHalfOf :: Proxy 49
-
->>> :{
-_testHalfOf :: ( HalfOf 100 ~ x, x ~ 50 ) => Proxy x
-_testHalfOf = Proxy
-:}
-
->>> :t _testHalfOf
-_testHalfOf :: Proxy 50
+>>> :kind! HalfOf 100
+HalfOf 100 :: Nat
+= 50
 
 -}
 type family HalfOf (n :: Nat) :: Nat where
@@ -163,16 +140,9 @@ type family HalfOfImpl (n :: Nat) (i :: Nat) (dist :: Nat) (o :: Ordering) :: Na
 
 ==== __Examples__
 
->>> :{
-_testSymSort1 ::
-    (SortSymbols '["xyz", "def", "abc"] ~ x
-    , x ~ '["abc", "def", "xyz"]
-    ) => Proxy x
-_testSymSort1 = Proxy
-:}
-
->>> :t _testSymSort1
-_testSymSort1 :: Proxy '["abc", "def", "xyz"]
+>>> :kind! SortSymbols '["xyz", "def", "abc"]
+SortSymbols '["xyz", "def", "abc"] :: [Symbol]
+= '["abc", "def", "xyz"]
 
 -}
 type family SortSymbols (xs :: [Symbol]) :: [Symbol] where
