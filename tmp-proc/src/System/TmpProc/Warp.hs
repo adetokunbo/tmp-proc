@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase       #-}
 {-# LANGUAGE NamedFieldPuns   #-}
+{-# OPTIONS_HADDOCK prune not-home #-}
 {-|
 Copyright   : (c) 2020-2021 Tim Emiola
 SPDX-License-Identifier: BSD3
@@ -63,7 +64,7 @@ data ServerHandle as = ServerHandle
   , shHandles :: !(HList as)
   }
 
--- | Runs an 'Application' with 'ProcHandle' dependencies on a free port.
+-- | Runs an 'Application' with 'System.TmpProc.ProcHandle' dependencies on a free port.
 runServer
   :: AreProcs as
   => HList as
@@ -136,7 +137,7 @@ runReadyServer' runApp check procs mkApp = do
       pure result
 
 
--- | Shuts down the 'ServerHandle' server and its 'TmpProc' dependencies.
+-- | Shuts down the 'ServerHandle' server and its @tmp proc@ dependencies.
 shutdown :: AreProcs as => ServerHandle (Proc2Handle as) -> IO ()
 shutdown h = do
   let ServerHandle { shServer, shSocket, shHandles } = h
@@ -145,22 +146,23 @@ shutdown h = do
   close shSocket
 
 
--- | Access a  @'ServerHandle's@  @'ProcHandle's@.
+-- | The @'ServerHandle's@  @"System.TmpProc.ProcHandle"@.
 handles :: AreProcs as => ServerHandle (Proc2Handle as) -> HList (Proc2Handle as)
 handles = shHandles
 
 
--- | The 'Warp.Port' on the 'ServerHandle's server is running.
+-- | The 'Warp.Port' on which the 'ServerHandle's server is running.
 serverPort :: ServerHandle as -> Warp.Port
 serverPort = shPort
 
 
-{-|  Runs an 'Application' on a free port after setting up some @'ProcHandle's@
+{-| Set up some @"System.TmpProc.ProcHandle"s@ then run an 'Application' that uses
+   them on a free port.
 
-Allows the app to configure itself using them. Provides a continuation with
-access to the handles to the handles.
+Allows the app to configure itself using the @tmp procs@, then provides a
+callback with access to the handles.
 
-The tmp process are shut down when the application shut down.
+The @tmp procs@ are shut down when the application is shut down.
 -}
 testWithApplication
   :: AreProcs as
@@ -174,7 +176,7 @@ testWithApplication procs mkApp = runCont $ do
   pure (oh, p)
 
 
-{-| Like 'testWithApplication', but the port is secured using the given 'Warp.TLSSettings. '-}
+{-| Like 'testWithApplication', but the port is secured using a 'Warp.TLSSettings. '-}
 testWithTLSApplication
   :: AreProcs as
   =>  Warp.TLSSettings
@@ -188,15 +190,16 @@ testWithTLSApplication tlsSettings procs mkApp = runCont $ do
   pure (oh, p)
 
 
-{-|  Runs an 'Application' on a free port after setting up some @'ProcHandle's@.
+{-| Set up some @"System.TmpProc.ProcHandle"s@ then run an 'Application' that uses
+   them on a free port.
 
-Allows the app to configure itself using them, and provides a continuation with
-access to the handles.
+Allows the app to configure itself using the @tmp procs@, then provides a
+callback with access to the handles.
 
 Also runs a @ready@ action that to determine if the application started
 correctly.
 
-The tmp process are shut down when the application shut down.
+The @tmp procs@ are shut down when the application is shut down.
 -}
 testWithReadyApplication
   :: AreProcs as
@@ -305,7 +308,7 @@ withTLSApplicationSettings tlsSettings settings mkApp action = do
       Right x -> return x
 
 
--- | Like 'openFreePort' but closes the socket before exiting.
+-- | Like "Network.Wai.Handler.Warp.openFreePort" but closes the socket before exiting.
 withFreePort :: ((Warp.Port, Socket) -> IO a) -> IO a
 withFreePort = bracket Warp.openFreePort (close . snd)
 

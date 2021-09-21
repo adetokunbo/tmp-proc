@@ -10,20 +10,29 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
+{-# OPTIONS_HADDOCK prune not-home #-}
 
 {-|
 Copyright   : (c) 2020-2021 Tim Emiola
 SPDX-License-Identifier: BSD3
 Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com >
 
-Defines type combinators that help sort type-level lists.
+Defines type-level combinators for performing a merge sort of type-level lists.
+
+'SortSymbols' sorts type-level lists of @Symbols@.
+
+The other exported combinators make it easy to implement type-level merge sort
+for similar type-level lists.
+
+This is an internal module that provides type-level functions used in
+various constraints in "System.TmpProc.Docker".
 
 -}
 module System.TmpProc.TypeLevel.Sort
-  ( -- * An implementation of merge sort for @Symbols@.
-    SymbolSort
+  ( -- * Merge sort for @Symbols@.
+    SortSymbols
 
-     -- * Type families that simplify implementing merge sorts
+     -- * Sort combinators
    , Take
    , Drop
    , LengthOf
@@ -41,7 +50,9 @@ import           GHC.TypeLits (CmpNat, CmpSymbol, Nat, Symbol, type (*),
 -- >>> :set -XTypeFamilies
 
 
-{-| Take 1 element at a time from a list until the desired length is reached.
+{-| Takes 1 element at a time from a list until the desired length is reached.
+
+==== __Examples__
 
 >>> :{
 _testTake1 :: ( Take '[1, 2, 3, 4] 2 ~ x, x ~ '[1, 2] ) => Proxy x
@@ -58,7 +69,9 @@ type family Take (xs :: [k]) (n :: Nat) :: [k] where
     Take (x ': xs) n = (x ': Take xs (n - 1))
 
 
-{-| Drop 1 element at a time until the the dropped target is reached.
+{-| Drops 1 element at a time until the the dropped target is reached.
+
+==== __Examples__
 
 >>> :{
 _testDrop1 :: ( Drop '[1, 2, 3, 4] 2 ~ x, x ~ '[3, 4] ) => Proxy x
@@ -83,7 +96,9 @@ type family Drop (xs :: [k]) (n :: Nat) :: [k] where
     Drop (x ': xs) n = Drop xs (n - 1)
 
 
-{-| Count the list, 1 element at a time.
+{-| Counts a list, 1 element at a time.
+
+==== __Examples__
 
 >>> :{
 _testLengthOf :: ( LengthOf '[1, 2, 3, 4] ~ x, x ~ 4 ) => Proxy x
@@ -101,7 +116,10 @@ type family LengthOf (xs :: [k]) :: Nat where
 
 {-| Computes the midpoint of a number.
 
-N.B: maximum value this works for depends on the reduction limit of the type-checker.
+N.B: maximum value that this works for depends on the reduction limit of the
+type-checker.
+
+==== __Examples__
 
 >>> :{
 _testHalfOf :: ( HalfOf 99 ~ x, x ~ 49 ) => Proxy x
@@ -141,11 +159,13 @@ type family HalfOfImpl (n :: Nat) (i :: Nat) (dist :: Nat) (o :: Ordering) :: Na
     HalfOfImpl n m dist 'LT = HalfOfImpl n (m + 2) (n - ((m + 2) * 2)) (CmpNat ((m + 2) * 2) n)
 
 
-{-| Sort a list of @symbols@ using merge sort.
+{-| Sort a list of type-level @symbols@ using merge sort.
+
+==== __Examples__
 
 >>> :{
 _testSymSort1 ::
-    (SymbolSort '["xyz", "def", "abc"] ~ x
+    (SortSymbols '["xyz", "def", "abc"] ~ x
     , x ~ '["abc", "def", "xyz"]
     ) => Proxy x
 _testSymSort1 = Proxy
@@ -155,23 +175,25 @@ _testSymSort1 = Proxy
 _testSymSort1 :: Proxy '["abc", "def", "xyz"]
 
 -}
-type family SymbolSort (xs :: [Symbol]) :: [Symbol] where
-    SymbolSort '[]     = '[]
-    SymbolSort '[x]    = '[x]
-    SymbolSort '[x, y] = SymbolMerge '[x] '[y] -- an optimization, could be removed
-    SymbolSort xs      = SymbolSortStep xs (HalfOf (LengthOf xs))
+type family SortSymbols (xs :: [Symbol]) :: [Symbol] where
+    SortSymbols '[]     = '[]
+    SortSymbols '[x]    = '[x]
+    SortSymbols '[x, y] = MergeSymbols '[x] '[y] -- an optimization, could be removed
+    SortSymbols xs      = SortSymbolsStep xs (HalfOf (LengthOf xs))
 
 
-type family SymbolSortStep (xs :: [Symbol]) (halfLen :: Nat) :: [Symbol] where
-    SymbolSortStep xs halfLen = SymbolMerge
-      (SymbolSort (Take xs halfLen))
-      (SymbolSort (Drop xs halfLen))
+{-| Used internally by @SortSymbols. -}
+type family SortSymbolsStep (xs :: [Symbol]) (halfLen :: Nat) :: [Symbol] where
+    SortSymbolsStep xs halfLen = MergeSymbols
+      (SortSymbols (Take xs halfLen))
+      (SortSymbols (Drop xs halfLen))
 
-type family SymbolMerge (xs :: [Symbol]) (ys :: [Symbol]) :: [Symbol] where
-    SymbolMerge xs '[]              = xs
-    SymbolMerge '[] ys              = ys
-    SymbolMerge (x ': xs) (y ': ys) = SymbolMergeImpl (x ': xs) (y ': ys) (CmpSymbol x y)
+{-| Used internally by @SortSymbols. -}
+type family MergeSymbols (xs :: [Symbol]) (ys :: [Symbol]) :: [Symbol] where
+    MergeSymbols xs '[]              = xs
+    MergeSymbols '[] ys              = ys
+    MergeSymbols (x ': xs) (y ': ys) = MergeSymbolsImpl (x ': xs) (y ': ys) (CmpSymbol x y)
 
-type family SymbolMergeImpl (xs :: [Symbol]) (ys :: [Symbol]) (o :: Ordering) :: [Symbol] where
-    SymbolMergeImpl (x ': xs) (y ': ys) 'GT = y ': SymbolMerge (x ': xs) ys
-    SymbolMergeImpl (x ': xs) (y ': ys) leq = x ': SymbolMerge xs (y ': ys)
+type family MergeSymbolsImpl (xs :: [Symbol]) (ys :: [Symbol]) (o :: Ordering) :: [Symbol] where
+    MergeSymbolsImpl (x ': xs) (y ': ys) 'GT = y ': MergeSymbols (x ': xs) ys
+    MergeSymbolsImpl (x ': xs) (y ': ys) leq = x ': MergeSymbols xs (y ': ys)
