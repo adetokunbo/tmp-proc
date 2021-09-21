@@ -82,7 +82,7 @@ hOf proxy = go proxy provedIsIn
     go pxy (IsInTail cons) (_ `HCons` rest) = go pxy cons rest
 
 
-{-| Define a Heterogenous list. -}
+{-| Defines a Heterogenous list. -}
 data HList :: [*] -> * where
   HNil  :: HList '[]
   HCons :: anyTy -> HList manyTys -> HList (anyTy ': manyTys)

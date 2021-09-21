@@ -3,23 +3,29 @@
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# OPTIONS_HADDOCK prune not-home #-}
 {-|
 Copyright   : (c) 2020-2021 Tim Emiola
 SPDX-License-Identifier: BSD3
 Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com >
 
-Provides an instance of @Proc@ for launching Zipkin as a tmp process.
+Provides an instance of 'Proc' that launches @ZipKin@ as a @tmp proc@.
+
+The instance this module provides can be used in integration tests as is.
+
+It's also possible to write other instances that launch @ZipKin@ in different
+ways; for those, this instance can be used as a reference example.
 
 -}
 module System.TmpProc.Docker.Zipkin
-  ( -- * data types
+  ( -- * 'Proc' instance
     TmpZipkin(..)
 
-    -- * useful definitions
+    -- * Useful definitions
   , aProc
   , aHandle
 
-    -- * module re-exports
+    -- * Re-exports
   , module System.TmpProc.Docker
   )
 where
@@ -49,11 +55,11 @@ aHandle :: IO (HList (Proc2Handle '[TmpZipkin]))
 aHandle = startupAll aProc
 
 
-{-| Represents a connection to a Zipkin instance running on docker. -}
+{-| Provides the capability to launch a Zipkin instance as @tmp proc@. -}
 data TmpZipkin = TmpZipkin
 
 
-{-| A 'Proc' for running ZipKin as a tmp process. -}
+{-| Specifies how to run @ZipKin@ as a @tmp proc@. -}
 instance Proc TmpZipkin where
   type Image TmpZipkin = "openzipkin/zipkin-slim"
   type Name TmpZipkin = "a-zipkin-server"
@@ -65,8 +71,13 @@ instance Proc TmpZipkin where
   reset _ = pure ()
 
 
+{-| Specifies how to connect to a tmp @ZipKin@ service.
+
+In this case, there is not really a connection type, but 'ZPK.Zipkin' provides
+a close analogue.
+
+-}
 instance Connectable TmpZipkin where
-  -- * 'Zipkin'  is the closest to a connection type in tracing-control.
   type Conn TmpZipkin = ZPK.Zipkin
 
   openConn = openConn'
@@ -77,7 +88,7 @@ openConn' :: ProcHandle TmpZipkin -> IO ZPK.Zipkin
 openConn' = ZPK.new . toSettings
 
 
-{-| Make a simple HTTP  uri to the zipkin server. -}
+{-| Make a simple HTTP uri to the zipkin server. -}
 mkUri' :: HostIpAddress -> SvcURI
 mkUri' ip = "http://" <> C8.pack (Text.unpack ip) <> "/"
 

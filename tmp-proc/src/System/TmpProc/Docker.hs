@@ -31,17 +31,23 @@ processes /(procs)/ using docker.
 * Obviously, it's possible to write integration tests that use services hosted
   on docker /without/ @tmp-proc@
 
-* However, @tmp-proc@ aims to make writing docker tests simpler - it
-  takes care of launching services on docker, obtaining references to
-  them for use in tests, and clean up once the tests are finished.
+* However, @tmp-proc@ aims to make those kind of tests easier - it
+  takes care of
 
+    * launching services on docker
+    * obtaining references to the launched service
+    * cleaning up docker once the tests are finished
 
-'Proc' specifies the docker image to run and other details related to its use in tests.
+This module does this via its data types:
 
-'ProcHandle' is used to control and access a running instance of a 'Proc'.
+* A /'Proc'/ specifies a docker image that provides a service and details
+  related to its use in tests.
 
-Some @'Proc's@ are also 'Connectable' and specify how to connect their services
-via a type of connection.
+* A /'ProcHandle'/ is created whenever a /'Proc'/ is started, and is used to access
+and eventually terminate the running service.
+
+* Some @'Proc's@ will also be /'Connectable'/; these specify how access the
+service via some /'Conn'-ection/ type.
 
 -}
 module System.TmpProc.Docker
@@ -81,7 +87,7 @@ module System.TmpProc.Docker
   , manyNamed
 
 
-    -- * System status
+    -- * Docker status
   , hasDocker
 
     -- * Aliases

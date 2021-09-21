@@ -3,23 +3,29 @@
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# OPTIONS_HADDOCK prune not-home #-}
 {-|
 Copyright   : (c) 2020-2021 Tim Emiola
 SPDX-License-Identifier: BSD3
 Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com >
 
-Provides an instance of @Proc@ for launching RabbitMQ as a tmp process.
+Provides an instance of 'Proc' that launches @RabbitMQ@ as a @tmp proc@.
+
+The instance this module provides can be used in integration tests as is.
+
+It's also possible to write other instances that launch @RabbitMQ@ in different
+ways; for those, this instance can be used as a reference example.
 
 -}
 module System.TmpProc.Docker.RabbitMQ
-  ( -- * data types
+  ( -- * 'Proc' instance
     TmpRabbitMQ(..)
 
-    -- * useful definitions
+    -- * Useful definitions
   , aProc
   , aHandle
 
-    -- * module re-exports
+    -- * Re-exports
   , module System.TmpProc.Docker
   )
 where
@@ -46,11 +52,11 @@ aHandle :: IO (HList (Proc2Handle '[TmpRabbitMQ]))
 aHandle = startupAll aProc
 
 
-{-| Represents a connection to a RabbitMQ instance running on docker. -}
+{-| Provides the capability to launch a RabbitMQ instance as @tmp proc@. -}
 data TmpRabbitMQ = TmpRabbitMQ
 
 
-{-| A 'Proc' for running postgres as a tmp process. -}
+{-| Specifies how to run @RabbitMQ@ as a @tmp proc@. -}
 instance Proc TmpRabbitMQ where
   type Image TmpRabbitMQ = "rabbitmq:3.9"
   type Name TmpRabbitMQ = "a-rabbitmq-server"
@@ -61,6 +67,8 @@ instance Proc TmpRabbitMQ where
   reset _ = pure ()
   pingGap = 3 * 1000000
 
+
+{-| Specifies how to connect to a tmp @RabbitMQ@ service. -}
 instance Connectable TmpRabbitMQ where
   type Conn TmpRabbitMQ = Connection
 

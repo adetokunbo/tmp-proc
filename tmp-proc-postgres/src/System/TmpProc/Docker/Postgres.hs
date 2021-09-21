@@ -3,24 +3,29 @@
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE TypeFamilies          #-}
-
+{-# OPTIONS_HADDOCK prune not-home #-}
 {-|
-Module      : System.TmpProc.Docker.Postgres
-Description : Provides an instance of @Proc@ for launching postgres as a tmp process.
-Copyright   : (c) 2021, Tim Emiola
-License     : BSD
-Maintainer  : adetokunbo@users.noreply.github.com
-Stability   : experimental
+Copyright   : (c) 2020-2021 Tim Emiola
+SPDX-License-Identifier: BSD3
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com >
+
+Provides an instance of 'Proc' that launches @postgres@ as a @tmp proc@.
+
+The instance this module provides can be used in integration tests as is.
+
+It's also possible to write other instances that launch @postgres@ in different
+ways; for those, this instance can be used as a reference example.
+
 -}
 module System.TmpProc.Docker.Postgres
-  ( -- * data types
+  ( -- * 'Proc' instance
     TmpPostgres(..)
 
-    -- * useful definitions
+    -- * Useful definitions
   , aProc
   , aHandle
 
-    -- * module re-exports
+    -- * Re-exports
   , module System.TmpProc.Docker
   )
 where
@@ -51,15 +56,15 @@ aHandle :: IO (HList (Proc2Handle '[TmpPostgres]))
 aHandle = startupAll aProc
 
 
-{-| Represents a connection to a postgres DB running on docker.
+{-| Provides the capability to launch a Postgres database as @tmp proc@.
 
-It specifies the names of the tables to be dropped during a reset.
+The constructor receives the names of the tables to be dropped on 'reset'.
 
 -}
 data TmpPostgres = TmpPostgres [Text]
 
 
-{-| A 'Proc' for running postgres as a tmp process. -}
+{-| Specifies how to run @postgres@ as a @tmp proc@. -}
 instance Proc TmpPostgres where
   type Image TmpPostgres = "postgres:10.6"
   type Name TmpPostgres = "a-postgres-db"
@@ -69,6 +74,7 @@ instance Proc TmpPostgres where
   ping = void . connectPostgreSQL . hUri
   reset = reset'
 
+{-| Specifies how to connect to a tmp @postgres@ db. -}
 instance Connectable TmpPostgres where
   type Conn TmpPostgres = Connection
 
