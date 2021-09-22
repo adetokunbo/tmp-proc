@@ -7,26 +7,26 @@ Copyright   : (c) 2020-2021 Tim Emiola
 SPDX-License-Identifier: BSD3
 Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
 
-Provides functions that make it easy to run /"Network.WAI.Application"s/
- that access services running as @tmp proc@ in integration tests.
+Provides functions that make it easy to run /'Application's/
+ that access services running as @tmp@ @procs@ in integration tests.
 
 -}
 module System.TmpProc.Warp
   ( -- * Continuation-style setup
     testWithApplication
-  , testWithTLSApplication
   , testWithReadyApplication
+  , testWithTLSApplication
   , testWithReadyTLSApplication
 
     -- * ServerHandle
   , ServerHandle
-  , runReadyServer
-  , runReadyTLSServer
-  , runServer
-  , runTLSServer
   , serverPort
   , handles
   , shutdown
+  , runServer
+  , runReadyServer
+  , runTLSServer
+  , runReadyTLSServer
 
     -- * Health check support
   , checkHealth
@@ -61,7 +61,7 @@ data ServerHandle as = ServerHandle
   , shHandles :: !(HList as)
   }
 
--- | Runs an 'Application' with 'System.TmpProc.ProcHandle' dependencies on a free port.
+-- | Runs an 'Application' with @ProcHandle@ dependencies on a free port.
 runServer
   :: AreProcs as
   => HList as
@@ -143,7 +143,7 @@ shutdown h = do
   close shSocket
 
 
--- | The @'ServerHandle's@  @"System.TmpProc.ProcHandle"@.
+-- | The @'ServerHandle's@  @ProcHandles@.
 handles :: AreProcs as => ServerHandle (Proc2Handle as) -> HList (Proc2Handle as)
 handles = shHandles
 
@@ -153,8 +153,8 @@ serverPort :: ServerHandle as -> Warp.Port
 serverPort = shPort
 
 
-{-| Set up some @"System.TmpProc.ProcHandle"s@ then run an 'Application' that uses
-   them on a free port.
+{-| Set up some @ProcHandles@ then run an 'Application' that uses them on a free
+   port.
 
 Allows the app to configure itself using the @tmp procs@, then provides a
 callback with access to the handles.
@@ -187,8 +187,8 @@ testWithTLSApplication tlsSettings procs mkApp = runCont $ do
   pure (oh, p)
 
 
-{-| Set up some @"System.TmpProc.ProcHandle"s@ then run an 'Application' that uses
-   them on a free port.
+{-| Set up some @ProcHandles@ then run an 'Application' that uses them on a free
+   port.
 
 Allows the app to configure itself using the @tmp procs@, then provides a
 callback with access to the handles.
