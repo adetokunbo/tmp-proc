@@ -4,7 +4,7 @@ module Test.Hspec.TmpProc
   )
 where
 
-import           System.TmpProc.Docker (hasDocker)
+import           System.TmpProc (hasDocker)
 import           Test.Hspec
 
 

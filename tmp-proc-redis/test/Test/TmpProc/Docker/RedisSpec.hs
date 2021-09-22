@@ -15,9 +15,7 @@ import           Data.Proxy                  (Proxy (..))
 import qualified Data.Text                   as Text
 import           Database.Redis              (exists, runRedis, setex)
 
-import           System.TmpProc.Docker
 import           System.TmpProc.Docker.Redis
-
 
 spec :: Spec
 spec = tdescribe desc $ do
@@ -49,9 +47,9 @@ theProc = TmpRedis [testKey] `HCons` HNil
 
 setupHandles :: IO (HList '[ProcHandle TmpRedis])
 setupHandles = do
-  handles <- startupAll theProc
-  initRedis handles `onException` terminateAll handles
-  pure handles
+  hs <- startupAll theProc
+  initRedis hs `onException` terminateAll hs
+  pure hs
 
 
 initRedis :: HList '[ProcHandle TmpRedis] -> IO ()

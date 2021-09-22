@@ -6,18 +6,17 @@
 {-# LANGUAGE TypeFamilies        #-}
 module Test.HttpBin where
 
-import           Control.Exception        (catch)
-import qualified Data.ByteString.Char8    as C8
-import           Data.List                (foldl')
-import           Data.Proxy               (Proxy(..))
-import           Data.Text                (Text)
-import qualified Data.Text                as Text
+import           Control.Exception     (catch)
+import qualified Data.ByteString.Char8 as C8
+import           Data.List             (foldl')
+import           Data.Proxy            (Proxy (..))
+import           Data.Text             (Text)
+import qualified Data.Text             as Text
 import           Network.HTTP.Req
 
-import           System.TmpProc.Docker    (HList (..), HostIpAddress, Proc (..),
-                                           Proc2Handle, ProcHandle (..), SvcURI,
-                                           manyNamed, startupAll)
-import           System.TmpProc.TypeLevel ((%:))
+import           System.TmpProc        (HList (..), HostIpAddress, Proc (..),
+                                        Proc2Handle, ProcHandle (..), SvcURI,
+                                        manyNamed, startupAll, (%:))
 
 
 setupHandles :: IO (HList (Proc2Handle '[HttpBinTest, HttpBinTest2, HttpBinTest3]))

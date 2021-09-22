@@ -26,7 +26,7 @@ module System.TmpProc.Docker.Postgres
   , aHandle
 
     -- * Re-exports
-  , module System.TmpProc.Docker
+  , module System.TmpProc
   )
 where
 
@@ -36,14 +36,13 @@ import           Data.String                (fromString)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as Text
 
-import           Database.PostgreSQL.Simple (Connection, connectPostgreSQL,
-                                             execute_, close)
+import           Database.PostgreSQL.Simple (Connection, close,
+                                             connectPostgreSQL, execute_)
 
-import           System.TmpProc.Docker      (Connectable (..), HList (..),
+import           System.TmpProc             (Connectable (..), HList (..),
                                              HostIpAddress, Proc (..),
                                              Proc2Handle, ProcHandle (..),
-                                             SvcURI, startupAll,
-                                             withTmpConn)
+                                             SvcURI, startupAll, withTmpConn)
 
 
 {-| A singleton 'HList' containing a 'TmpPostgres'. -}

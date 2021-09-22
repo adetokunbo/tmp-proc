@@ -8,11 +8,15 @@ Simplify use of @tmp-proc@ with @hspec@.
 
 -}
 module Test.Hspec.TmpProc
-  ( tdescribe
+  ( -- * Combinators
+    tdescribe
+
+    -- * Re-export
+  , module System.TmpProc
   )
 where
 
-import           System.TmpProc.Docker (hasDocker)
+import           System.TmpProc
 import           Test.Hspec
 
 

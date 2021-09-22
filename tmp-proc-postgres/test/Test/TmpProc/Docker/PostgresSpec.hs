@@ -12,7 +12,6 @@ import           Data.Text                      (Text)
 import qualified Data.Text                      as Text
 import           Database.PostgreSQL.Simple     (execute_)
 
-import           System.TmpProc.Docker
 import           System.TmpProc.Docker.Postgres
 
 
@@ -34,9 +33,9 @@ spec = tdescribe desc $ do
 
 setupHandles :: IO (HList '[ProcHandle TmpPostgres])
 setupHandles = do
-  handles <- startupAll $ testProc `HCons` HNil
-  initTable handles `onException` terminateAll handles
-  pure handles
+  hs <- startupAll $ testProc `HCons` HNil
+  initTable hs `onException` terminateAll hs
+  pure hs
 
 
 testProc :: TmpPostgres
