@@ -9,9 +9,7 @@ import           Test.Hspec.TmpProc
 import           Data.Proxy                     (Proxy (..))
 import qualified Data.Text                      as Text
 
-import           System.TmpProc.Docker
 import           System.TmpProc.Docker.Zipkin
-
 
 spec :: Spec
 spec = tdescribe desc $ do
@@ -25,9 +23,7 @@ spec = tdescribe desc $ do
 
 
 setupHandles :: IO (HList '[ProcHandle TmpZipkin])
-setupHandles = do
-  handles <- startupAll $ testProc `HCons` HNil
-  pure handles
+setupHandles = startupAll $ testProc `HCons` HNil
 
 
 testProc :: TmpZipkin

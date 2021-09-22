@@ -31,20 +31,20 @@ processes /(procs)/ using docker.
 * Obviously, it's possible to write integration tests that use services hosted
   on docker /without/ @tmp-proc@
 
-* However, @tmp-proc@ aims to make those kind of tests easier - it
-  takes care of
+* However, @tmp-proc@ aims to make writing those kind of tests easier, by providing
+  types and combinators to take care of
 
     * launching services on docker
     * obtaining references to the launched service
     * cleaning up docker once the tests are finished
 
-This module does this via its data types:
+This module does all that via its data types:
 
-* A /'Proc'/ specifies a docker image that provides a service and details
+* A /'Proc'/ specifies a docker image that provides a service and other details
   related to its use in tests.
 
-* A /'ProcHandle'/ is created whenever a /'Proc'/ is started, and is used to access
-and eventually terminate the running service.
+* A /'ProcHandle'/ is created whenever a service specifed by a /'Proc'/ is
+started, and is used to access and eventually terminate the running service.
 
 * Some @'Proc's@ will also be /'Connectable'/; these specify how access the
 service via some /'Conn'-ection/ type.
@@ -56,9 +56,23 @@ module System.TmpProc.Docker
   , AreProcs
   , SomeProcs(..)
   , startup
+  , nameOf
   , uriOf'
   , runArgs'
-  , nameOf
+
+    -- * @'ProcHandle'@
+  , ProcHandle(..)
+  , Proc2Handle
+  , startupAll
+  , terminateAll
+  , withTmpProcs
+  , named
+  , manyNamed
+  , ixReset
+  , ixPing
+  , ixUriOf
+  , HasNamedHandle
+  , SomeNamedHandles
 
     -- * @'Connectable'@
   , Connectable(..)
@@ -71,21 +85,6 @@ module System.TmpProc.Docker
   , withConns
   , withKnownConns
   , withNamedConns
-
-    -- * @'ProcHandle'@
-  , ProcHandle(..)
-  , Proc2Handle
-  , HasNamedHandle
-  , SomeNamedHandles
-  , startupAll
-  , terminateAll
-  , withTmpProcs
-  , ixReset
-  , ixPing
-  , ixUriOf
-  , named
-  , manyNamed
-
 
     -- * Docker status
   , hasDocker
@@ -122,7 +121,7 @@ import           System.Process           (StdStream (..), proc, readProcess,
 import           System.TmpProc.TypeLevel (Drop, HList (..), HalfOf, IsAbsent,
                                            KV (..), LengthOf, ManyMemberKV,
                                            MemberKV, ReorderH (..), SortSymbols,
-                                           Take, select, selectMany)
+                                           Take, select, selectMany, (%:))
 
 
 {-| Determines if the docker daemon is accessible. -}

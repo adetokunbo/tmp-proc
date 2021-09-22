@@ -28,7 +28,7 @@ module System.TmpProc.Docker.Redis
   , KeyName
 
     -- * Re-exports
-  , module System.TmpProc.Docker
+  , module System.TmpProc
   )
 where
 
@@ -39,9 +39,10 @@ import qualified Data.Text             as Text
 import           Database.Redis        (Connection, checkedConnect, del,
                                         disconnect, parseConnectInfo, runRedis)
 
-import           System.TmpProc.Docker (HList (..), HostIpAddress, Proc (..),
-                                        Proc2Handle, ProcHandle (..), SvcURI,
-                                        startupAll, Connectable(..), withTmpConn)
+import           System.TmpProc        (Connectable (..), HList (..),
+                                        HostIpAddress, Proc (..), Proc2Handle,
+                                        ProcHandle (..), SvcURI, startupAll,
+                                        withTmpConn)
 
 
 {-| A singleton 'HList' containing an example 'TmpRedis'. -}

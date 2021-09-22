@@ -26,7 +26,7 @@ module System.TmpProc.Docker.RabbitMQ
   , aHandle
 
     -- * Re-exports
-  , module System.TmpProc.Docker
+  , module System.TmpProc
   )
 where
 
@@ -36,7 +36,7 @@ import qualified Data.Text             as Text
 
 import           Network.AMQP
 
-import           System.TmpProc.Docker (Connectable (..), HList (..),
+import           System.TmpProc        (Connectable (..), HList (..),
                                         HostIpAddress, Proc (..), Proc2Handle,
                                         ProcHandle (..), SvcURI, startupAll,
                                         withTmpConn)
@@ -52,7 +52,7 @@ aHandle :: IO (HList (Proc2Handle '[TmpRabbitMQ]))
 aHandle = startupAll aProc
 
 
-{-| Provides the capability to launch a RabbitMQ instance as @tmp proc@. -}
+{-| Provides the capability to launch a RabbitMQ instance as a @tmp proc@. -}
 data TmpRabbitMQ = TmpRabbitMQ
 
 

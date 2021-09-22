@@ -9,7 +9,6 @@ import           Test.Hspec.TmpProc
 import           Data.Proxy                     (Proxy (..))
 import qualified Data.Text                      as Text
 
-import           System.TmpProc.Docker
 import           System.TmpProc.Docker.RabbitMQ
 
 
@@ -31,9 +30,7 @@ spec = tdescribe desc $ do
 
 
 setupHandles :: IO (HList '[ProcHandle TmpRabbitMQ])
-setupHandles = do
-  handles <- startupAll $ testProc `HCons` HNil
-  pure handles
+setupHandles = startupAll $ testProc `HCons` HNil
 
 
 testProc :: TmpRabbitMQ

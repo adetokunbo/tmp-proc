@@ -26,12 +26,12 @@ module System.TmpProc.Docker.Zipkin
   , aHandle
 
     -- * Re-exports
-  , module System.TmpProc.Docker
+  , module System.TmpProc
   )
 where
 
 import           Control.Monad.IO.Class    (MonadIO, liftIO)
-import           Control.Monad.Trace.Class (MonadTrace, rootSpan, alwaysSampled)
+import           Control.Monad.Trace.Class (MonadTrace, alwaysSampled, rootSpan)
 import qualified Data.ByteString.Char8     as C8
 import           Data.String               (fromString)
 import qualified Data.Text                 as Text
@@ -39,7 +39,7 @@ import qualified Data.Text                 as Text
 
 import qualified Monitor.Tracing.Zipkin    as ZPK
 
-import           System.TmpProc.Docker     (Connectable (..), HList (..),
+import           System.TmpProc            (Connectable (..), HList (..),
                                             HostIpAddress, Proc (..),
                                             Proc2Handle, ProcHandle (..),
                                             SvcURI, startupAll, withTmpConn)
@@ -55,7 +55,7 @@ aHandle :: IO (HList (Proc2Handle '[TmpZipkin]))
 aHandle = startupAll aProc
 
 
-{-| Provides the capability to launch a Zipkin instance as @tmp proc@. -}
+{-| Provides the capability to launch a Zipkin instance as a @tmp proc@. -}
 data TmpZipkin = TmpZipkin
 
 
