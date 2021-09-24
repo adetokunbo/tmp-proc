@@ -1,13 +1,13 @@
 cabal-version:      3.0
 name:               tmp-proc-example
 version:            0.4.0.0
-synopsis:           Run a tmp postgresql proc
-description:        An example that demos using tmp-proc to launch postgresql in docker.
+synopsis:           Shows how to test a simple server using tmp-proc
+description:        A demo that uses tmp-proc to test a simple postgresql/redis servant-based API server
 license:            BSD-3-Clause
 license-file:       LICENSE
 copyright:          2021 Tim Emiola
 author:             Tim Emiola
-maintainer:         adetokunbo@users.noreply.github.com
+maintainer:         adetokunbo@contacts.noreply.github.com
 category:           Testing
 homepage:           https://github.com/adetokunbo/tmp-proc
 build-type:         Simple
@@ -19,29 +19,70 @@ source-repository head
   location: https://github.com/adetokunbo/tmp-proc.git
 
 library
-  exposed-modules:  System.TmpProc.Docker.Postgres
+  exposed-modules:  TmpProc.Example1.Client
+                    TmpProc.Example1.Database
+                    TmpProc.Example1.Cache
+                    TmpProc.Example1.Server
+                    TmpProc.Example1.Routes
+                    TmpProc.Example1.Schema
+                    TmpProc.Example1.IntegrationTaste
+                    TmpProc.Example2.Client
+                    TmpProc.Example2.Database
+                    TmpProc.Example2.Cache
+                    TmpProc.Example2.Server
+                    TmpProc.Example2.Routes
+                    TmpProc.Example2.Schema
+                    TmpProc.Example2.IntegrationSpec
   hs-source-dirs:   src
+                    specs
   build-depends:    base              >= 4.11 && < 4.16
-                  , bytestring        >= 0.10.8.2 && < 0.12
-                  , postgresql-simple >= 0.5.4.0 && < 0.6.5
-                  , text              >= 1.2.3 && < 1.3
-                  , tmp-proc          >= 0.4.0.0 && < 0.5.0.0
+                  , aeson
+                  , bytestring
+                  , exceptions
+                  , hedis
+                  , hspec
+                  , hspec-tmp-proc
+                  , http-client
+                  , http-client-tls
+                  , mtl
+                  , monad-logger
+                  , persistent
+                  , persistent-postgresql
+                  , persistent-template
+                  , postgresql-simple
+                  , servant
+                  , servant-client
+                  , servant-server
+                  , tasty
+                  , tasty-hunit
+                  , text
+                  , time
+                  , tmp-proc
+                  , tmp-proc-postgres
+                  , tmp-proc-redis
+                  , transformers
+                  , wai
+                  , warp
   default-language: Haskell2010
   ghc-options:     -fno-ignore-asserts -Wall
 
 
-test-suite integration-test
+test-suite hspec-integration-test
   type:             exitcode-stdio-1.0
   main-is:          Spec.hs
-  other-modules:    Test.TmpProc.Docker.PostgresSpec
   hs-source-dirs:   test
   build-depends:    base
-                  , bytestring
                   , hspec
-                  , hspec-tmp-proc
-                  , postgresql-simple
-                  , text
                   , tmp-proc-example
-                  , tmp-proc
+  default-language: Haskell2010
+  ghc-options:      -threaded -rtsopts -with-rtsopts=-N -fno-ignore-asserts -Wall
+
+
+test-suite tasty-integration-test
+  type:             exitcode-stdio-1.0
+  main-is:          Taste.hs
+  hs-source-dirs:   test
+  build-depends:    base
+                  , tmp-proc-example
   default-language: Haskell2010
   ghc-options:      -threaded -rtsopts -with-rtsopts=-N -fno-ignore-asserts -Wall
