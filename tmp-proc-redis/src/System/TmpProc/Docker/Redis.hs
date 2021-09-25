@@ -40,7 +40,7 @@ import           Database.Redis        (Connection, checkedConnect, del,
                                         disconnect, parseConnectInfo, runRedis)
 
 import           System.TmpProc        (Connectable (..), HList (..),
-                                        HostIpAddress, Proc (..), Proc2Handle,
+                                        HostIpAddress, Proc (..), HandlesOf,
                                         ProcHandle (..), SvcURI, startupAll,
                                         withTmpConn)
 
@@ -51,7 +51,7 @@ aProc = TmpRedis [] `HCons` HNil
 
 
 {-| An 'HList' that just contains the handle created from 'aProc'. -}
-aHandle :: IO (HList (Proc2Handle '[TmpRedis]))
+aHandle :: IO (HandlesOf '[TmpRedis])
 aHandle = startupAll aProc
 
 

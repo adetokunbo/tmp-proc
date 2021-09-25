@@ -15,7 +15,7 @@ import           Data.Text                 (Text)
 import           Network.HTTP.Types        (status200, status400)
 import           Network.Wai               (Application, pathInfo, responseLBS)
 
-import           System.TmpProc.Docker     (HList (..), ProcHandle, ixPing)
+import           System.TmpProc.Docker     (HList (..), ixPing, HandlesOf)
 import           System.TmpProc.Warp       (ServerHandle, handles, runServer,
                                             runTLSServer, serverPort, shutdown,
                                             testWithApplication,
@@ -35,14 +35,14 @@ testProcs :: HList '[HttpBinTest]
 testProcs = HttpBinTest `HCons` HNil
 
 
-testApp :: HList '[ProcHandle HttpBinTest] -> IO Application
+testApp :: HandlesOf '[HttpBinTest] -> IO Application
 testApp hs = mkTestApp' (ixPing @"http-bin-test" Proxy hs) (ixPing @"http-bin-test" Proxy hs)
 
 
-setupBeforeAll :: IO (ServerHandle '[ProcHandle HttpBinTest])
+setupBeforeAll :: IO (ServerHandle '[HttpBinTest])
 setupBeforeAll = runServer testProcs testApp
 
-setupBeforeAllTls :: IO (ServerHandle '[ProcHandle HttpBinTest])
+setupBeforeAllTls :: IO (ServerHandle '[HttpBinTest])
 setupBeforeAllTls = runTLSServer defaultTLSSettings testProcs testApp
 
 
@@ -61,7 +61,7 @@ beforeAllSpec = do
 
 checkBeforeAll
   :: String
-  -> IO (ServerHandle '[ProcHandle HttpBinTest])
+  -> IO (ServerHandle '[HttpBinTest])
   -> (Int -> Text -> IO Int) -> Spec
 checkBeforeAll descPrefix setup getter =  beforeAll setup $ afterAll shutdown $ do
   describe (descPrefix ++ suffixBeforeAll) $ do
@@ -73,11 +73,11 @@ checkBeforeAll descPrefix setup getter =  beforeAll setup $ afterAll shutdown $ 
       getter (serverPort sh) "test" `shouldReturn` 200
 
 
-setupAround :: ((HList '[ProcHandle HttpBinTest], Int) -> IO a) -> IO a
+setupAround :: ((HandlesOf '[HttpBinTest], Int) -> IO a) -> IO a
 setupAround = testWithApplication testProcs testApp
 
 
-setupAroundTls :: ((HList '[ProcHandle HttpBinTest], Int) -> IO a) -> IO a
+setupAroundTls :: ((HandlesOf '[HttpBinTest], Int) -> IO a) -> IO a
 setupAroundTls = testWithTLSApplication defaultTLSSettings testProcs testApp
 
 
@@ -89,7 +89,7 @@ aroundSpec = do
 
 checkEachTest
   :: String
-  -> (ActionWith (HList '[ProcHandle HttpBinTest], Int) -> IO ())
+  -> (ActionWith (HandlesOf '[HttpBinTest], Int) -> IO ())
   -> (Int -> Text -> IO Int)
   -> Spec
 checkEachTest descPrefix setup getter = around setup $ do

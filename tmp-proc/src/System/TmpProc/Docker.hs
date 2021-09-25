@@ -63,6 +63,7 @@ module System.TmpProc.Docker
     -- * @'ProcHandle'@
   , ProcHandle(..)
   , Proc2Handle
+  , HandlesOf
   , startupAll
   , terminateAll
   , withTmpProcs
@@ -140,9 +141,9 @@ hasDocker = do
 
 {-| Set up some @'Proc's@, run an action that uses them, then terminate them. -}
 withTmpProcs
-  :: AreProcs as
-  => HList as
-  -> (HList (Proc2Handle as) -> IO b)
+  :: AreProcs procs
+  => HList procs
+  -> (HandlesOf procs -> IO b)
   -> IO b
 withTmpProcs procs = bracket (startupAll procs) terminateAll
 
@@ -157,10 +158,10 @@ data ProcHandle a = ProcHandle
 
 
 {-| Start up processes for each 'Proc' type. -}
-startupAll :: AreProcs as => HList as -> IO (HList (Proc2Handle as))
+startupAll :: AreProcs procs => HList procs -> IO (HandlesOf procs)
 startupAll = go procProof
   where
-    go :: SomeProcs as -> HList as -> IO (HList (Proc2Handle as))
+    go :: SomeProcs as -> HList as -> IO (HandlesOf as)
     go SomeProcsNil HNil = pure HNil
     go (SomeProcsCons cons) (x `HCons` y) = do
       h <- startup x
@@ -169,7 +170,7 @@ startupAll = go procProof
 
 
 {-| Terminate all processes owned by some @'ProcHandle's@. -}
-terminateAll :: AreProcs as => HList (Proc2Handle as) -> IO ()
+terminateAll :: AreProcs procs => HandlesOf procs -> IO ()
 terminateAll = go $ p2h procProof
   where
     go :: SomeHandles as -> HList as -> IO ()
@@ -180,7 +181,7 @@ terminateAll = go $ p2h procProof
 
 
 {-| Terminate the process owned by a @'ProcHandle's@. -}
-terminate :: ProcHandle a -> IO ()
+terminate :: ProcHandle p -> IO ()
 terminate handle = do
   let pid = hPid handle
   void $ readProcess "docker" [ "stop", pid ] ""
@@ -329,32 +330,32 @@ nPings h@ProcHandle{hProc = p} =
 {-| Constraint alias used to constrain types where a 'Name' looks up
   a type in an 'HList' of 'ProcHandle'.
 -}
-type HasNamedHandle s a xs =
-  ( s ~ Name a
+type HasNamedHandle name a procs =
+  ( name ~ Name a
   , Proc a
-  , AreProcs xs
-  , MemberKV s (ProcHandle a) (Handle2KV (Proc2Handle xs))
+  , AreProcs procs
+  , MemberKV name (ProcHandle a) (Handle2KV (Proc2Handle procs))
   )
 
 
 {-| The named handle from an  @'HList'@ of @'ProcHandle'@. -}
 named
-  :: HasNamedHandle s a xs
-  => Proxy s -> HList (Proc2Handle xs) -> ProcHandle a
+  :: HasNamedHandle name namedProc procs
+  => Proxy name -> HandlesOf procs -> ProcHandle namedProc
 named proxy xs = named' proxy $ toKVs xs
 
 
 {-| Liked 'named', but constrains the handle to be 'Connectable'. -}
 connected
-  :: (HasNamedHandle s a xs, Connectable a)
-  => Proxy s -> HList (Proc2Handle xs) -> ProcHandle a
+  :: (HasNamedHandle name namedProc procs, Connectable namedProc)
+  => Proxy name -> HandlesOf procs -> ProcHandle namedProc
 connected proxy xs = named' proxy $ toKVs xs
 
 
 {-| Liked 'connected', but provides the 'Conn' to a callback. -}
 withNamedConn
-  :: (HasNamedHandle s a xs, Connectable a)
-  => Proxy s -> HList (Proc2Handle xs) -> (Conn a -> IO b) -> IO b
+  :: (HasNamedHandle name namedConn procs, Connectable namedConn)
+  => Proxy name -> HandlesOf procs -> (Conn namedConn -> IO b) -> IO b
 withNamedConn proxy xs action = flip withTmpConn action $ named' proxy $ toKVs xs
 
 
@@ -391,8 +392,8 @@ type SomeNamedHandles names procs someProcs sortedProcs =
 
 {-| Select the named @'ProcHandle's@ from an 'HList' of @'ProcHandle'@. -}
 manyNamed
-  :: SomeNamedHandles names procs someProcs sortedProcs
-  => Proxy names -> HList (Proc2Handle someProcs) -> HList (Proc2Handle procs)
+  :: SomeNamedHandles names namedProcs someProcs sortedProcs
+  => Proxy names -> HandlesOf someProcs -> HandlesOf namedProcs
 manyNamed proxy xs = manyNamed' proxy $ toSortedKVs xs
 
 
@@ -404,14 +405,14 @@ manyNamed'
      , ManyMemberKV sortedNames ordered (Handle2KV someProcs)
      , ReorderH ordered (Proc2Handle procs)
      )
-  => Proxy names -> HList (Handle2KV someProcs) -> HList (Proc2Handle procs)
+  => Proxy names -> HList (Handle2KV someProcs) -> HandlesOf procs
 manyNamed' _ kvs = unsortHandles $ selectMany @sortedNames @ordered kvs
 
 
 {-| Resets the handle with the given @'Name'@ in a list of Handles. -}
 ixReset
-  :: HasNamedHandle s a xs
-  => Proxy s -> HList (Proc2Handle xs) -> IO ()
+  :: HasNamedHandle name a procs
+  => Proxy name -> HandlesOf procs -> IO ()
 ixReset proxy xs = ixReset' proxy $ toKVs xs
 
 ixReset'
@@ -425,8 +426,8 @@ ixReset' _ kvs = reset $ select @s @(ProcHandle a) kvs
 
 {-| Pings the handle with the given @'Name'@ in a list of Handles. -}
 ixPing
-  :: HasNamedHandle s a xs
-  => Proxy s -> HList (Proc2Handle xs) -> IO ()
+  :: HasNamedHandle name a procs
+  => Proxy name -> HandlesOf procs -> IO ()
 ixPing proxy xs = ixPing' proxy $ toKVs xs
 
 ixPing'
@@ -440,8 +441,8 @@ ixPing' _ kvs = ping $ select @s @(ProcHandle a) kvs
 
 {-| URI for the handle with the given @'Name'@ in a list of Handles. -}
 ixUriOf
-  :: HasNamedHandle s a xs
-  => Proxy s -> HList (Proc2Handle xs) -> SvcURI
+  :: HasNamedHandle name a procs
+  => Proxy name -> HandlesOf procs -> SvcURI
 ixUriOf proxy xs = ixUriOf' proxy $ toKVs xs
 
 ixUriOf'
@@ -482,6 +483,10 @@ toKV h = V h
 type family Proc2Handle (as :: [*]) = (handleTys :: [*]) | handleTys -> as where
   Proc2Handle '[]        = '[]
   Proc2Handle (a ':  as) = ProcHandle a ': Proc2Handle as
+
+
+{-| A list of @'ProcHandle'@ values. -}
+type HandlesOf as = HList (Proc2Handle as)
 
 
 {-| Converts list of 'Proc' the corresponding @'Name'@ symbols. -}
@@ -548,10 +553,10 @@ type family ConnsOf (cs :: [*]) = (conns :: [*]) | conns -> cs where
 
 
 {-| Open all the 'Connectable' types to corresponding 'Conn' types. -}
-openAll :: Connectables xs => HList (Proc2Handle xs) -> IO (HList (ConnsOf xs))
+openAll :: Connectables xs => HandlesOf xs -> IO (HList (ConnsOf xs))
 openAll =  go connProof
   where
-    go :: SomeConns as -> HList (Proc2Handle as) -> IO (HList (ConnsOf as))
+    go :: SomeConns as -> HandlesOf as -> IO (HList (ConnsOf as))
     go SomeConnsNil HNil = pure HNil
     go (SomeConnsCons cons) (x `HCons` y) = do
       c <- openConn x
@@ -560,7 +565,7 @@ openAll =  go connProof
 
 
 {-| Close some 'Connectable' types. -}
-closeAll :: Connectables xs => HList (ConnsOf xs) -> IO ()
+closeAll :: Connectables procs => HList (ConnsOf procs) -> IO ()
 closeAll = go connProof
   where
     go :: SomeConns as -> HList (ConnsOf as) -> IO ()
@@ -570,33 +575,33 @@ closeAll = go connProof
 
 {-| Open some connections, use them in an action; close them. -}
 withConns
-  :: Connectables xs
-  => HList (Proc2Handle xs)
-  -> (HList (ConnsOf xs) -> IO b)
+  :: Connectables procs
+  => HandlesOf procs
+  -> (HList (ConnsOf procs) -> IO b)
   -> IO b
 withConns handles = bracket (openAll handles) closeAll
 
 
 {-| Open all known connections; use them in an action; close them. -}
 withKnownConns
-  :: (AreProcs ps,
-      Connectables cs,
-      ReorderH (Proc2Handle ps) (Proc2Handle cs)
+  :: (AreProcs someProcs,
+      Connectables conns,
+      ReorderH (Proc2Handle someProcs) (Proc2Handle conns)
      )
-  => HList (Proc2Handle ps)
-  -> (HList (ConnsOf cs) -> IO b)
+  => HandlesOf someProcs
+  -> (HList (ConnsOf conns) -> IO b)
   -> IO b
 withKnownConns = withConns . hReorder
 
 
 {-| Open the named connections; use them in an action; close them. -}
 withNamedConns
-  :: ( SomeNamedHandles names cs ps sortedProcs
-     , Connectables cs
+  :: ( SomeNamedHandles names namedConns someProcs sortedProcs
+     , Connectables namedConns
      )
   => Proxy names
-  -> HList (Proc2Handle ps)
-  -> (HList (ConnsOf cs) -> IO b)
+  -> HandlesOf someProcs
+  -> (HList (ConnsOf namedConns) -> IO b)
   -> IO b
 withNamedConns proxy = withConns . manyNamed proxy
 
