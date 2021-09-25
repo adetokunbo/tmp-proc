@@ -41,7 +41,7 @@ import qualified Monitor.Tracing.Zipkin    as ZPK
 
 import           System.TmpProc            (Connectable (..), HList (..),
                                             HostIpAddress, Proc (..),
-                                            Proc2Handle, ProcHandle (..),
+                                            HandlesOf, ProcHandle (..),
                                             SvcURI, startupAll, withTmpConn)
 
 
@@ -51,7 +51,7 @@ aProc = TmpZipkin `HCons` HNil
 
 
 {-| An 'HList' that just contains the handle created by 'aProc'. -}
-aHandle :: IO (HList (Proc2Handle '[TmpZipkin]))
+aHandle :: IO (HandlesOf '[TmpZipkin])
 aHandle = startupAll aProc
 
 

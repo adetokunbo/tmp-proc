@@ -14,12 +14,12 @@ import           Data.Text             (Text)
 import qualified Data.Text             as Text
 import           Network.HTTP.Req
 
-import           System.TmpProc        (HList (..), HostIpAddress, Proc (..),
-                                        Proc2Handle, ProcHandle (..), SvcURI,
+import           System.TmpProc        (HandlesOf, HList (..), HostIpAddress, Proc (..),
+                                        ProcHandle (..), SvcURI,
                                         manyNamed, startupAll, (%:))
 
 
-setupHandles :: IO (HList (Proc2Handle '[HttpBinTest, HttpBinTest2, HttpBinTest3]))
+setupHandles :: IO (HandlesOf '[HttpBinTest, HttpBinTest2, HttpBinTest3])
 setupHandles = startupAll $ HttpBinTest %: HttpBinTest2 %: HttpBinTest3 %: HNil
 
 
@@ -39,9 +39,8 @@ instance Proc HttpBinTest where
 
 {-| Another data type representing a connection to a HttpBin server.
 
-
-Allows the test tmp process list to several heterogenous types, to better
-detect any compiler errors.
+Used in this module to allow mulitple types in test lists, to improve the
+chances of detecting type-related compilationr errors.
 
 -}
 data HttpBinTest2 = HttpBinTest2
@@ -59,8 +58,8 @@ instance Proc HttpBinTest2 where
 
 {-| Yet another data type representing a connection to a HttpBin server.
 
-Allows the test tmp process list to several heterogenous types, to better
-detect any compiler errors.
+Used in this module to allow mulitple types in test lists, to improve the
+chances of detecting type-related compilationr errors.
 
 -}
 data HttpBinTest3 = HttpBinTest3
@@ -74,7 +73,6 @@ instance Proc HttpBinTest3 where
   runArgs = []
   reset _ = pure ()
   ping = ping'
-
 
 
 {-| Make a uri access the http-bin server. -}
@@ -106,25 +104,25 @@ handleUrl handle urlPath = foldl' (/:) (http $ hAddr handle)
 
 
 {-| Verify that the compile time type computations related to 'manyNamed' are ok. -}
-typeLevelCheck1 :: IO (HList (Proc2Handle '[HttpBinTest3]))
+typeLevelCheck1 :: IO (HandlesOf '[HttpBinTest3])
 typeLevelCheck1 = do
   allHandles <- setupHandles
   pure $ manyNamed @'["http-bin-test-3"] Proxy  allHandles
 
 
-typeLevelCheck2 :: IO (HList (Proc2Handle '[HttpBinTest, HttpBinTest3]))
+typeLevelCheck2 :: IO (HandlesOf '[HttpBinTest, HttpBinTest3])
 typeLevelCheck2 = do
   allHandles <- setupHandles
   pure $ manyNamed @'["http-bin-test", "http-bin-test-3"] Proxy  allHandles
 
 
-typeLevelCheck3 :: IO (HList (Proc2Handle '[HttpBinTest3, HttpBinTest]))
+typeLevelCheck3 :: IO (HandlesOf '[HttpBinTest3, HttpBinTest])
 typeLevelCheck3 = do
   allHandles <- setupHandles
   pure $ manyNamed @'["http-bin-test-3", "http-bin-test"] Proxy  allHandles
 
 
-typeLevelCheck4 :: IO (HList (Proc2Handle '[HttpBinTest2, HttpBinTest3, HttpBinTest]))
+typeLevelCheck4 :: IO (HandlesOf '[HttpBinTest2, HttpBinTest3, HttpBinTest])
 typeLevelCheck4 = do
   allHandles <- setupHandles
   pure $ manyNamed @'["http-bin-test-2", "http-bin-test-3", "http-bin-test"] Proxy allHandles

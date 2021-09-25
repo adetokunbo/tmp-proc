@@ -40,9 +40,9 @@ import           Database.PostgreSQL.Simple (Connection, close,
                                              connectPostgreSQL, execute_)
 
 import           System.TmpProc             (Connectable (..), HList (..),
-                                             HostIpAddress, Proc (..),
-                                             Proc2Handle, ProcHandle (..),
-                                             SvcURI, startupAll, withTmpConn)
+                                             HandlesOf, HostIpAddress,
+                                             Proc (..), ProcHandle (..), SvcURI,
+                                             startupAll, withTmpConn)
 
 
 {-| A singleton 'HList' containing a 'TmpPostgres'. -}
@@ -50,8 +50,8 @@ aProc :: HList '[TmpPostgres]
 aProc = TmpPostgres [] `HCons` HNil
 
 
-{-| An 'HList' that just contains the handle created by 'aProc'. -}
-aHandle :: IO (HList (Proc2Handle '[TmpPostgres]))
+{-| An 'HList' that contains the handle created from 'aProc'. -}
+aHandle :: IO (HandlesOf '[TmpPostgres])
 aHandle = startupAll aProc
 
 

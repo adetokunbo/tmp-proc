@@ -36,8 +36,8 @@ import qualified Data.Text             as Text
 
 import           Network.AMQP
 
-import           System.TmpProc        (Connectable (..), HList (..),
-                                        HostIpAddress, Proc (..), Proc2Handle,
+import           System.TmpProc        (Connectable (..), HandlesOf, HList (..),
+                                        HostIpAddress, Proc (..),
                                         ProcHandle (..), SvcURI, startupAll,
                                         withTmpConn)
 
@@ -48,7 +48,7 @@ aProc = TmpRabbitMQ `HCons` HNil
 
 
 {-| An 'HList' that just contains the handle created by 'aProc'. -}
-aHandle :: IO (HList (Proc2Handle '[TmpRabbitMQ]))
+aHandle :: IO (HandlesOf '[TmpRabbitMQ])
 aHandle = startupAll aProc
 
 
