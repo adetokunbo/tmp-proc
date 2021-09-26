@@ -18,17 +18,20 @@ import           System.TmpProc.Docker.Postgres
 spec :: Spec
 spec = tdescribe desc $ do
   beforeAll setupHandles $ afterAll terminateAll $ do
-    context "when using the Proc from the HList by its 'Name'" $ do
+    context "when accessing from a list of other procs" $ do
 
       context "ixPing" $ do
 
         it "should succeed" $ \hs
-          -> ixPing @"a-postgres-db" Proxy hs `shouldReturn`()
+          -> ixPing @TmpPostgres Proxy hs `shouldReturn`()
 
       context "ixReset" $ do
 
-        it "should succeed" $ \hs
+        it "should succeed when accessed by Name" $ \hs
           -> ixReset @"a-postgres-db" Proxy hs `shouldReturn`()
+
+        it "should succeed when accessed by Type" $ \hs
+          -> ixReset @TmpPostgres Proxy hs `shouldReturn`()
 
 
 setupHandles :: IO (HList '[ProcHandle TmpPostgres])
