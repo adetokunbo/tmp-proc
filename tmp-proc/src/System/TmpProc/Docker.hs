@@ -69,6 +69,7 @@ module System.TmpProc.Docker
   , withTmpProcs
   , named
   , manyNamed
+  , handleOf
   , ixReset
   , ixPing
   , ixUriOf
@@ -81,6 +82,7 @@ module System.TmpProc.Docker
   , connected
   , withTmpConn
   , withNamedConn
+  , withConnOf
   , openAll
   , closeAll
   , withConns
@@ -120,9 +122,10 @@ import           System.Process           (StdStream (..), proc, readProcess,
                                            withCreateProcess)
 
 import           System.TmpProc.TypeLevel (Drop, HList (..), HalfOf, IsAbsent,
-                                           KV (..), LengthOf, ManyMemberKV,
-                                           MemberKV, ReorderH (..), SortSymbols,
-                                           Take, select, selectMany, (%:))
+                                           IsInProof, KV (..), LengthOf,
+                                           ManyMemberKV, MemberKV, hOf,
+                                           ReorderH (..), SortSymbols, Take,
+                                           select, selectMany, (%:))
 
 
 {-| Determines if the docker daemon is accessible. -}
@@ -327,6 +330,29 @@ nPings h@ProcHandle{hProc = p} =
     go count
 
 
+{-| Constraint alias used to constrain types where proxy of a 'Proc' type looks up
+  a value in an 'HList' of 'ProcHandle'.
+-}
+type HasHandle aProc procs =
+  ( Proc aProc
+  , IsInProof (ProcHandle aProc) (Proc2Handle procs)
+  )
+
+
+{-| The handle for the given type from a @'HList'@ of @'ProcHandle'@. -}
+handleOf
+  :: forall p procs . HasHandle p procs
+  => HandlesOf procs -> ProcHandle p
+handleOf xs = hOf @(ProcHandle p) Proxy xs
+
+
+{-|  Provides the 'Conn' corresponding to a particular type to a callback. -}
+withConnOf
+  :: (Connectable aProc, HasHandle aProc procs)
+  => HandlesOf procs -> (Conn aProc -> IO b) -> IO b
+withConnOf xs action = flip withTmpConn action $ handleOf xs
+
+
 {-| Constraint alias used to constrain types where a 'Name' looks up
   a type in an 'HList' of 'ProcHandle'.
 -}
@@ -409,49 +435,43 @@ manyNamed'
 manyNamed' _ kvs = unsortHandles $ selectMany @sortedNames @ordered kvs
 
 
-{-| Resets the handle with the given @'Name'@ in a list of Handles. -}
-ixReset
-  :: HasNamedHandle name a procs
-  => Proxy name -> HandlesOf procs -> IO ()
-ixReset proxy xs = ixReset' proxy $ toKVs xs
+{-| Specifies how to reset a 'ProcHandle' at an index in a list.  -}
+class IxReset a procs where
 
-ixReset'
-  :: forall (s :: Symbol) a (xs :: [*]) .
-     ( Proc a
-     , s ~ Name a
-     , MemberKV s (ProcHandle a) xs)
-  => Proxy s -> HList xs -> IO ()
-ixReset' _ kvs = reset $ select @s @(ProcHandle a) kvs
+  {-| Resets the handle whose index is specified by the proxy type. -}
+  ixReset :: Proxy a -> HandlesOf procs -> IO ()
+
+instance (HasNamedHandle name a procs) => IxReset name procs where
+  ixReset _  xs = reset $ select @name @(ProcHandle a) $ toKVs xs
+
+instance (HasHandle p procs) => IxReset p procs where
+  ixReset _ xs = reset $ handleOf @p xs
 
 
-{-| Pings the handle with the given @'Name'@ in a list of Handles. -}
-ixPing
-  :: HasNamedHandle name a procs
-  => Proxy name -> HandlesOf procs -> IO ()
-ixPing proxy xs = ixPing' proxy $ toKVs xs
+{-| Specifies how to ping a 'ProcHandle' at an index in a list.  -}
+class IxPing a procs where
 
-ixPing'
-  :: forall (s :: Symbol) a (xs :: [*]) .
-     ( Proc a
-     , s ~ Name a
-     , MemberKV s (ProcHandle a) xs)
-  => Proxy s -> HList xs -> IO ()
-ixPing' _ kvs = ping $ select @s @(ProcHandle a) kvs
+  {-| Pings the handle whose index is specified by the proxy type. -}
+  ixPing :: Proxy a -> HandlesOf procs -> IO ()
+
+instance (HasNamedHandle name a procs) => IxPing name procs where
+  ixPing _  xs = ping $ select @name @(ProcHandle a) $ toKVs xs
+
+instance (HasHandle p procs) => IxPing p procs where
+  ixPing _ xs = ping $ handleOf @p xs
 
 
-{-| URI for the handle with the given @'Name'@ in a list of Handles. -}
-ixUriOf
-  :: HasNamedHandle name a procs
-  => Proxy name -> HandlesOf procs -> SvcURI
-ixUriOf proxy xs = ixUriOf' proxy $ toKVs xs
+{-| Specifies how to obtain the service URI a 'ProcHandle' at an index in a list.  -}
+class IxUriOf a procs where
 
-ixUriOf'
-  :: forall (s :: Symbol) a (xs :: [*]) .
-     ( Proc a
-     , s ~ Name a
-     , MemberKV s (ProcHandle a) xs)
-  => Proxy s -> HList xs -> SvcURI
-ixUriOf' _ kvs = hUri $ select @s @(ProcHandle a) kvs
+  {-| Obtains the service URI of the handle whose index is specified by the proxy type. -}
+  ixUriOf :: Proxy a -> HandlesOf procs -> SvcURI
+
+instance (HasNamedHandle name a procs) => IxUriOf name procs where
+  ixUriOf _  xs = hUri $ select @name @(ProcHandle a) $ toKVs xs
+
+instance (HasHandle p procs) => IxUriOf p procs where
+  ixUriOf _ xs = hUri $ handleOf @p xs
 
 
 {-| Create a 'HList' of @'KV's@ from a 'HList' of @'ProcHandle's@. -}
@@ -486,7 +506,7 @@ type family Proc2Handle (as :: [*]) = (handleTys :: [*]) | handleTys -> as where
 
 
 {-| A list of @'ProcHandle'@ values. -}
-type HandlesOf as = HList (Proc2Handle as)
+type HandlesOf procs = HList (Proc2Handle procs)
 
 
 {-| Converts list of 'Proc' the corresponding @'Name'@ symbols. -}
