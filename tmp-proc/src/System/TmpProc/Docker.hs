@@ -67,7 +67,6 @@ module System.TmpProc.Docker
   , startupAll
   , terminateAll
   , withTmpProcs
-  , named
   , manyNamed
   , handleOf
   , ixReset
@@ -79,9 +78,7 @@ module System.TmpProc.Docker
     -- * @'Connectable'@
   , Connectable(..)
   , Connectables
-  , connected
   , withTmpConn
-  , withNamedConn
   , withConnOf
   , openAll
   , closeAll
@@ -339,20 +336,6 @@ type HasHandle aProc procs =
   )
 
 
-{-| The handle for the given type from a @'HList'@ of @'ProcHandle'@. -}
-handleOf
-  :: forall p procs . HasHandle p procs
-  => HandlesOf procs -> ProcHandle p
-handleOf xs = hOf @(ProcHandle p) Proxy xs
-
-
-{-|  Provides the 'Conn' corresponding to a particular type to a callback. -}
-withConnOf
-  :: (Connectable aProc, HasHandle aProc procs)
-  => HandlesOf procs -> (Conn aProc -> IO b) -> IO b
-withConnOf xs action = flip withTmpConn action $ handleOf xs
-
-
 {-| Constraint alias used to constrain types where a 'Name' looks up
   a type in an 'HList' of 'ProcHandle'.
 -}
@@ -364,38 +347,9 @@ type HasNamedHandle name a procs =
   )
 
 
-{-| The named handle from an  @'HList'@ of @'ProcHandle'@. -}
-named
-  :: HasNamedHandle name namedProc procs
-  => Proxy name -> HandlesOf procs -> ProcHandle namedProc
-named proxy xs = named' proxy $ toKVs xs
-
-
-{-| Liked 'named', but constrains the handle to be 'Connectable'. -}
-connected
-  :: (HasNamedHandle name namedProc procs, Connectable namedProc)
-  => Proxy name -> HandlesOf procs -> ProcHandle namedProc
-connected proxy xs = named' proxy $ toKVs xs
-
-
-{-| Liked 'connected', but provides the 'Conn' to a callback. -}
-withNamedConn
-  :: (HasNamedHandle name namedConn procs, Connectable namedConn)
-  => Proxy name -> HandlesOf procs -> (Conn namedConn -> IO b) -> IO b
-withNamedConn proxy xs action = flip withTmpConn action $ named' proxy $ toKVs xs
-
-
 {-| Run an action on a 'Connectable' handle as a callback on its 'Conn' -}
 withTmpConn :: Connectable a => ProcHandle a -> (Conn a -> IO b) -> IO b
 withTmpConn handle action = bracket (openConn handle) closeConn action
-
-
-named'
-  :: forall (s :: Symbol) a (xs :: [*]) .
-     ( KnownSymbol s
-     , MemberKV s (ProcHandle a) xs)
-  => Proxy s -> HList xs -> ProcHandle a
-named' _ kvs = select @s @(ProcHandle a) kvs
 
 
 {-| Constraint alias when several @'Name's@ are used to find matching
@@ -435,6 +389,26 @@ manyNamed'
 manyNamed' _ kvs = unsortHandles $ selectMany @sortedNames @ordered kvs
 
 
+{-| Specifies how to obtain a 'ProcHandle' that is present in an HList.  -}
+class HandleOf a procs b where
+
+  {-| Obtain the handle matching the given type from a @'HList'@ of @'ProcHandle'@. -}
+  handleOf :: Proxy a -> HandlesOf procs -> ProcHandle b
+
+instance (HasHandle p procs) => HandleOf p procs p where
+  handleOf _ procs = hOf @(ProcHandle p) Proxy procs
+
+instance (HasNamedHandle name p procs) => HandleOf name procs p where
+  handleOf _ xs = select @name @(ProcHandle p) $ toKVs xs
+
+
+{-| Builds on 'handleOf'; gives the 'Conn' of the 'ProcHandle' to a callback. -}
+withConnOf
+  :: (HandleOf idx procs namedConn, Connectable namedConn)
+  => Proxy idx -> HandlesOf procs -> (Conn namedConn -> IO b) -> IO b
+withConnOf proxy xs action = flip withTmpConn action $ handleOf proxy xs
+
+
 {-| Specifies how to reset a 'ProcHandle' at an index in a list.  -}
 class IxReset a procs where
 
@@ -445,7 +419,7 @@ instance (HasNamedHandle name a procs) => IxReset name procs where
   ixReset _  xs = reset $ select @name @(ProcHandle a) $ toKVs xs
 
 instance (HasHandle p procs) => IxReset p procs where
-  ixReset _ xs = reset $ handleOf @p xs
+  ixReset _ xs = reset $ hOf @(ProcHandle p) Proxy xs
 
 
 {-| Specifies how to ping a 'ProcHandle' at an index in a list.  -}
@@ -458,7 +432,7 @@ instance (HasNamedHandle name a procs) => IxPing name procs where
   ixPing _  xs = ping $ select @name @(ProcHandle a) $ toKVs xs
 
 instance (HasHandle p procs) => IxPing p procs where
-  ixPing _ xs = ping $ handleOf @p xs
+  ixPing _ xs = ping $ hOf @(ProcHandle p) Proxy xs
 
 
 {-| Specifies how to obtain the service URI a 'ProcHandle' at an index in a list.  -}
@@ -471,7 +445,7 @@ instance (HasNamedHandle name a procs) => IxUriOf name procs where
   ixUriOf _  xs = hUri $ select @name @(ProcHandle a) $ toKVs xs
 
 instance (HasHandle p procs) => IxUriOf p procs where
-  ixUriOf _ xs = hUri $ handleOf @p xs
+  ixUriOf _ xs = hUri $ hOf @(ProcHandle p) Proxy xs
 
 
 {-| Create a 'HList' of @'KV's@ from a 'HList' of @'ProcHandle's@. -}

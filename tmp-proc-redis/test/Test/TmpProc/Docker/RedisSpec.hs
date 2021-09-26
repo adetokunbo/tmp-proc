@@ -31,14 +31,14 @@ spec = tdescribe desc $ do
 
         context "before resetting, the test key" $ do
           it "should exist" $ \hs
-            -> (checkTestKey $ named @"a-redis-db" Proxy hs) `shouldReturn` True
+            -> (checkTestKey $ handleOf @"a-redis-db" Proxy hs) `shouldReturn` True
 
         it "should succeed" $ \hs
           -> ixReset @"a-redis-db" Proxy hs `shouldReturn` ()
 
         context "after resetting, the test key" $ do
           it "should not exist" $ \hs
-            -> (checkTestKey $ named @"a-redis-db" Proxy hs) `shouldReturn` False
+            -> (checkTestKey $ handleOf @"a-redis-db" Proxy hs) `shouldReturn` False
 
 
 theProc :: HList '[TmpRedis]
@@ -53,7 +53,7 @@ setupHandles = do
 
 
 initRedis :: HList '[ProcHandle TmpRedis] -> IO ()
-initRedis = addTestKeyValue . named @"a-redis-db" Proxy
+initRedis = addTestKeyValue . handleOf @"a-redis-db" Proxy
 
 
 addTestKeyValue :: ProcHandle TmpRedis -> IO ()

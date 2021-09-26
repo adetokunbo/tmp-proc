@@ -50,11 +50,7 @@ testTable = "to_be_reset"
 
 
 initTable :: HList '[ProcHandle TmpPostgres] -> IO ()
-initTable = createTestTable . connected @"a-postgres-db" Proxy
-
-
-createTestTable :: ProcHandle TmpPostgres -> IO ()
-createTestTable handle = withTmpConn handle $ \c -> do
+initTable xs = withConnOf @TmpPostgres Proxy xs $ \c -> do
   let commands =
         [ "CREATE TABLE to_be_reset (an_id INTEGER)"
         , "INSERT INTO to_be_reset VALUES (347)"
