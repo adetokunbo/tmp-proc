@@ -48,6 +48,7 @@ module System.TmpProc.TypeLevel
 
     -- * Other combinators
   , IsAbsent
+  , IsInProof
 
     -- * Re-exports
   , module System.TmpProc.TypeLevel.Sort

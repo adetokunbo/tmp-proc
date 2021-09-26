@@ -20,19 +20,26 @@ import           Test.HttpBin
 spec :: Spec
 spec = tdescribe ("Tmp.Proc: " ++ Text.unpack (nameOf HttpBinTest)) $ do
   beforeAll setupHandles $ afterAll terminateAll $ do
-    context "when using the Proc from the HList by Name" $ do
+    context "When accessing the services in the list of test tmp procs" $ do
 
       context "ixPing" $ do
 
-        it "should succeed" $ \hs
+        it "should succeed when accessing a Proc by name" $ \hs
           -> ixPing @"http-bin-test" Proxy hs `shouldReturn`()
 
+        it "should succeed when accessing a Proc by type" $ \hs
+          -> ixPing @HttpBinTest Proxy hs `shouldReturn`()
+
       context "ixReset" $ do
 
-        it "should succeed" $ \hs
+        it "should succeed when accessing a Proc by name" $ \hs
           -> ixReset @"http-bin-test" Proxy hs `shouldReturn`()
 
-      context "ixReset" $ do
-
-        it "should succeed" $ \hs
+        it "should succeed when accessing a different Proc by name" $ \hs
           -> ixReset @"http-bin-test-3" Proxy hs `shouldReturn`()
+
+        it "should succeed when accessing a Proc by type" $ \hs
+          -> ixReset @HttpBinTest Proxy hs `shouldReturn`()
+
+        it "should succeed when accessing a different Proc by type" $ \hs
+          -> ixReset @HttpBinTest2 Proxy hs `shouldReturn`()
