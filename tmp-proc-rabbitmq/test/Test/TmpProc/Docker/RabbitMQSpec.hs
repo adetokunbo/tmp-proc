@@ -21,12 +21,12 @@ spec = tdescribe desc $ do
         context "ixPing" $ do
 
           it "should succeed" $ \hs
-            -> ixPing @"a-rabbitmq-server" Proxy hs `shouldReturn`()
+            -> ixPing @"a-rabbitmq-server" Proxy hs `shouldReturn` OK
 
         context "ixReset" $ do
 
           it "should succeed" $ \hs
-            -> ixReset @"a-rabbitmq-server" Proxy hs `shouldReturn`()
+            -> ixReset @"a-rabbitmq-server" Proxy hs `shouldReturn` ()
 
 
 setupHandles :: IO (HList '[ProcHandle TmpRabbitMQ])

@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# OPTIONS_HADDOCK prune not-home #-}
 {-|
@@ -32,15 +33,17 @@ module System.TmpProc.Docker.Redis
   )
 where
 
+import           Control.Exception     (catch)
 import           Control.Monad         (void)
 import qualified Data.ByteString.Char8 as C8
 import qualified Data.Text             as Text
 
-import           Database.Redis        (Connection, checkedConnect, del,
-                                        disconnect, parseConnectInfo, runRedis)
+import           Database.Redis        (ConnectTimeout, Connection,
+                                        checkedConnect, del, disconnect,
+                                        parseConnectInfo, runRedis)
 
-import           System.TmpProc        (Connectable (..), HList (..),
-                                        HostIpAddress, Proc (..), HandlesOf,
+import           System.TmpProc        (Connectable (..), HList (..), HandlesOf,
+                                        HostIpAddress, Pinged (..), Proc (..),
                                         ProcHandle (..), SvcURI, startupAll,
                                         withTmpConn)
 
@@ -74,8 +77,9 @@ instance Proc TmpRedis where
 
   uriOf = mkUri'
   runArgs = []
-  ping = flip withTmpConn (const $ pure ())
+  ping = toPinged . flip withTmpConn (const $ pure ())
   reset = clearKeys
+
 
 {-| Specifies how to connect to a tmp @redis@ service. -}
 instance Connectable TmpRedis where
@@ -86,9 +90,13 @@ instance Connectable TmpRedis where
 
 
 openConn' :: ProcHandle TmpRedis -> IO Connection
-openConn' handle =  case parseConnectInfo $ C8.unpack $ hUri handle of
-  Left e  -> error e
+openConn' handle = case parseConnectInfo $ C8.unpack $ hUri handle of
+  Left _  -> fail $ "invalid redis uri: " ++ (C8.unpack $ hUri handle)
   Right x -> checkedConnect x
+
+
+toPinged :: IO a -> IO Pinged
+toPinged action = (action >> pure OK) `catch` (\(_ :: ConnectTimeout) -> pure NotOK)
 
 
 mkUri' :: HostIpAddress -> SvcURI

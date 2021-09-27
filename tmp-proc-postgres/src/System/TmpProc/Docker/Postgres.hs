@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# OPTIONS_HADDOCK prune not-home #-}
 {-|
@@ -30,18 +31,19 @@ module System.TmpProc.Docker.Postgres
   )
 where
 
-import           Control.Monad              (void)
+import           Control.Exception          (catch)
 import qualified Data.ByteString.Char8      as C8
 import           Data.String                (fromString)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as Text
 
-import           Database.PostgreSQL.Simple (Connection, close,
+import           Database.PostgreSQL.Simple (Connection, SqlError, close,
                                              connectPostgreSQL, execute_)
 
 import           System.TmpProc             (Connectable (..), HList (..),
                                              HandlesOf, HostIpAddress,
-                                             Proc (..), ProcHandle (..), SvcURI,
+                                             Pinged (..), Proc (..),
+                                             ProcHandle (..), SvcURI,
                                              startupAll, withTmpConn)
 
 
@@ -70,7 +72,7 @@ instance Proc TmpPostgres where
 
   uriOf = mkUri'
   runArgs = runArgs'
-  ping = void . connectPostgreSQL . hUri
+  ping = toPinged . connectPostgreSQL . hUri
   reset = reset'
 
 {-| Specifies how to connect to a tmp @postgres@ db. -}
@@ -100,6 +102,13 @@ runArgs' =
   [ "-e"
   , "POSTGRES_PASSWORD=" <> Text.pack (C8.unpack dbPassword)
   ]
+
+
+toPinged :: IO a -> IO Pinged
+toPinged action = ((action >> pure OK)
+                    `catch` (\(_ :: SqlError) -> pure NotOK))
+                  `catch` (\(_ :: IOError) -> pure NotOK)
+
 
 
 {-| Empty all rows in the tables, if any are specified. -}

@@ -19,7 +19,7 @@ spec = tdescribe desc $ do
       context "ixPing" $ do
 
         it "should succeed" $ \hs
-          -> ixPing @"a-zipkin-server" Proxy hs `shouldReturn`()
+          -> ixPing @"a-zipkin-server" Proxy hs `shouldReturn` OK
 
 
 setupHandles :: IO (HList '[ProcHandle TmpZipkin])

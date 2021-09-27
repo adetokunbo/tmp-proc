@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GADTs                  #-}
+{-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE NamedFieldPuns         #-}
 {-# LANGUAGE OverloadedStrings      #-}
@@ -53,10 +54,12 @@ service via some /'Conn'-ection/ type.
 module System.TmpProc.Docker
   ( -- * @'Proc'@
     Proc(..)
+  , Pinged(..)
   , AreProcs
   , SomeProcs(..)
-  , startup
   , nameOf
+  , startup
+  , toPinged
   , uriOf'
   , runArgs'
 
@@ -100,7 +103,7 @@ where
 
 import           Control.Concurrent       (threadDelay)
 import           Control.Exception        (SomeException, bracket, catch,
-                                           onException, throw)
+                                           onException, Exception)
 import           Control.Monad            (void)
 import qualified Data.ByteString.Char8    as C8
 import           Data.Kind                (Type)
@@ -120,9 +123,9 @@ import           System.Process           (StdStream (..), proc, readProcess,
 
 import           System.TmpProc.TypeLevel (Drop, HList (..), HalfOf, IsAbsent,
                                            IsInProof, KV (..), LengthOf,
-                                           ManyMemberKV, MemberKV, hOf,
+                                           ManyMemberKV, MemberKV,
                                            ReorderH (..), SortSymbols, Take,
-                                           select, selectMany, (%:))
+                                           hOf, select, selectMany, (%:))
 
 
 {-| Determines if the docker daemon is accessible. -}
@@ -220,8 +223,8 @@ class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
   {-| Resets some state in a tmp proc service. -}
   reset :: ProcHandle a -> IO ()
 
-  {-| Checks if the tmp proc started ok. -}
-  ping :: ProcHandle a -> IO ()
+  {-| Checks if the tmp proc started ok.  -}
+  ping :: ProcHandle a -> IO Pinged
 
   {-| Maximum number of pings to perform during startup. -}
   pingCount :: Natural
@@ -231,6 +234,29 @@ class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
   pingGap :: Natural
   pingGap = 1000000
 
+
+{-| Indicates the result of pinging a 'Proc'.
+
+If the ping succeeds, 'ping2' should return 'OK'.
+
+'ping2' should catch any exceptions that are expected when the @'Proc's@ service
+is not available and return 'NotOK'.
+
+'startupAll' uses 'PingFailed' to report any unexpected exceptions that escape
+'ping2'.
+
+-}
+data Pinged =
+  {-| The service is running OK. -}
+  OK
+
+  {-| The service is not running. -}
+  | NotOK
+
+  {-| Contact to the service failed unexpectedly. -}
+  | PingFailed Text
+
+  deriving (Eq, Show)
 
 {-| Name of a process. -}
 nameOf :: forall a . (Proc a) => a -> Text
@@ -301,16 +327,34 @@ startup x = do
     ] ""
   let hUri = uriOf @a hAddr
       h = ProcHandle {hProc=x, hPid, hUri, hAddr }
-  nPings h `onException` terminate h
-  pure h
+  (nPings h `onException` terminate h) >>= \case
+    OK     -> pure h
+    pinged -> fail $ pingedMsg x pinged
+
+
+pingedMsg :: Proc a => a -> Pinged -> String
+pingedMsg _ OK = ""
+pingedMsg p NotOK = "tmp proc:" ++ (Text.unpack $ nameOf p) ++ ":could not be pinged"
+pingedMsg p (PingFailed err) = "tmp proc:"
+  ++ (Text.unpack $ nameOf p)
+  ++ ":ping failed"
+  ++ (Text.unpack err)
+
+
+{-| Use an action that might throw an exception as a ping. -}
+toPinged :: forall e a . Exception e => Proxy e -> IO a -> IO Pinged
+toPinged _ action = (action >> pure OK) `catch` (\(_ :: e) -> pure NotOK)
 
 
 {-| Ping a 'ProcHandle' several times. -}
-nPings :: Proc a => ProcHandle a -> IO ()
+nPings :: Proc a => ProcHandle a -> IO Pinged
 nPings h@ProcHandle{hProc = p} =
   let
     count  = fromEnum $ pingCount' p
     gap    = fromEnum $ pingGap' p
+
+    badMsg x = "tmp.proc: could not start " <> nameOf p <> "; uncaught exception :" <> x
+    badErr x = Text.hPutStrLn stderr $ badMsg x
 
     lastMsg = "tmp.proc: could not start " <> nameOf p <> "; all pings failed"
     lastErr  = Text.hPutStrLn stderr lastMsg
@@ -318,11 +362,17 @@ nPings h@ProcHandle{hProc = p} =
     pingMsg i = "tmp.proc: ping #" <> (Text.pack $ show i) <> " failed; will retry"
     nthErr n  = Text.hPutStrLn stderr $ pingMsg $ count + 1 - n
 
-    go 0 =
-      ping h `catch` (\(e :: SomeException) -> lastErr >> throw e)
-    go n =
-      ping h `catch` (\(_ :: SomeException) -> do
-                             threadDelay gap >> nthErr n >> go (n - 1))
+    ping' x  = ping x `catch` (\(e :: SomeException) -> do
+                                    let errMsg = Text.pack $ show e
+                                    badErr errMsg
+                                    pure $ PingFailed errMsg)
+
+    go n = ping' h >>= \case
+      OK             -> pure OK
+      NotOK | n == 0 -> lastErr >> pure NotOK
+      NotOK          -> threadDelay gap >> nthErr n >> go (n - 1)
+      err            -> pure err
+
   in
     go count
 
@@ -426,7 +476,7 @@ instance (HasHandle p procs) => IxReset p procs where
 class IxPing a procs where
 
   {-| Pings the handle whose index is specified by the proxy type. -}
-  ixPing :: Proxy a -> HandlesOf procs -> IO ()
+  ixPing :: Proxy a -> HandlesOf procs -> IO Pinged
 
 instance (HasNamedHandle name a procs) => IxPing name procs where
   ixPing _  xs = ping $ select @name @(ProcHandle a) $ toKVs xs

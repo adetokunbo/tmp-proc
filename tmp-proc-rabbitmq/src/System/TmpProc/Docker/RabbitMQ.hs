@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# OPTIONS_HADDOCK prune not-home #-}
 {-|
@@ -30,16 +31,16 @@ module System.TmpProc.Docker.RabbitMQ
   )
 where
 
-import           Control.Monad         (void)
 import qualified Data.ByteString.Char8 as C8
+import           Data.Proxy            (Proxy(..))
 import qualified Data.Text             as Text
 
 import           Network.AMQP
 
-import           System.TmpProc        (Connectable (..), HandlesOf, HList (..),
+import           System.TmpProc        (Connectable (..), HList (..), HandlesOf,
                                         HostIpAddress, Proc (..),
                                         ProcHandle (..), SvcURI, startupAll,
-                                        withTmpConn)
+                                        toPinged, withTmpConn)
 
 
 {-| A singleton 'HList' containing a 'TmpRabbitMQ'. -}
@@ -63,7 +64,7 @@ instance Proc TmpRabbitMQ where
 
   uriOf = mkUri'
   runArgs = []
-  ping = void . openConn'
+  ping = toPinged @AMQPException Proxy . openConn'
   reset _ = pure ()
   pingGap = 3 * 1000000
 
