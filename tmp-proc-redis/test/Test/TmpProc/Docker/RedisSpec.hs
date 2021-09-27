@@ -25,7 +25,7 @@ spec = tdescribe desc $ do
       context "ixPing" $ do
 
         it "should succeed" $ \hs
-          -> ixPing @"a-redis-db" Proxy hs `shouldReturn`()
+          -> ixPing @"a-redis-db" Proxy hs `shouldReturn` OK
 
       context "ixReset" $ do
 

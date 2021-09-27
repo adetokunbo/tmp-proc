@@ -10,20 +10,23 @@ module Test.System.TmpProc.WarpSpec where
 
 import           Test.Hspec
 
-import           Data.Proxy                (Proxy (..))
-import           Data.Text                 (Text)
-import           Network.HTTP.Types        (status200, status400)
-import           Network.Wai               (Application, pathInfo, responseLBS)
+import           Control.Exception     (catch)
+import           Data.Proxy            (Proxy (..))
+import           Data.Text             (Text)
+import           Network.HTTP.Req
+import           Network.HTTP.Types    (status200, status400)
+import           Network.Wai           (Application, pathInfo, responseLBS)
 
-import           System.TmpProc.Docker     (HList (..), ixPing, HandlesOf)
-import           System.TmpProc.Warp       (ServerHandle, handles, runServer,
-                                            runTLSServer, serverPort, shutdown,
-                                            testWithApplication,
-                                            testWithTLSApplication)
+import           System.TmpProc.Docker (HList (..), HandlesOf, Pinged (..),
+                                        ProcHandle, handleOf, ixPing)
+import           System.TmpProc.Warp   (ServerHandle, handles, runServer,
+                                        runTLSServer, serverPort, shutdown,
+                                        testWithApplication,
+                                        testWithTLSApplication)
+import           Test.Hspec.TmpProc    (tdescribe)
 import           Test.HttpBin
-import           Test.SimpleServer         (defaultTLSSettings, statusOfGet,
-                                            statusOfGet')
-import           Test.Hspec.TmpProc        (tdescribe)
+import           Test.SimpleServer     (defaultTLSSettings, statusOfGet,
+                                        statusOfGet')
 
 
 spec :: Spec
@@ -36,7 +39,9 @@ testProcs = HttpBinTest `HCons` HNil
 
 
 testApp :: HandlesOf '[HttpBinTest] -> IO Application
-testApp hs = mkTestApp' (ixPing @"http-bin-test" Proxy hs) (ixPing @"http-bin-test" Proxy hs)
+testApp hs = mkTestApp'
+  (pingOrFail $ handleOf @"http-bin-test" Proxy hs)
+  (pingOrFail $ handleOf @"http-bin-test" Proxy hs)
 
 
 setupBeforeAll :: IO (ServerHandle '[HttpBinTest])
@@ -67,7 +72,7 @@ checkBeforeAll descPrefix setup getter =  beforeAll setup $ afterAll shutdown $ 
   describe (descPrefix ++ suffixBeforeAll) $ do
 
     it "should ping the proc handle" $ \sh ->
-      ixPing @"http-bin-test" Proxy (handles sh) `shouldReturn` ()
+      ixPing @"http-bin-test" Proxy (handles sh) `shouldReturn` OK
 
     it "should invoke the warp server via its port" $ \sh ->
       getter (serverPort sh) "test" `shouldReturn` 200
@@ -96,7 +101,7 @@ checkEachTest descPrefix setup getter = around setup $ do
   describe (descPrefix ++ suffixAround) $ do
 
     it "should ping the proc handle" $ \(h, _) ->
-        ixPing @"http-bin-test" Proxy h `shouldReturn` ()
+        ixPing @"http-bin-test" Proxy h `shouldReturn` OK
 
     it "should invoke the warp server via its port" $ \(_, p) ->
         getter p "test" `shouldReturn` 200
@@ -119,3 +124,13 @@ mkTestApp' onStart onTest = onStart >> pure app
     isHealthReq = isReqPathsEq ["health"]
     isTestReq = isReqPathsEq ["test"]
     isReqPathsEq x rq = x == pathInfo rq
+
+
+pingOrFail :: ProcHandle a -> IO ()
+pingOrFail handle = do
+  let catchHttp x = x `catch` (\(_ :: HttpException) ->
+                                  fail "tmp proc:httpbin:ping failed")
+  catchHttp $ do
+    gotStatus <- handleGet handle "/status/200"
+    if (gotStatus == 200) then pure () else
+      fail "tmp proc:httpbin:incorrect ping status"

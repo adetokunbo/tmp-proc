@@ -6,7 +6,6 @@
 {-# LANGUAGE TypeFamilies        #-}
 module Test.HttpBin where
 
-import           Control.Exception     (catch)
 import qualified Data.ByteString.Char8 as C8
 import           Data.List             (foldl')
 import           Data.Proxy            (Proxy (..))
@@ -14,9 +13,10 @@ import           Data.Text             (Text)
 import qualified Data.Text             as Text
 import           Network.HTTP.Req
 
-import           System.TmpProc        (HandlesOf, HList (..), HostIpAddress, Proc (..),
-                                        ProcHandle (..), SvcURI,
-                                        manyNamed, startupAll, (%:))
+import           System.TmpProc        (HList (..), HandlesOf, HostIpAddress,
+                                        Pinged (..), Proc (..), ProcHandle (..),
+                                        SvcURI, manyNamed, startupAll, toPinged,
+                                        (%:))
 
 
 setupHandles :: IO (HandlesOf '[HttpBinTest, HttpBinTest2, HttpBinTest3])
@@ -80,15 +80,10 @@ mkUri' :: HostIpAddress -> SvcURI
 mkUri' ip = "http://" <> C8.pack (Text.unpack ip) <> "/"
 
 
-{-| Does nothing, httpBin is stateless. -}
-ping' :: ProcHandle a -> IO ()
-ping' handle = do
-  let catchHttp x = x `catch` (\(_ :: HttpException) ->
-                                  fail "tmp proc:httpbin:ping failed")
-  catchHttp $ do
-    gotStatus <- handleGet handle "/status/200"
-    if (gotStatus == 200) then pure () else
-      fail "tmp proc:httpbin:incorrect ping status"
+ping' :: ProcHandle a -> IO Pinged
+ping' handle = toPinged @HttpException Proxy $ do
+  gotStatus <- handleGet handle "/status/200"
+  if (gotStatus == 200) then pure OK else pure NotOK
 
 
 -- | Determine the status from a Get on localhost.

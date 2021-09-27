@@ -8,12 +8,12 @@ module Test.System.TmpProc.HttpBinSpec where
 
 import           Test.Hspec
 
-import           Data.Proxy                (Proxy (Proxy))
-import qualified Data.Text                 as Text
+import           Data.Proxy         (Proxy (Proxy))
+import qualified Data.Text          as Text
 
-import           System.TmpProc.Docker     (ixPing, ixReset, nameOf,
-                                            terminateAll)
-import           Test.Hspec.TmpProc        (tdescribe)
+import           System.TmpProc     (Pinged (..), ixPing, ixReset, nameOf,
+                                     terminateAll)
+import           Test.Hspec.TmpProc (tdescribe)
 import           Test.HttpBin
 
 
@@ -25,10 +25,10 @@ spec = tdescribe ("Tmp.Proc: " ++ Text.unpack (nameOf HttpBinTest)) $ do
       context "ixPing" $ do
 
         it "should succeed when accessing a Proc by name" $ \hs
-          -> ixPing @"http-bin-test" Proxy hs `shouldReturn`()
+          -> ixPing @"http-bin-test" Proxy hs `shouldReturn` OK
 
         it "should succeed when accessing a Proc by type" $ \hs
-          -> ixPing @HttpBinTest Proxy hs `shouldReturn`()
+          -> ixPing @HttpBinTest Proxy hs `shouldReturn` OK
 
       context "ixReset" $ do
 

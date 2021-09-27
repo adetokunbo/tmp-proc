@@ -23,15 +23,15 @@ spec = tdescribe desc $ do
       context "ixPing" $ do
 
         it "should succeed" $ \hs
-          -> ixPing @TmpPostgres Proxy hs `shouldReturn`()
+          -> ixPing @TmpPostgres Proxy hs `shouldReturn` OK
 
       context "ixReset" $ do
 
         it "should succeed when accessed by Name" $ \hs
-          -> ixReset @"a-postgres-db" Proxy hs `shouldReturn`()
+          -> ixReset @"a-postgres-db" Proxy hs `shouldReturn` ()
 
         it "should succeed when accessed by Type" $ \hs
-          -> ixReset @TmpPostgres Proxy hs `shouldReturn`()
+          -> ixReset @TmpPostgres Proxy hs `shouldReturn` ()
 
 
 setupHandles :: IO (HList '[ProcHandle TmpPostgres])

@@ -2,6 +2,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# OPTIONS_HADDOCK prune not-home #-}
 {-|
@@ -33,16 +35,18 @@ where
 import           Control.Monad.IO.Class    (MonadIO, liftIO)
 import           Control.Monad.Trace.Class (MonadTrace, alwaysSampled, rootSpan)
 import qualified Data.ByteString.Char8     as C8
+import           Data.Proxy                (Proxy(..))
 import           Data.String               (fromString)
 import qualified Data.Text                 as Text
-
+import           Network.HTTP.Client       (HttpException)
 
 import qualified Monitor.Tracing.Zipkin    as ZPK
 
 import           System.TmpProc            (Connectable (..), HList (..),
-                                            HostIpAddress, Proc (..),
-                                            HandlesOf, ProcHandle (..),
-                                            SvcURI, startupAll, withTmpConn)
+                                            HandlesOf, HostIpAddress,
+                                            Pinged (..), Proc (..),
+                                            ProcHandle (..), SvcURI, startupAll,
+                                            toPinged, withTmpConn)
 
 
 {-| A singleton 'HList' containing a 'TmpZipkin'. -}
@@ -66,7 +70,11 @@ instance Proc TmpZipkin where
 
   uriOf = mkUri'
   runArgs = []
-  ping h = openConn' h >>= ZPK.run tracedPing
+
+  ping h = toPinged @HttpException Proxy $ do
+    z <- openConn' h
+    ZPK.run tracedPing z
+    ZPK.publish z
 
   reset _ = pure ()
 
