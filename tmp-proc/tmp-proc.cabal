@@ -1,9 +1,18 @@
 cabal-version:      3.0
 name:               tmp-proc
-version:            0.4.0.0
-synopsis:           Run 'tmp' processes
-description:        Uses processes run in docker containers as temporary processes
-                    similarly to the use of files in the tmp file system
+version:            0.5.0.0
+synopsis:           Run 'tmp' processes in integration tests
+description:        @tmp-proc@ runs services in docker containers for use
+                    in integration tests.  It aims to make using these services
+                    be like accessing /tmp/ processes, similar to how tmp file or
+                    directories are used.
+                    It strives to give a user-friendly API, while including features like
+                    .
+                    * launch of multiple services on docker during test setup
+                    .
+                    * simplified use of connections to the services from a /WAI/ server under test
+                    .
+                    * good integration with haskell testing frameworks like /hspec/ and /tasty/
 license:            BSD-3-Clause
 license-file:       LICENSE
 copyright:          2020 Tim Emiola
@@ -13,7 +22,6 @@ category:           Testing
 homepage:           https://github.com/adetokunbo/tmp-proc
 build-type:         Simple
 extra-source-files: ChangeLog.md
-                    README.md
                     test_certs/*.pem
                     test_certs/*.csr
 

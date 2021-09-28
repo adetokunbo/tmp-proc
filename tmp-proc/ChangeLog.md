@@ -1,9 +1,14 @@
-# Revision history for docker-tmp-proc
+# Revision history for tmp-proc
 
-## Unreleased -- 2021-08-10
+`tmp-proc` uses [PVP Versioning][1].
 
-* Add a stack.yaml for building with stack
-* Switch the developer build environment to haskell.nix
+## 0.5.0.0 -- 2021-09-28
+
+* Initial release to hackage
+
+* Re-implemented the user surface to be more typeful and hopefully easier to use.
+
+* Switched the development build environment to haskell.nix
 
 ## 0.4.0.0 -- 2021-08-03
 
@@ -31,3 +36,5 @@
 ## 0.1.0.0 -- 2019-02-17
 
 * First version. Extracted from some a non-public test library
+
+[1]: https://pvp.haskell.org

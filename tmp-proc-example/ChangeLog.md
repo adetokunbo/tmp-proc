@@ -1,5 +1,9 @@
 # Revision history for tmp-proc-example
 
-## Unreleased -- 2021-09-05
+`tmp-proc-example` uses [PVP Versioning][1].
 
-* First version. Extracted from earlier version of the tmp-proc library
+## 0.5.0.0 -- 2021-09-28
+
+* First version.
+
+[1]: https://pvp.haskell.org

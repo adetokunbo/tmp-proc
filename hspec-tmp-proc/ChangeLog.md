@@ -1,5 +1,6 @@
 # Revision history for hspec-tmp-proc
 
-## Unreleased -- 2021-09-17
+## 0.5.0.0 -- 2021-09-28
 
-* First version. Created
+* Initial release
+* Initial upload to hackage

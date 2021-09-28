@@ -1,5 +1,6 @@
 # Revision history for tmp-proc-redis
 
-## Unreleased -- 2021-09-05
+## 0.5.0.0 -- 2021-09-28
 
-* First version. Extracted from an earlier version of the tmp-proc library
+* First version. Extracted from an unreleased version of the tmp-proc library
+* Initial upload to hackage

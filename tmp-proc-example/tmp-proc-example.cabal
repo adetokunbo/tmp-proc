@@ -1,8 +1,8 @@
 cabal-version:      3.0
 name:               tmp-proc-example
-version:            0.4.0.0
-synopsis:           Shows how to test a simple server using tmp-proc
-description:        A demo that uses tmp-proc to test a simple postgresql/redis servant-based API server
+version:            0.5.0.0
+synopsis:           Shows how to test a simple service using tmp-proc
+description:        Provides working examples that use tmp-proc to test a simple postgresql/redis servant-based API service
 license:            BSD-3-Clause
 license-file:       LICENSE
 copyright:          2021 Tim Emiola
