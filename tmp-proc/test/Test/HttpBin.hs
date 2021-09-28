@@ -16,11 +16,11 @@ import           Network.HTTP.Req
 import           System.TmpProc        (HList (..), HandlesOf, HostIpAddress,
                                         Pinged (..), Proc (..), ProcHandle (..),
                                         SvcURI, manyNamed, startupAll, toPinged,
-                                        (%:))
+                                        (&:))
 
 
 setupHandles :: IO (HandlesOf '[HttpBinTest, HttpBinTest2, HttpBinTest3])
-setupHandles = startupAll $ HttpBinTest %: HttpBinTest2 %: HttpBinTest3 %: HNil
+setupHandles = startupAll $ HttpBinTest &: HttpBinTest2 &: HttpBinTest3 &: HNil
 
 
 {-| A data type representing a connection to a HttpBin server. -}

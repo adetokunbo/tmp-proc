@@ -96,7 +96,10 @@ openConn' handle = case parseConnectInfo $ C8.unpack $ hUri handle of
 
 
 toPinged :: IO a -> IO Pinged
-toPinged action = (action >> pure OK) `catch` (\(_ :: ConnectTimeout) -> pure NotOK)
+toPinged action = ((action >> pure OK)
+                    `catch` (\(_ :: ConnectTimeout) -> pure NotOK))
+                  `catch` (\(_ :: IOError) -> pure NotOK)
+
 
 
 mkUri' :: HostIpAddress -> SvcURI

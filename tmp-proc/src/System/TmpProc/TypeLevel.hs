@@ -33,7 +33,7 @@ indexing and sorting of lists of tmp procs.
 module System.TmpProc.TypeLevel
   ( -- * Heterogenous List
     HList(..)
-  , (%:)
+  , (&:)
   , hHead
   , hOf
   , ReorderH(..)
@@ -90,17 +90,17 @@ data HList :: [*] -> * where
 
 
 infixr 5 `HCons`
-infixr 5 %:
+infixr 5 &:
 
 {-| An infix alias for 'HCons'. -}
-(%:) :: x -> HList xs -> HList (x ': xs)
-(%:) = HCons
+(&:) :: x -> HList xs -> HList (x ': xs)
+(&:) = HCons
 
 instance Show (HList '[]) where
   show HNil = "HNil"
 
 instance (Show x, Show (HList xs)) => Show (HList (x ': xs)) where
-  show (HCons x xs) = show x ++ " %: " ++ show xs
+  show (HCons x xs) = show x ++ " &: " ++ show xs
 
 instance Eq (HList '[]) where
   HNil == HNil = True
@@ -156,7 +156,7 @@ instance MemberKV k t kvs => MemberKV k t (KV ok ot ': kvs) where
 ==== __Examples__
 
 
->>> select @"d" @Double  @'[KV "b" Bool, KV "d" Double] (V True %:  V (3.1 :: Double) %: HNil)
+>>> select @"d" @Double  @'[KV "b" Bool, KV "d" Double] (V True &:  V (3.1 :: Double) &: HNil)
 3.1
 
 -}
@@ -213,8 +213,8 @@ HList, any other order will likely result in an compiler error.
 ==== __Examples__
 
 
->>> selectMany @'["b"] @'[Bool] @'[KV "b" Bool, KV "d" Double] (V True %:  V (3.1 :: Double) %: HNil)
-True %: HNil
+>>> selectMany @'["b"] @'[Bool] @'[KV "b" Bool, KV "d" Double] (V True &:  V (3.1 :: Double) &: HNil)
+True &: HNil
 
 -}
 selectMany
@@ -234,11 +234,11 @@ selectMany = go $ manyProof @ks @ts @xs
 ==== __Examples__
 
 
->>> hReorder @_ @'[Bool, Int] ('c' %: (3 :: Int) %: True %: (3.1 :: Double) %: HNil)
-True %: 3 %: HNil
+>>> hReorder @_ @'[Bool, Int] ('c' &: (3 :: Int) &: True &: (3.1 :: Double) &: HNil)
+True &: 3 &: HNil
 
->>> hReorder @_ @'[Double, Bool, Int] ('c' %: (3 :: Int) %: True %: (3.1 :: Double) %: HNil)
-3.1 %: True %: 3 %: HNil
+>>> hReorder @_ @'[Double, Bool, Int] ('c' &: (3 :: Int) &: True &: (3.1 :: Double) &: HNil)
+3.1 &: True &: 3 &: HNil
 
 -}
 class ReorderH xs ys where

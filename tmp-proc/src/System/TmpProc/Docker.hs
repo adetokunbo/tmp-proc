@@ -75,6 +75,7 @@ module System.TmpProc.Docker
   , ixReset
   , ixPing
   , ixUriOf
+  , HasHandle
   , HasNamedHandle
   , SomeNamedHandles
 
@@ -104,7 +105,7 @@ where
 import           Control.Concurrent       (threadDelay)
 import           Control.Exception        (SomeException, bracket, catch,
                                            onException, Exception)
-import           Control.Monad            (void)
+import           Control.Monad            (void, when)
 import qualified Data.ByteString.Char8    as C8
 import           Data.Kind                (Type)
 import           Data.List                (dropWhileEnd)
@@ -116,16 +117,17 @@ import           GHC.TypeLits             (CmpSymbol, KnownSymbol, Nat, Symbol,
                                            symbolVal)
 import           Numeric.Natural          (Natural)
 import           System.Exit              (ExitCode (..))
-import           System.IO                (stderr)
+import           System.Environment       (lookupEnv)
+import           System.IO                (stderr, Handle, openBinaryFile, IOMode(..))
 import           System.Process           (StdStream (..), proc, readProcess,
                                            std_err, std_out, waitForProcess,
-                                           withCreateProcess)
+                                           withCreateProcess, readCreateProcess, CreateProcess)
 
 import           System.TmpProc.TypeLevel (Drop, HList (..), HalfOf, IsAbsent,
                                            IsInProof, KV (..), LengthOf,
                                            ManyMemberKV, MemberKV,
                                            ReorderH (..), SortSymbols, Take,
-                                           hOf, select, selectMany, (%:))
+                                           hOf, select, selectMany, (&:))
 
 
 {-| Determines if the docker daemon is accessible. -}
@@ -318,7 +320,8 @@ startup x = do
   let fullArgs = dockerCmdArgs @a
       isGarbage = flip elem ['\'', '\n']
       trim = dropWhileEnd isGarbage . dropWhile isGarbage
-  hPid <- trim <$> readProcess "docker" (map Text.unpack fullArgs) ""
+  runCmd <- dockerRun (map Text.unpack fullArgs)
+  hPid <- trim <$> readCreateProcess runCmd ""
   hAddr <- (Text.pack . trim) <$> readProcess "docker"
     [ "inspect"
     , hPid
@@ -329,7 +332,9 @@ startup x = do
       h = ProcHandle {hProc=x, hPid, hUri, hAddr }
   (nPings h `onException` terminate h) >>= \case
     OK     -> pure h
-    pinged -> fail $ pingedMsg x pinged
+    pinged -> do
+      terminate h
+      fail $ pingedMsg x pinged
 
 
 pingedMsg :: Proc a => a -> Pinged -> String
@@ -337,7 +342,7 @@ pingedMsg _ OK = ""
 pingedMsg p NotOK = "tmp proc:" ++ (Text.unpack $ nameOf p) ++ ":could not be pinged"
 pingedMsg p (PingFailed err) = "tmp proc:"
   ++ (Text.unpack $ nameOf p)
-  ++ ":ping failed"
+  ++ ":ping failed:"
   ++ (Text.unpack err)
 
 
@@ -354,13 +359,13 @@ nPings h@ProcHandle{hProc = p} =
     gap    = fromEnum $ pingGap' p
 
     badMsg x = "tmp.proc: could not start " <> nameOf p <> "; uncaught exception :" <> x
-    badErr x = Text.hPutStrLn stderr $ badMsg x
+    badErr x = printDebug $ badMsg x
 
     lastMsg = "tmp.proc: could not start " <> nameOf p <> "; all pings failed"
-    lastErr  = Text.hPutStrLn stderr lastMsg
+    lastErr  = printDebug lastMsg
 
     pingMsg i = "tmp.proc: ping #" <> (Text.pack $ show i) <> " failed; will retry"
-    nthErr n  = Text.hPutStrLn stderr $ pingMsg $ count + 1 - n
+    nthErr n  = printDebug $ pingMsg $ count + 1 - n
 
     ping' x  = ping x `catch` (\(e :: SomeException) -> do
                                     let errMsg = Text.pack $ show e
@@ -382,6 +387,7 @@ nPings h@ProcHandle{hProc = p} =
 -}
 type HasHandle aProc procs =
   ( Proc aProc
+  , AreProcs procs
   , IsInProof (ProcHandle aProc) (Proc2Handle procs)
   )
 
@@ -690,3 +696,26 @@ type family MergeHandlesImpl (xs :: [Type]) (ys :: [Type]) (o :: Ordering) :: [T
 
     MergeHandlesImpl (ProcHandle x ': xs) (ProcHandle y ': ys) leq =
         ProcHandle x ': MergeHandles xs (ProcHandle y ': ys)
+
+
+devNull :: IO Handle
+devNull = openBinaryFile "/dev/null"  WriteMode
+
+
+dockerRun :: [String] -> IO CreateProcess
+dockerRun args = do
+  devNull' <- devNull
+  pure $ (proc "docker" args) { std_err = UseHandle devNull' }
+
+
+showDebug :: IO Bool
+showDebug = fmap (maybe False (const True)) $ lookupEnv debugEnv
+
+debugEnv :: String
+debugEnv = "TMP_PROC_DEBUG"
+
+
+printDebug :: Text -> IO ()
+printDebug t = do
+  canPrint <- showDebug
+  when canPrint $ Text.hPutStrLn stderr t
