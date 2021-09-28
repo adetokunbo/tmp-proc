@@ -75,6 +75,7 @@ module System.TmpProc.Docker
   , ixReset
   , ixPing
   , ixUriOf
+  , HasHandle
   , HasNamedHandle
   , SomeNamedHandles
 
@@ -382,6 +383,7 @@ nPings h@ProcHandle{hProc = p} =
 -}
 type HasHandle aProc procs =
   ( Proc aProc
+  , AreProcs procs
   , IsInProof (ProcHandle aProc) (Proc2Handle procs)
   )
 
