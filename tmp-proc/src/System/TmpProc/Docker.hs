@@ -29,11 +29,9 @@ processes /(procs)/ using docker.
 
 * Basically, @tmp-proc@ helps launch services used in integration test on docker
 
-* Obviously, it's possible to write integration tests that use services hosted
-  on docker /without/ @tmp-proc@
-
-* However, @tmp-proc@ aims to make writing those kind of tests easier, by providing
-  types and combinators to take care of
+* While it's possible to write integration tests that use services hosted on
+  docker /without/ @tmp-proc@, @tmp-proc@ aims to make writing those kind of
+  tests easier, by providing types and combinators that take care of
 
     * launching services on docker
     * obtaining references to the launched service
