@@ -1,4 +1,12 @@
 {-# LANGUAGE LambdaCase #-}
+{-|
+Copyright   : (c) 2020-2021 Tim Emiola
+SPDX-License-Identifier: BSD3
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
+
+Implements a cache for the demo service
+
+-}
 module TmpProc.Example2.Cache
   ( -- * Cache services
     deleteContact

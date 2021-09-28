@@ -12,7 +12,14 @@
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE UndecidableInstances       #-}
+{-|
+Copyright   : (c) 2020-2021 Tim Emiola
+SPDX-License-Identifier: BSD3
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
 
+Specifies the schema of the data accessed by the demo service.
+
+-}
 module TmpProc.Example2.Schema
 
 where

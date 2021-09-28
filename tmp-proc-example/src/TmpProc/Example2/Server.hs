@@ -10,7 +10,14 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE TypeOperators              #-}
+{-|
+Copyright   : (c) 2020-2021 Tim Emiola
+SPDX-License-Identifier: BSD3
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
 
+Implements a demo service.
+
+-}
 module TmpProc.Example2.Server
   ( -- * Server implementation
     AppEnv(..)

@@ -2,6 +2,14 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications  #-}
+{-|
+Copyright   : (c) 2020-2021 Tim Emiola
+SPDX-License-Identifier: BSD3
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
+
+An demo @Tasty@ test that use @tmp-proc@
+
+-}
 module TmpProc.Example1.IntegrationTaste where
 
 import           Test.Tasty

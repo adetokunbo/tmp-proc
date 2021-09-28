@@ -15,7 +15,7 @@
 {-|
 Copyright   : (c) 2020-2021 Tim Emiola
 SPDX-License-Identifier: BSD3
-Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com >
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
 
 Defines type-level combinators for performing a merge sort of type-level lists.
 
