@@ -44,3 +44,6 @@ jobs:
     - name: Run the zipkin tests in a nix-shell
       run: |
         nix-shell --run "cabal new-test --test-show-details=streaming tmp-proc-zipkin"
+    - name: Run the example test in a nix-shell
+      run: |
+        nix-shell --run "cabal new-test --test-show-details=streaming tmp-proc-example"
