@@ -7,14 +7,14 @@
 services running on docker.
 
 This README contains a _How to_ tutorial on using this library. This tutorial
-explains step by step how to specify a docker image as `tmp proc` and use it in
+explains step by step how to specify a docker image as a `tmp proc` and use it in
 a test.  __N.B.__ It assumes that docker is installed.
 
 All code below can be compiled and run with the following commands:
 
 ```shell
 $ cabal new-build tmp-proc
-$ cabal new-exec readme
+$ cabal new-exec readme # at the moment (29/09/2021), this is disabled due to a bug
 ```
 
 ## Preamble: imports and language extensions
