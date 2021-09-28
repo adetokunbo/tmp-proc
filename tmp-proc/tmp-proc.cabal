@@ -47,17 +47,17 @@ library
 
   hs-source-dirs:   src
   build-depends:
-    , async              ^>=2.2.1
-    , base               >=4.11     && <4.16
-    , bytestring         >=0.10.8.2 && <0.12
-    , mtl                ^>=2.2.2
-    , network            >=2.6.3.6  && <3.2
-    , process            ^>=1.6.3.0
-    , text               ^>=1.2.3
-    , unliftio           ^>=0.2.7
-    , wai                ^>=3.2.1
-    , warp               >=3.2.3    && <3.4
-    , warp-tls           >=3.2.4    && <3.4
+    , async       ^>=2.2.1
+    , base        >=4.11     && <4.16
+    , bytestring  >=0.10.8.2 && <0.12
+    , mtl         ^>=2.2.2
+    , network     >=2.6.3.6  && <3.2
+    , process     ^>=1.6.3.0
+    , text        ^>=1.2.3
+    , unliftio    ^>=0.2.7
+    , wai         ^>=3.2.1
+    , warp        >=3.2.3    && <3.4
+    , warp-tls    >=3.2.4    && <3.4
 
   default-language: Haskell2010
   ghc-options:      -fno-ignore-asserts -Wall
@@ -105,3 +105,29 @@ test-suite doctests
   hs-source-dirs:   doctest
   default-language: Haskell2010
   ghc-options:      -threaded
+
+-- This is not currently working in the nix build environment.
+--
+-- executable readme
+--   if os(windows)
+--     buildable: False
+
+--   build-tool-depends: markdown-unlit:markdown-unlit
+--   ghc-options:        -pgmL markdown-unlit
+--   main-is:            README.lhs
+--   default-language:   Haskell2010
+--   build-depends:
+--     , base
+--     , bytestring
+--     , connection
+--     , data-default
+--     , hspec
+--     , http-client
+--     , http-client-tls
+--     , http-types
+--     , req
+--     , text
+--     , tmp-proc
+--     , wai
+--     , warp
+--     , warp-tls
