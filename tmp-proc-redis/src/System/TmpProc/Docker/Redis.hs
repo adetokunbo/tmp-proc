@@ -98,6 +98,11 @@ openConn' handle = case parseConnectInfo $ C8.unpack $ hUri handle of
 toPinged :: IO a -> IO Pinged
 toPinged action = (action >> pure OK) `catch` (\(_ :: ConnectTimeout) -> pure NotOK)
 
+-- toPinged :: IO a -> IO Pinged
+-- toPinged action = ((action >> pure OK)
+--                     `catch` (\(_ :: ConnectTimeout) -> pure NotOK))
+--                   `catch` (\(_ :: IOError) -> pure NotOK)
+
 
 mkUri' :: HostIpAddress -> SvcURI
 mkUri' ip =  "redis://" <> (C8.pack $ Text.unpack ip) <> "/"
