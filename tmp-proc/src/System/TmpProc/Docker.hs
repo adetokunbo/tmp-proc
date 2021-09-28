@@ -117,10 +117,10 @@ import           GHC.TypeLits             (CmpSymbol, KnownSymbol, Nat, Symbol,
                                            symbolVal)
 import           Numeric.Natural          (Natural)
 import           System.Exit              (ExitCode (..))
-import           System.IO                (stderr)
+import           System.IO                (stderr, Handle, openBinaryFile, IOMode(..))
 import           System.Process           (StdStream (..), proc, readProcess,
                                            std_err, std_out, waitForProcess,
-                                           withCreateProcess)
+                                           withCreateProcess, readCreateProcess, CreateProcess)
 
 import           System.TmpProc.TypeLevel (Drop, HList (..), HalfOf, IsAbsent,
                                            IsInProof, KV (..), LengthOf,
@@ -319,7 +319,8 @@ startup x = do
   let fullArgs = dockerCmdArgs @a
       isGarbage = flip elem ['\'', '\n']
       trim = dropWhileEnd isGarbage . dropWhile isGarbage
-  hPid <- trim <$> readProcess "docker" (map Text.unpack fullArgs) ""
+  runCmd <- dockerRun (map Text.unpack fullArgs)
+  hPid <- trim <$> readCreateProcess runCmd ""
   hAddr <- (Text.pack . trim) <$> readProcess "docker"
     [ "inspect"
     , hPid
@@ -694,3 +695,13 @@ type family MergeHandlesImpl (xs :: [Type]) (ys :: [Type]) (o :: Ordering) :: [T
 
     MergeHandlesImpl (ProcHandle x ': xs) (ProcHandle y ': ys) leq =
         ProcHandle x ': MergeHandles xs (ProcHandle y ': ys)
+
+
+devNull :: IO Handle
+devNull = openBinaryFile "/dev/null"  WriteMode
+
+
+dockerRun :: [String] -> IO CreateProcess
+dockerRun args = do
+  devNull' <- devNull
+  pure $ (proc "docker" args) { std_err = UseHandle devNull' }
