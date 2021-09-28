@@ -20,9 +20,9 @@ import           Servant.Client          (ClientM, client)
 import           TmpProc.Example2.Routes (contactsAPI)
 import           TmpProc.Example2.Schema (Contact, ContactID)
 
-{-| Fetch a client via the API, -}
+{-| Fetch a contact via the API. -}
 fetch :: ContactID -> ClientM Contact
 
-{-| Create a client via the API, -}
+{-| Create a contact via the API. -}
 create :: Contact -> ClientM ContactID
 (fetch :<|> create) = client contactsAPI
