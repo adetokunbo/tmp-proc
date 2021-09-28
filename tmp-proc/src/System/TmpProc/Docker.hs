@@ -341,7 +341,7 @@ pingedMsg _ OK = ""
 pingedMsg p NotOK = "tmp proc:" ++ (Text.unpack $ nameOf p) ++ ":could not be pinged"
 pingedMsg p (PingFailed err) = "tmp proc:"
   ++ (Text.unpack $ nameOf p)
-  ++ ":ping failed"
+  ++ ":ping failed:"
   ++ (Text.unpack err)
 
 
