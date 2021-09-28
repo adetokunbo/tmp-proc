@@ -2,7 +2,14 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators     #-}
+{-|
+Copyright   : (c) 2020-2021 Tim Emiola
+SPDX-License-Identifier: BSD3
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
 
+Implements the demo service.
+
+-}
 module TmpProc.Example1.Server
   ( -- * Server implementation
     runServer'

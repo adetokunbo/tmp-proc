@@ -1,6 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators     #-}
+{-|
+Copyright   : (c) 2020-2021 Tim Emiola
+SPDX-License-Identifier: BSD3
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
 
+Defines client combinators that access the demo service
+
+-}
 module TmpProc.Example2.Client
   ( -- * Client combinators
     fetch

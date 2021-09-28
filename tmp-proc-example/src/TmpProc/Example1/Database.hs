@@ -1,5 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-|
+Copyright   : (c) 2020-2021 Tim Emiola
+SPDX-License-Identifier: BSD3
+Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
 
+Defines data access combinators used by the demo service
+
+-}
 module TmpProc.Example1.Database
   ( -- * Contact Database access
     create

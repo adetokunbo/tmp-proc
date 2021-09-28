@@ -1,3 +1,4 @@
-#docker-tmp-proc-example
+# tmp-proc-example
 
-__docker-tmp-proc-example__ runs a Postgres database as a tempororary process for use in integration tests
+`tmp-proc-example` contains working examples that use tmp-proc to test a simple
+postgresql/redis servant-based API service.

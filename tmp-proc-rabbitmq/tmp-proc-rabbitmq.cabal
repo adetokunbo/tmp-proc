@@ -1,18 +1,21 @@
 cabal-version:      3.0
 name:               tmp-proc-rabbitmq
-version:            0.4.0.0
-synopsis:           Run a tmp RabbitMQ proc
-description:        An example that demos using tmp-proc to launch RabbitMQ in docker.
+version:            0.5.0.0
+synopsis:           Shows how to run RabbitMQ as a tmp proc
+description:
+  An example of using tmp-proc to launch dockerized RabbitMQ in integration tests.
+
 license:            BSD-3-Clause
 license-file:       LICENSE
 copyright:          2021 Tim Emiola
 author:             Tim Emiola
 maintainer:         adetokunbo@users.noreply.github.com
-category:           Testing
-homepage:           https://github.com/adetokunbo/tmp-proc
+category:           testing
+bug-reports:        https://github.com/adetokunbo/tmp-proc/issues
 build-type:         Simple
-extra-source-files: ChangeLog.md
-                    README.md
+extra-source-files:
+  ChangeLog.md
+  README.md
 
 source-repository head
   type:     git
@@ -21,27 +24,31 @@ source-repository head
 library
   exposed-modules:  System.TmpProc.Docker.RabbitMQ
   hs-source-dirs:   src
-  build-depends:    base              >= 4.11 && < 4.16
-                  , amqp              >= 0.22 && < 0.23
-                  , bytestring        >= 0.10.8.2 && < 0.12
-                  , text              >= 1.2.3 && < 1.3
-                  , tmp-proc          >= 0.4.0.0 && < 0.5.0.0
-  default-language: Haskell2010
-  ghc-options:     -fno-ignore-asserts -Wall
+  build-depends:
+    , amqp        ^>=0.22
+    , base        >=4.11     && <4.16
+    , bytestring  >=0.10.8.2 && <0.12
+    , text        ^>=1.2.3
+    , tmp-proc    >=0.5.0.0  && <0.6.0.0
 
+  default-language: Haskell2010
+  ghc-options:      -fno-ignore-asserts -Wall
 
 test-suite integration-test
   type:             exitcode-stdio-1.0
   main-is:          Spec.hs
   other-modules:    Test.TmpProc.Docker.RabbitMQSpec
   hs-source-dirs:   test
-  build-depends:    base
-                  , amqp
-                  , bytestring
-                  , hspec
-                  , hspec-tmp-proc
-                  , text
-                  , tmp-proc-rabbitmq
-                  , tmp-proc
+  build-depends:
+    , amqp
+    , base
+    , bytestring
+    , hspec
+    , hspec-tmp-proc
+    , text
+    , tmp-proc
+    , tmp-proc-rabbitmq
+
   default-language: Haskell2010
-  ghc-options:      -threaded -rtsopts -with-rtsopts=-N -fno-ignore-asserts -Wall
+  ghc-options:
+    -threaded -rtsopts -with-rtsopts=-N -fno-ignore-asserts -Wall
