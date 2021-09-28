@@ -330,7 +330,9 @@ startup x = do
       h = ProcHandle {hProc=x, hPid, hUri, hAddr }
   (nPings h `onException` terminate h) >>= \case
     OK     -> pure h
-    pinged -> fail $ pingedMsg x pinged
+    pinged -> do
+      terminate h
+      fail $ pingedMsg x pinged
 
 
 pingedMsg :: Proc a => a -> Pinged -> String
