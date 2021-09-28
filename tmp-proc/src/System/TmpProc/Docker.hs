@@ -105,7 +105,7 @@ where
 import           Control.Concurrent       (threadDelay)
 import           Control.Exception        (SomeException, bracket, catch,
                                            onException, Exception)
-import           Control.Monad            (void)
+import           Control.Monad            (void, when)
 import qualified Data.ByteString.Char8    as C8
 import           Data.Kind                (Type)
 import           Data.List                (dropWhileEnd)
@@ -117,6 +117,7 @@ import           GHC.TypeLits             (CmpSymbol, KnownSymbol, Nat, Symbol,
                                            symbolVal)
 import           Numeric.Natural          (Natural)
 import           System.Exit              (ExitCode (..))
+import           System.Environment       (lookupEnv)
 import           System.IO                (stderr, Handle, openBinaryFile, IOMode(..))
 import           System.Process           (StdStream (..), proc, readProcess,
                                            std_err, std_out, waitForProcess,
@@ -358,13 +359,13 @@ nPings h@ProcHandle{hProc = p} =
     gap    = fromEnum $ pingGap' p
 
     badMsg x = "tmp.proc: could not start " <> nameOf p <> "; uncaught exception :" <> x
-    badErr x = Text.hPutStrLn stderr $ badMsg x
+    badErr x = printDebug $ badMsg x
 
     lastMsg = "tmp.proc: could not start " <> nameOf p <> "; all pings failed"
-    lastErr  = Text.hPutStrLn stderr lastMsg
+    lastErr  = printDebug lastMsg
 
     pingMsg i = "tmp.proc: ping #" <> (Text.pack $ show i) <> " failed; will retry"
-    nthErr n  = Text.hPutStrLn stderr $ pingMsg $ count + 1 - n
+    nthErr n  = printDebug $ pingMsg $ count + 1 - n
 
     ping' x  = ping x `catch` (\(e :: SomeException) -> do
                                     let errMsg = Text.pack $ show e
@@ -705,3 +706,16 @@ dockerRun :: [String] -> IO CreateProcess
 dockerRun args = do
   devNull' <- devNull
   pure $ (proc "docker" args) { std_err = UseHandle devNull' }
+
+
+showDebug :: IO Bool
+showDebug = fmap (maybe False (const True)) $ lookupEnv debugEnv
+
+debugEnv :: String
+debugEnv = "TMP_PROC_DEBUG"
+
+
+printDebug :: Text -> IO ()
+printDebug t = do
+  canPrint <- showDebug
+  when canPrint $ Text.hPutStrLn stderr t
