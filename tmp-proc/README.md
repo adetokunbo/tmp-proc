@@ -8,7 +8,9 @@ services running on docker.
 
 This README contains a _How to_ tutorial on using this library. This tutorial
 explains step by step how to specify a docker image as a `tmp proc` and use it in
-a test.  __N.B.__ It assumes that docker is installed.
+a test.
+
+__N.B.__ It assumes that docker is installed.
 
 All code below can be compiled and run with the following commands:
 
@@ -49,8 +51,8 @@ import           System.TmpProc        (HList (..), HandlesOf, HostIpAddress,
 
 ## Specify a Proc instance
 
-In 'tmp-proc', docker instances are specified by making new instances of the
-'Proc' typeclass.
+In `tmp-proc`, docker instances are specified by making new instances of the
+`Proc` typeclass.
 
 For this tutorial, we'll test the famous [http-bin](https://httpbin.org)
 service. Although it's an online service in it's own right, it is also available
@@ -73,10 +75,10 @@ instance Proc HttpBinLhs where
 
 A `Proc` instance specifies both an `Image` and `Name`.
 - The `Image` corresponds to the docker image that needs to be run
-- The `Name` is a label that needs to be unique; it is used to index the Proc instance.
+- The `Name` is a label that needs to be unique; it is used an alternate index for the Proc instance.
 
-The instance also specifies a number of typeclass functions; only `ping` will be
-mentioned in this tutorial, but the others all have important roles.
+The instance also specifies a number of useful typeclass functions; only `ping`
+will be covered in this tutorial, but the others all have important roles.
 
 
 ```haskell
@@ -96,13 +98,12 @@ handleUrl handle urlPath = foldl' (/:) (http $ hAddr handle)
 
 ```
 
-The `pingImpl` used above by `Proc` instance is implemented next. Each `Proc`
-instance must provide valid `ping` implementation,
+The `pingImpl` used by the `Proc` instance above is implemented next.
 
-`tmp-proc` uses these to determine when the `Proc's` service is ready for use in
-the test.
+Each `Proc` instance must provide a valid `ping` implementation, `tmp-proc` uses
+`ping` to determine when the `Proc's` service is ready for use in the test.
 
-## Use the Proc in an hspec Spec
+## Using the Proc
 
 
 ```haskell
@@ -122,20 +123,52 @@ spec = describe ("Tmp.Proc: " ++ Text.unpack (nameOf HttpBinLhs)) $ do
 
 ```
 
-With just this, it's now possible to write a simple test that shows how
+With just this, it's now possible to write a simple test showing various
+features of `tmp-proc`.  E.g,
 
-- hspec launches Procs during test setup, making part of the test fixture
+- `hspec` launches `Procs` during test setup
 
-   - `startupAll` performs the startup; it takes a HList (heterogenous list) of
-     different 'Proc' types and starts them all up, ensuring they all start-up ok
-     or failing the test.
+   - this results in an `HList` of `ProcHandle` types being passed to each test.
 
-   - once setup has succeeded, each test is passed the handles created by `startupAll`
+     - (In this example, the HList has only one `Proc`. `startupAll` allows for
+       many `Procs` to started, each of different type. This is possible because
+       `startupAll` acts on and returns a heteregenous list (or `HList`) rather
+       than the usual `List` type.
 
-   - the test can use the handles to access the running 'Proc'.
+   - `startupAll` takes an `HList` of `Procs` and returns an `HList` of
+     corresponding `ProcHandle` types, first ensuring that all the corresponding
+     docker services start up ok
 
-   - `tmp-proc` provides useful combinators that simplify working with the handles.
+- once setup succeeds, each test is passed the `ProcHandles` created by
+  `startupAll`
 
+   - this is powered by a feature of [hspec][2], it's through use of `hspec's`
+     `beforeAll` hook that enables this
+
+    - `startupAll` is just one example of a `tmp-proc` combinator meshing well with
+    the test frameworks' combinators.
+
+        - the `startAll` and `terminateAll` functions used here also work with
+          `tasty's` [withResource][6]
+
+        - `tmp-proc` provides other functions that work with other hooks in [hspec][1]
+
+- the test cases here show the way that `tmp-proc` functions work with an
+  `HList` of `ProcHandles`
+
+    - `ixPing` uses [TypeApplications][7] with an index type to identify the
+        'ProcHandle' to ping
+
+    - `tmp-proc` provides similar functions that enable access to attributes
+        of one or many `ProcHandle`.
+
+    - Though not shown here, as well as accessing a `ProcHandle's` attributes,
+      test code may also to access the corresponding service using a
+      `Connection` type specific to that service.
+
+    - __N.B.__ these test cases are completely unrealistic; there should be no
+      reason to use `ixPing` in a normal test case! For slightly more realism,
+      please take a look at the [example package][4].
 
 
 ## Run the Spec
@@ -153,3 +186,5 @@ main = hspec spec
 [3]: https://hackage.haskell.org/package/tasty
 [4]: https://github.com/adetokunbo/tmp-proc/tree/master/tmp-proc-example
 [5]: https://github.com/adetokunbo/tmp-proc/tree/master/tmp-proc
+[6]: https://hackage.haskell.org/package/tasty-1.4.2/docs/Test-Tasty.html#v:withResource
+[7]: https://typeclasses.com/ghc/type-applications
