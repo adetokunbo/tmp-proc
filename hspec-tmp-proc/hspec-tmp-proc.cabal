@@ -8,9 +8,8 @@ license-file:       LICENSE
 copyright:          2021 Tim Emiola
 author:             Tim Emiola
 maintainer:         adetokunbo@users.noreply.github.com
-category:           Testing
+category:           testing
 bug-reports:        https://github.com/adetokunbo/tmp-proc/issues
-homepage:           https://github.com/adetokunbo/tmp-proc/
 build-type:         Simple
 extra-source-files: ChangeLog.md
                     README.md
