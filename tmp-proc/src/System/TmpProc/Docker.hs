@@ -126,7 +126,7 @@ import           System.TmpProc.TypeLevel (Drop, HList (..), HalfOf, IsAbsent,
                                            IsInProof, KV (..), LengthOf,
                                            ManyMemberKV, MemberKV,
                                            ReorderH (..), SortSymbols, Take,
-                                           hOf, select, selectMany, (%:))
+                                           hOf, select, selectMany, (&:))
 
 
 {-| Determines if the docker daemon is accessible. -}
