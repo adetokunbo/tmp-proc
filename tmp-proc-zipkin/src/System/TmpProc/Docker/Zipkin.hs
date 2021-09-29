@@ -35,10 +35,12 @@ where
 import           Control.Monad.IO.Class    (MonadIO, liftIO)
 import           Control.Monad.Trace.Class (MonadTrace, alwaysSampled, rootSpan)
 import qualified Data.ByteString.Char8     as C8
-import           Data.Proxy                (Proxy(..))
+import           Data.Proxy                (Proxy (..))
 import           Data.String               (fromString)
 import qualified Data.Text                 as Text
 import           Network.HTTP.Client       (HttpException)
+import           System.IO                 (Handle, IOMode (..), hPutStrLn,
+                                            openBinaryFile)
 
 import qualified Monitor.Tracing.Zipkin    as ZPK
 
@@ -106,8 +108,12 @@ toSettings = fromString . Text.unpack . hAddr
 
 
 pingAction :: IO ()
-pingAction = putStrLn "the trace of this will be sent as a ping"
+pingAction = devNull >>= flip hPutStrLn "the trace of this will be sent as a ping"
 
 
 tracedPing :: (MonadIO m, MonadTrace m) => m ()
 tracedPing = rootSpan alwaysSampled "ping" $ liftIO pingAction
+
+
+devNull :: IO Handle
+devNull = openBinaryFile "/dev/null"  WriteMode
