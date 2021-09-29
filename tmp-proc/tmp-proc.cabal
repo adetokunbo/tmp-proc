@@ -32,6 +32,8 @@ extra-source-files:
   ChangeLog.md
   test_certs/*.csr
   test_certs/*.pem
+tested-with:
+  GHC == 8.10.5
 
 source-repository head
   type:     git

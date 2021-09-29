@@ -15,7 +15,8 @@ bug-reports:        https://github.com/adetokunbo/tmp-proc/issues
 build-type:         Simple
 extra-source-files:
   ChangeLog.md
-  README.md
+tested-with:
+  GHC == 8.10.5
 
 source-repository head
   type:     git
