@@ -15,18 +15,18 @@ import           System.TmpProc.Docker.RabbitMQ
 spec :: Spec
 spec = tdescribe desc $ do
   beforeAll setupHandles $ afterAll terminateAll $ do
-    describe desc $ do
-      context "when using the Proc from the HList by its 'Name'" $ do
 
-        context "ixPing" $ do
+    context "when using the Proc from the HList by its 'Name'" $ do
 
-          it "should succeed" $ \hs
-            -> ixPing @"a-rabbitmq-server" Proxy hs `shouldReturn` OK
+      context "ixPing" $ do
 
-        context "ixReset" $ do
+        it "should succeed" $ \hs
+          -> ixPing @"a-rabbitmq-server" Proxy hs `shouldReturn` OK
 
-          it "should succeed" $ \hs
-            -> ixReset @"a-rabbitmq-server" Proxy hs `shouldReturn` ()
+      context "ixReset" $ do
+
+        it "should succeed" $ \hs
+          -> ixReset @"a-rabbitmq-server" Proxy hs `shouldReturn` ()
 
 
 setupHandles :: IO (HList '[ProcHandle TmpRabbitMQ])
