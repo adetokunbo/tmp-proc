@@ -1,5 +1,8 @@
 # tmp-proc-zipkin
 
+[![Hackage](https://img.shields.io/hackage/v/tmp-proc-redis.svg)](https://hackage.haskell.org/package/tmp-proc-zipkin)
+[![BSD-3.0 license](https://img.shields.io/badge/license-BSD--3.0-blue.svg)](https://github.com/adetokunbo/tmp-proc/blob/master/tmp-proc-zipkin/LICENSE)
+
 `tmp-proc-zipkin` provides an example of using `tmp-proc` to launch dockerized
 Zipkin in integration tests.
 
