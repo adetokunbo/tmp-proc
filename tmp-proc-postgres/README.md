@@ -1,5 +1,8 @@
 # tmp-proc-postgres
 
+[![Hackage](https://img.shields.io/hackage/v/tmp-proc-postgres.svg)](https://hackage.haskell.org/package/tmp-proc-postgres)
+[![BSD-3.0 license](https://img.shields.io/badge/license-BSD--3.0-blue.svg)](https://github.com/adetokunbo/tmp-proc/blob/master/tmp-proc-postgres/LICENSE)
+
 `tmp-proc-postgres` provides an example of using `tmp-proc` to launch dockerized
 PostgreSQL in integration tests.
 

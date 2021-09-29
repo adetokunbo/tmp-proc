@@ -1,5 +1,6 @@
 # tmp-proc
 
+[![Hackage](https://img.shields.io/hackage/v/tmp-proc.svg)](https://hackage.haskell.org/package/tmp-proc)
 [![GitHub CI](https://github.com/adetokunbo/tmp-proc/actions/workflows/test.yml/badge.svg)](https://github.com/adetokunbo/tmp-proc/actions)
 [![BSD-3.0 license](https://img.shields.io/badge/license-BSD--3.0-blue.svg)](https://github.com/adetokunbo/tmp-proc/blob/master/tmp-proc/LICENSE)
 

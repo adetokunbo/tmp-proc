@@ -1,5 +1,8 @@
 # hspec-tmp-proc
 
+[![Hackage](https://img.shields.io/hackage/v/hspec-tmp-proc.svg)](https://hackage.haskell.org/package/hspec-tmp-proc)
+[![BSD-3.0 license](https://img.shields.io/badge/license-BSD--3.0-blue.svg)](https://github.com/adetokunbo/tmp-proc/blob/master/hspec-tmp-proc/LICENSE)
+
 hspec-tmp-proc provides a module that simplifies using `tmp-proc` with tests
 that use [hspec][1].
 
