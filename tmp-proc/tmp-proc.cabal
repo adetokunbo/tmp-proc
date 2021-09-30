@@ -27,6 +27,7 @@ author:             Tim Emiola
 maintainer:         adetokunbo@users.noreply.github.com
 category:           testing, docker
 bug-reports:        https://github.com/adetokunbo/tmp-proc/issues
+homepage:           https://github.com/adetokunbo/tmp-proc/tree/master/tmp-proc#tmp-proc
 build-type:         Simple
 data-files:
   test_certs/*.csr
