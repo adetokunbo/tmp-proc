@@ -6,3 +6,6 @@ packages:
   ./tmp-proc-redis
   ./tmp-proc-zipkin
   ./hspec-tmp-proc
+
+package tmp-proc
+  flags: +use-doc-tests
