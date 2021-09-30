@@ -5,6 +5,7 @@
 ## 0.5.0.1 -- 2021-09-30
 
 * Fix use of packaged data in tests
+* Introduce some build flags to control how the package builds in CI environments
 
 
 ## 0.5.0.0 -- 2021-09-28

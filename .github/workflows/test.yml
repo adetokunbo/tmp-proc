@@ -29,9 +29,6 @@ jobs:
     - name: Run the core tests in a nix-shell
       run: |
         nix-shell --run "cabal new-test --test-show-details=streaming tmp-proc"
-    - name: Run the doc tests in a nix-shell
-      run: |
-        nix-shell --run "cabal new-test --test-show-details=streaming tmp-proc:doctests"
     - name: Run the postgres tests in a nix-shell
       run: |
         nix-shell --run "cabal new-test --test-show-details=streaming tmp-proc-postgres"

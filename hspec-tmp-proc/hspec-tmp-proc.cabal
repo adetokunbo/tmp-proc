@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               hspec-tmp-proc
-version:            0.5.0.0
+version:            0.5.0.1
 synopsis:           Simplify use of tmp-proc from hspec tests
 description:        Reduces boilerplate when using tmp-proc with hspec
 license:            BSD-3-Clause
@@ -10,6 +10,7 @@ author:             Tim Emiola
 maintainer:         adetokunbo@users.noreply.github.com
 category:           testing, docker, hspec
 bug-reports:        https://github.com/adetokunbo/tmp-proc/issues
+homepage:           https://github.com/adetokunbo/tmp-proc/tree/master/tmp-proc#tmp-proc
 build-type:         Simple
 extra-source-files:
   ChangeLog.md
