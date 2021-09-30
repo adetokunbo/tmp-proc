@@ -47,8 +47,11 @@ testApp hs = mkTestApp'
 setupBeforeAll :: IO (ServerHandle '[HttpBinTest])
 setupBeforeAll = runServer testProcs testApp
 
+
 setupBeforeAllTls :: IO (ServerHandle '[HttpBinTest])
-setupBeforeAllTls = runTLSServer defaultTLSSettings testProcs testApp
+setupBeforeAllTls = do
+  tls <- defaultTLSSettings
+  runTLSServer tls testProcs testApp
 
 
 suffixAround, suffixBeforeAll, prefixHttp, prefixHttps :: String
@@ -83,7 +86,9 @@ setupAround = testWithApplication testProcs testApp
 
 
 setupAroundTls :: ((HandlesOf '[HttpBinTest], Int) -> IO a) -> IO a
-setupAroundTls = testWithTLSApplication defaultTLSSettings testProcs testApp
+setupAroundTls cont = do
+  tls <- defaultTLSSettings
+  testWithTLSApplication tls testProcs testApp cont
 
 
 aroundSpec :: Spec

@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               tmp-proc
-version:            0.5.0.0
+version:            0.5.0.1
 synopsis:           Run 'tmp' processes in integration tests
 description:
   @tmp-proc@ runs services in docker containers for use in integration tests.
@@ -28,10 +28,11 @@ maintainer:         adetokunbo@users.noreply.github.com
 category:           testing, docker
 bug-reports:        https://github.com/adetokunbo/tmp-proc/issues
 build-type:         Simple
-extra-source-files:
-  ChangeLog.md
+data-files:
   test_certs/*.csr
   test_certs/*.pem
+extra-source-files:
+  ChangeLog.md
 tested-with:
   GHC == 8.10.5
 
@@ -67,6 +68,8 @@ library
 test-suite integration-test
   type:             exitcode-stdio-1.0
   main-is:          Spec.hs
+  autogen-modules:  Paths_tmp_proc
+
   other-modules:
     Test.Hspec.TmpProc
     Test.HttpBin
@@ -74,6 +77,7 @@ test-suite integration-test
     Test.System.TmpProc.Hspec
     Test.System.TmpProc.HttpBinSpec
     Test.System.TmpProc.WarpSpec
+    Paths_tmp_proc
 
   hs-source-dirs:   test
   build-depends:
