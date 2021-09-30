@@ -120,28 +120,34 @@ test-suite doctests
   default-language: Haskell2010
   ghc-options:      -threaded
 
--- This is not currently working in the nix build environment.
---
--- executable readme
---   if os(windows)
---     buildable: False
 
---   build-tool-depends: markdown-unlit:markdown-unlit
---   ghc-options:        -pgmL markdown-unlit
---   main-is:            README.lhs
---   default-language:   Haskell2010
---   build-depends:
---     , base
---     , bytestring
---     , connection
---     , data-default
---     , hspec
---     , http-client
---     , http-client-tls
---     , http-types
---     , req
---     , text
---     , tmp-proc
---     , wai
---     , warp
---     , warp-tls
+Flag build-the-readme
+  description: Allow the readme to build
+  default:     False
+
+
+executable readme
+  if os(windows) || !flag(build-the-readme)
+    buildable: False
+  else
+    buildable: True
+
+  build-tool-depends: markdown-unlit:markdown-unlit
+  ghc-options:        -pgmL markdown-unlit -threaded -rtsopts -with-rtsopts=-N
+  main-is:            README.lhs
+  default-language:   Haskell2010
+  build-depends:
+    , base
+    , bytestring
+    , connection
+    , data-default
+    , hspec
+    , http-client
+    , http-client-tls
+    , http-types
+    , req
+    , text
+    , tmp-proc
+    , wai
+    , warp
+    , warp-tls

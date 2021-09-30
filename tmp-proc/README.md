@@ -16,8 +16,9 @@ __N.B.__ It assumes that docker is installed.
 All code below can be compiled and run with the following commands:
 
 ```shell
-$ cabal new-build tmp-proc
-$ cabal new-exec readme # at the moment (29/09/2021), this is disabled due to a bug
+# At the moment (30/09/2021), this is does not consistently run when using cabal
+$ stack build tmp-proc
+$ stack run readme
 ```
 
 ## Preamble: imports and language extensions
