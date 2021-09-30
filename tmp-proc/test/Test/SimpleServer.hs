@@ -22,6 +22,16 @@ import           Network.HTTP.Req
 import qualified Network.Wai.Handler.Warp    as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
+import           Paths_tmp_proc              (getDataFileName)
+
+
+-- | The settings used in the integration tests
+defaultTLSSettings :: IO Warp.TLSSettings
+defaultTLSSettings =
+  Warp.tlsSettings
+ <$> (getDataFileName "test_certs/certificate.pem")
+ <*> (getDataFileName "test_certs/key.pem")
+
 
 -- | Determine the status from a Get on localhost.
 statusOfGet :: Warp.Port -> Text -> IO Int
@@ -46,10 +56,6 @@ localUrl p = foldl' (/:) (http "localhost")
 localHttpsUrl :: Text -> Url 'Https
 localHttpsUrl p = foldl' (/:) (https "localhost")
   $ Text.splitOn "/" $ Text.dropWhile (== '/') p
-
-
-defaultTLSSettings :: Warp.TLSSettings
-defaultTLSSettings = Warp.tlsSettings "test_certs/certificate.pem" "test_certs/key.pem"
 
 
 mkSimpleTLSManager :: IO HC.Manager
