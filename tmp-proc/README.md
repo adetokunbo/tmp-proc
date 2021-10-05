@@ -7,7 +7,7 @@
 `tmp-proc` is a small library designed to simplify integration tests that use
 services running on docker.
 
-This README contains a _How to_ tutorial on using this library. This tutorial
+This README contains a _How To_ tutorial on using this library. This tutorial
 explains step by step how to specify a docker image as a `tmp proc` and use it in
 a test.
 
@@ -54,7 +54,7 @@ import           System.TmpProc        (HList (..), HandlesOf, HostIpAddress,
 ## Specify a Proc instance
 
 In `tmp-proc`, docker instances are specified by making new instances of the
-`Proc` typeclass.
+[Proc][17] typeclass.
 
 For this tutorial, we'll test the famous [http-bin](https://httpbin.org)
 service. Although it's an online service in it's own right, it is also available
@@ -79,8 +79,9 @@ A `Proc` instance specifies both an `Image` and `Name`.
 - The `Image` corresponds to the docker image that needs to be run
 - The `Name` is a label that needs to be unique; it is used an alternate index for the Proc instance.
 
-The instance also specifies a number of useful typeclass functions; only `ping`
-will be covered in this tutorial, but the others all have important roles.
+An instance specifies a number of useful typeclass functions; only [ping][18] is
+covered in this tutorial, however they all have important roles that support
+integration testing.
 
 
 ```haskell
@@ -130,47 +131,64 @@ features of `tmp-proc`.  E.g,
 
 - `hspec` launches `Procs` during test setup
 
-   - this results in an `HList` of `ProcHandle` types being passed to each test.
+  ```ignore
+  ...
+  beforeAll (startupAll $ HttpBinLhs &: HNil) $ afterAll terminateAll $ do
+  ```
 
-     - (In this example, the HList has only one `Proc`. `startupAll` allows for
-       many `Procs` to started, each of different type. This is possible because
-       `startupAll` acts on and returns a heteregenous list (or `HList`) rather
-       than the usual `List` type.
+   - this results in an `HList` of [ProcHandle][9] types being passed to each test.
 
-   - `startupAll` takes an `HList` of `Procs` and returns an `HList` of
-     corresponding `ProcHandle` types, first ensuring that all the corresponding
-     docker services start up ok
 
 - once setup succeeds, each test is passed the `ProcHandles` created by
   `startupAll`
 
-   - this is powered by a feature of [hspec][2], it's through use of `hspec's`
-     `beforeAll` hook that enables this
+    ```ignore
+    ...
+    it "should succeed when accessing a Proc by name" $ \handles
+    ```
 
-    - `startupAll` is just one example of a `tmp-proc` combinator meshing well with
-    the test frameworks' combinators.
+   - this is simply using the behavior of the `beforeAll` [hook][8] of
+    [hspec][2], and is one example of how `tmp-proc` combinators mesh well with
+    typical test frameworks' combinators.
 
-        - the `startAll` and `terminateAll` functions used here also work with
-          `tasty's` [withResource][6]
+    - the `startupAll` and `terminateAll` functions used here also work with
+      `tasty's` [withResource][6]
 
-        - `tmp-proc` provides other functions that work with other hooks in [hspec][1]
+    - `tmp-proc` provides other functions that work with other [hspec hooks][8],
+      e.g, [runServer][15] and others in [System.TmpProc.Warp][16] that simplify
+      testing with [WAI][1].
 
-- the test cases here show the way that `tmp-proc` functions work with an
-  `HList` of `ProcHandles`
+    - __N.B.__ In this an example, the HList has only one `Proc`.
+      [startupAll][13] allows for many `Procs` to be started, each of a
+      different type. This is possible because `startupAll` acts on and returns
+      a heteregenous list (`HList`) rather than the usual `List` type. Before it
+      completes, `startupAll` ensures all the docker services start up ok. Instead,
+      this test could have been written using [startup][14] ...
+
+
+- the test cases here show the way that the `tmp-proc` functions use an
+  `HList` of `ProcHandles` to interact with the launched services
+
+    ```ignore
+    ...
+    ixPing @"http-bin-lhs" Proxy handles `shouldReturn` OK
+    ```
 
     - `ixPing` uses [TypeApplications][7] with an index type to identify the
-        'ProcHandle' to ping
+        [ProcHandle][9] to ping
 
     - `tmp-proc` provides similar functions that enable access to attributes
-        of one or many `ProcHandle`.
+        of one or many `ProcHandle` in an `HList`.
 
     - Though not shown here, as well as accessing a `ProcHandle's` attributes,
-      test code may also to access the corresponding service using a
-      `Connection` type specific to that service.
+      test code may also access the corresponding service using a
+      [Connection][10] type specific to that service.
 
-    - __N.B.__ these test cases are completely unrealistic; there should be no
-      reason to use `ixPing` in a normal test case! For slightly more realism,
-      please take a look at the [example package][4].
+
+- __N.B.__ these test cases are completely unrealistic; there should be no
+  reason to use `ixPing` in a normal test case! For slightly more realism,
+  please take a look at the examples that use [hspec][11] or [tasty][12] in the
+  [example package][4].
 
 
 ## Run the Spec
@@ -190,3 +208,14 @@ main = hspec spec
 [5]: https://github.com/adetokunbo/tmp-proc/tree/master/tmp-proc
 [6]: https://hackage.haskell.org/package/tasty-1.4.2/docs/Test-Tasty.html#v:withResource
 [7]: https://typeclasses.com/ghc/type-applications
+[8]: https://hspec.github.io/writing-specs.html#using-hooks
+[9]: https://hackage.haskell.org/package/tmp-proc-0.5.0.1/docs/System-TmpProc-Docker.html#t:ProcHandle
+[10]: https://hackage.haskell.org/package/tmp-proc-0.5.0.1/docs/System-TmpProc-Docker.html#v:withTmpConn
+[11]: https://hackage.haskell.org/package/tmp-proc-example-0.5.0.0/docs/src/TmpProc.Example2.IntegrationSpec.html#spec
+[12]: https://hackage.haskell.org/package/tmp-proc-example-0.5.0.0/docs/src/TmpProc.Example1.IntegrationTaste.html#tests
+[13]: https://hackage.haskell.org/package/tmp-proc-0.5.0.1/docs/System-TmpProc-Docker.html#v:startupAll
+[14]: https://hackage.haskell.org/package/tmp-proc-0.5.0.1/docs/System-TmpProc-Docker.html#v:startup
+[15]: https://hackage.haskell.org/package/tmp-proc-0.5.0.1/docs/System-TmpProc-Warp.html#v:runServer
+[16]: https://hackage.haskell.org/package/tmp-proc-0.5.0.1/docs/System-TmpProc-Warp.html
+[17]: https://hackage.haskell.org/package/tmp-proc-0.5.0.1/docs/System-TmpProc-Docker.html#t:Proc
+[18]: https://hackage.haskell.org/package/tmp-proc-0.5.0.1/docs/System-TmpProc-Docker.html#v:ping
