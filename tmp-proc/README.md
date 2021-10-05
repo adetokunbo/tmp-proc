@@ -162,9 +162,7 @@ features of `tmp-proc`.  E.g,
       [startupAll][13] allows for many `Procs` to be started, each of a
       different type. This is possible because `startupAll` acts on and returns
       a heteregenous list (`HList`) rather than the usual `List` type. Before it
-      completes, `startupAll` ensures all the docker services start up ok. Instead,
-      this test could have been written using [startup][14] ...
-
+      completes, `startupAll` ensures all the docker services start up ok.
 
 - the test cases here show the way that the `tmp-proc` functions use an
   `HList` of `ProcHandles` to interact with the launched services
