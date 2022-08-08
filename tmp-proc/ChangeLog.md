@@ -2,6 +2,11 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
+
+## 0.5.1.0 -- 2022-08-08
+
+* Bump version of text and base
+
 ## 0.5.0.1 -- 2021-09-30
 
 * Fix use of packaged data in tests
