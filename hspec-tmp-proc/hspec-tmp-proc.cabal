@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               hspec-tmp-proc
-version:            0.5.1.0
+version:            0.5.1.1
 synopsis:           Simplify use of tmp-proc from hspec tests
 description:        Reduces boilerplate when using tmp-proc with hspec
 license:            BSD-3-Clause
