@@ -85,11 +85,11 @@ instance Connectable TmpPostgres where
 
 {-| Makes a uri whose password matches the one specified in 'runArgs''. -}
 mkUri' :: HostIpAddress -> SvcURI
-mkUri' ip = "host="
-             <> C8.pack (Text.unpack ip)
-             <> " dbname=postgres user=postgres password="
-             <> dbPassword
-             <> " port=5432"
+mkUri' ip = "postgres://postgres:"
+          <> dbPassword
+          <> "@"
+          <> (C8.pack (Text.unpack ip))
+          <> "/postgres"
 
 
 dbPassword :: C8.ByteString
