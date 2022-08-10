@@ -1,5 +1,9 @@
 # Revision history for tmp-proc-postgres
 
+## 0.5.2.0 -- 2022-08-10
+
+* Update the connection URI
+
 ## 0.5.1.0 -- 2022-08-08
 
 * Bump version of text and base

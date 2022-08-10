@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               tmp-proc-postgres
-version:            0.5.1.1
+version:            0.5.2.0
 synopsis:           Shows how to run a PostgreSQL database as a tmp proc
 description:
   An example of using tmp-proc to launch dockerized PostgreSQL in integration tests.
