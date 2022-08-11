@@ -1,5 +1,9 @@
 # Revision history for tmp-proc-postgres
 
+## 0.5.2.1 -- 2022-08-11
+
+* Relax version bounds
+
 ## 0.5.2.0 -- 2022-08-10
 
 * Update the connection URI
