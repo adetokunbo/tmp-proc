@@ -1,5 +1,9 @@
 # Revision history for hspec-tmp-proc
 
+## 0.5.1.2 -- 2022-08-11
+
+* Relax version bounds
+
 ## 0.5.1.0 -- 2022-08-08
 
 * Bump version of hspec, text and base
