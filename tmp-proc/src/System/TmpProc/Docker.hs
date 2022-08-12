@@ -237,13 +237,13 @@ class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
 
 {-| Indicates the result of pinging a 'Proc'.
 
-If the ping succeeds, 'ping2' should return 'OK'.
+If the ping succeeds, 'ping' should return 'OK'.
 
-'ping2' should catch any exceptions that are expected when the @'Proc's@ service
+'ping' should catch any exceptions that are expected when the @'Proc's@ service
 is not available and return 'NotOK'.
 
 'startupAll' uses 'PingFailed' to report any unexpected exceptions that escape
-'ping2'.
+'ping'.
 
 -}
 data Pinged =
