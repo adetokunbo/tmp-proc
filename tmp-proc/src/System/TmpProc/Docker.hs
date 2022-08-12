@@ -196,10 +196,10 @@ class Proc a => Connectable a where
   {-| The connection type. -}
   type Conn a = (conn :: *) | conn -> a
 
-  {-| Get a connection to the Proc via its 'ProcHandle', -}
+  {-| Get a connection to the Proc via its 'ProcHandle'. -}
   openConn :: ProcHandle a -> IO (Conn a)
 
-  {-| Close a connection to a 'Proc', -}
+  {-| Close a connection to a 'Proc'. -}
   closeConn :: Conn a -> IO ()
   closeConn = const $ pure ()
 
