@@ -196,10 +196,10 @@ class Proc a => Connectable a where
   {-| The connection type. -}
   type Conn a = (conn :: *) | conn -> a
 
-  {-| Get a connection to the Proc via its 'ProcHandle', -}
+  {-| Get a connection to the Proc via its 'ProcHandle'. -}
   openConn :: ProcHandle a -> IO (Conn a)
 
-  {-| Close a connection to a 'Proc', -}
+  {-| Close a connection to a 'Proc'. -}
   closeConn :: Conn a -> IO ()
   closeConn = const $ pure ()
 
@@ -237,13 +237,13 @@ class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
 
 {-| Indicates the result of pinging a 'Proc'.
 
-If the ping succeeds, 'ping2' should return 'OK'.
+If the ping succeeds, 'ping' should return 'OK'.
 
-'ping2' should catch any exceptions that are expected when the @'Proc's@ service
+'ping' should catch any exceptions that are expected when the @'Proc's@ service
 is not available and return 'NotOK'.
 
 'startupAll' uses 'PingFailed' to report any unexpected exceptions that escape
-'ping2'.
+'ping'.
 
 -}
 data Pinged =
