@@ -16,7 +16,7 @@ jobs:
         mkdir -p $HOME/.config/nix
     - name: Add haskell.nix as a substituter in the user Nix conf
       run: |
-        echo "substituters = https://cache.nixos.org https://hydra.iohk.io" >> $HOME/.config/nix/nix.conf
+        echo "substituters = https://cache.nixos.org https://cache.iog.io" >> $HOME/.config/nix/nix.conf
     - name: Add the public key for the haskell.nix substituter
       run: |
         echo "trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=" >> $HOME/.config/nix/nix.conf
@@ -26,21 +26,6 @@ jobs:
     - name: Display the completed user Nix conf
       run: |
         cat $HOME/.config/nix/nix.conf
-    - name: Run the core tests in a nix-shell
+    - name: Run the tests in a nix-shell
       run: |
-        nix-shell --run "cabal new-test --test-show-details=streaming tmp-proc"
-    - name: Run the postgres tests in a nix-shell
-      run: |
-        nix-shell --run "cabal new-test --test-show-details=streaming tmp-proc-postgres"
-    - name: Run the redis tests in a nix-shell
-      run: |
-        nix-shell --run "cabal new-test --test-show-details=streaming tmp-proc-redis"
-    - name: Run the rabbitmq tests in a nix-shell
-      run: |
-        nix-shell --run "cabal new-test --test-show-details=streaming tmp-proc-rabbitmq"
-    - name: Run the zipkin tests in a nix-shell
-      run: |
-        nix-shell --run "cabal new-test --test-show-details=streaming tmp-proc-zipkin"
-    - name: Run the example test in a nix-shell
-      run: |
-        nix-shell --run "cabal new-test --test-show-details=streaming tmp-proc-example"
+        nix-shell --run "cabal test --test-show-details=streaming all"
