@@ -31,7 +31,7 @@ library
   hs-source-dirs:   src
   build-depends:
     , base         >=4.11     && <5
-    , bytestring   >=0.10.8.2 && <0.12
+    , bytestring   >=0.10.8.2 && <0.12.1
     , http-client
     , text         >=1.2.3 && <2.2
     , tmp-proc     >=0.5  && <0.6
