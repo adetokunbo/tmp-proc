@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               tmp-proc-rabbitmq
-version:            0.5.1.2
+version:            0.5.1.4
 synopsis:           Shows how to run RabbitMQ as a tmp proc
 description:
   An example of using tmp-proc to launch dockerized RabbitMQ in integration tests.

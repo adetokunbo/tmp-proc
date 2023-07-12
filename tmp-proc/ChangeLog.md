@@ -2,6 +2,10 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
+## 0.5.1.4 -- 2023-07-12
+
+* Extend the version bounds of bytestring to allow 0.12
+
 ## 0.5.1.3 -- 2022-12-06
 
 * Extend the version bounds of mtl to allow 2.3.1

@@ -1,5 +1,9 @@
 # Revision history for tmp-proc-postgres
 
+## 0.5.2.3 -- 2023-07-12
+
+* Extend the version bounds of bytestring to allow 0.12
+
 ## 0.5.2.1 -- 2022-08-11
 
 * Relax version bounds
