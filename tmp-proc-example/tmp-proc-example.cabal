@@ -45,7 +45,7 @@ library
   hs-source-dirs:   src specs
   build-depends:
     , aeson
-    , base                   >=4.11 && <5
+    , base                   >=4.15 && <5
     , bytestring
     , exceptions
     , hedis
