@@ -64,7 +64,7 @@ library
     , unliftio    ^>=0.2.7
     , wai         >=3.2      && <3.3
     , warp        >=3.3      && <3.5
-    , warp-tls    >=3.3      && <3.5
+    , warp-tls    >=3.4      && <3.5
 
   default-language: Haskell2010
   ghc-options:      -fno-ignore-asserts -Wall
@@ -87,13 +87,13 @@ test-suite integration-test
   build-depends:
     , base
     , bytestring
-    , connection
+    , crypton-connection
     , data-default
     , hspec
     , http-client
     , http-client-tls
     , http-types
-    , req
+    , req > 3.13
     , text
     , tmp-proc
     , wai
