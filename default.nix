@@ -1,6 +1,6 @@
 let
-  # Pin haskell-nix to a recent (as of 2022/11/29) commit
-  h8x-pin = "https://github.com/input-output-hk/haskell.nix/archive/506208fc9226e207a7beb1b4a26bbd9504a0f680.tar.gz";
+  # Pin haskell-nix to a recent (as of 2023/06/16) commit
+  h8x-pin = "https://github.com/input-output-hk/haskell.nix/archive/0b9d00931f7a80c62378b50c554cb681af690365.tar.gz";
   h8x-src = builtins.fetchTarball h8x-pin;
   h8x = import h8x-src {};
 
@@ -11,7 +11,7 @@ let
     # hence you will be more likely to get cache hits when using these. But you
     # can also just use your own, e.g. '<nixpkgs>'.
 
-    h8x.sources.nixpkgs-2205
+    h8x.sources.nixpkgs-2305
 
     # These arguments passed to nixpkgs, include some patches and also the
     # haskell.nix functionality itself as an overlay.
@@ -26,8 +26,8 @@ in pkgs.haskell-nix.cabalProject {
   };
 
   # Specify the GHC version to use.
-  compiler-nix-name = "ghc8107";
+  compiler-nix-name = "ghc928";
 
   # Specify the hackage index state
-  index-state = "2022-11-29T00:00:00Z";
+  index-state = "2023-07-07T00:00:00Z";
 }
