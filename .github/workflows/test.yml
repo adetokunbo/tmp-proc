@@ -1,8 +1,9 @@
 name: "Nix Build"
 on:
   pull_request:
+    branches: [ignored]
   push:
-    branches: [master]
+    branches: [ignored]
 jobs:
   cabal-nix:
     runs-on: ubuntu-latest
