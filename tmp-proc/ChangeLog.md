@@ -2,6 +2,12 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
+## 0.5.2.0 -- 2023-07-12
+
+* Bump minimum required version of warp-tls
+* Refactor/Disable tests to avoid direct/indirect dependencies on
+  Network.Connection
+
 ## 0.5.1.4 -- 2023-07-12
 
 * Extend the version bounds of bytestring to allow 0.12
