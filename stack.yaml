@@ -56,6 +56,7 @@ extra-deps:
   - crypton-x509-system-1.6.7
   - crypton-x509-validation-1.6.12
   - crypton-0.33
+  - tls-1.7.0
 
 # Override default flag values for local packages and extra-deps
 flags:
