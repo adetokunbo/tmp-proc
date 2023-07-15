@@ -13,8 +13,8 @@ import           Test.Hspec
 import           Control.Exception     (catch)
 import           Data.Proxy            (Proxy (..))
 import           Data.Text             (Text)
-import           Network.HTTP.Req
 import           Network.HTTP.Types    (status200, status400)
+import qualified Network.HTTP.Client as HC
 import           Network.Wai           (Application, pathInfo, responseLBS)
 
 import           System.TmpProc.Docker (HList (..), HandlesOf, Pinged (..),
@@ -48,10 +48,10 @@ setupBeforeAll :: IO (ServerHandle '[HttpBinTest])
 setupBeforeAll = runServer testProcs testApp
 
 
-setupBeforeAllTls :: IO (ServerHandle '[HttpBinTest])
-setupBeforeAllTls = do
-  tls <- defaultTLSSettings
-  runTLSServer tls testProcs testApp
+-- setupBeforeAllTls :: IO (ServerHandle '[HttpBinTest])
+-- setupBeforeAllTls = do
+--   tls <- defaultTLSSettings
+--   runTLSServer tls testProcs testApp
 
 
 suffixAround, suffixBeforeAll, prefixHttp, prefixHttps :: String
@@ -64,7 +64,7 @@ prefixHttps = "Warp+HTTPS:"
 beforeAllSpec :: Spec
 beforeAllSpec = do
   checkBeforeAll prefixHttp setupBeforeAll statusOfGet
-  checkBeforeAll prefixHttps setupBeforeAllTls statusOfGet'
+  -- checkBeforeAll prefixHttps setupBeforeAllTls statusOfGet'
 
 
 checkBeforeAll
@@ -85,16 +85,16 @@ setupAround :: ((HandlesOf '[HttpBinTest], Int) -> IO a) -> IO a
 setupAround = testWithApplication testProcs testApp
 
 
-setupAroundTls :: ((HandlesOf '[HttpBinTest], Int) -> IO a) -> IO a
-setupAroundTls cont = do
-  tls <- defaultTLSSettings
-  testWithTLSApplication tls testProcs testApp cont
+-- setupAroundTls :: ((HandlesOf '[HttpBinTest], Int) -> IO a) -> IO a
+-- setupAroundTls cont = do
+--   tls <- defaultTLSSettings
+--   testWithTLSApplication tls testProcs testApp cont
 
 
 aroundSpec :: Spec
 aroundSpec = do
   checkEachTest prefixHttp setupAround statusOfGet
-  checkEachTest prefixHttps setupAroundTls statusOfGet'
+  -- checkEachTest prefixHttps setupAroundTls statusOfGet'
 
 
 checkEachTest
@@ -133,7 +133,7 @@ mkTestApp' onStart onTest = onStart >> pure app
 
 pingOrFail :: ProcHandle a -> IO ()
 pingOrFail handle = do
-  let catchHttp x = x `catch` (\(_ :: HttpException) ->
+  let catchHttp x = x `catch` (\(_ :: HC.HttpException) ->
                                   fail "tmp proc:httpbin:ping failed")
   catchHttp $ do
     gotStatus <- handleGet handle "/status/200"

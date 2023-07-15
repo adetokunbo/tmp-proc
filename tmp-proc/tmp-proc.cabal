@@ -87,18 +87,15 @@ test-suite integration-test
   build-depends:
     , base
     , bytestring
-    , connection
     , data-default
     , hspec
     , http-client
-    , http-client-tls
     , http-types
     , req
     , text
     , tmp-proc
     , wai
     , warp
-    , warp-tls
 
   default-language: Haskell2010
   ghc-options:
