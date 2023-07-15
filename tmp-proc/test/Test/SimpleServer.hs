@@ -23,10 +23,11 @@ import qualified Network.Wai.Handler.Warp as Warp
 -- | Determine the status from a Get on localhost.
 statusOfGet :: Warp.Port -> Text -> IO Int
 statusOfGet p urlPath = do
-  let theUri = "http://localhost/" <> Text.dropWhile (== '/') urlPath
+  let theUri = "GET http://localhost/" <> Text.dropWhile (== '/') urlPath
   manager <- HC.newManager HC.defaultManagerSettings
   getReq <- HC.parseRequest $ Text.unpack theUri
-  (statusCode . HC.responseStatus) <$> HC.httpLbs getReq {HC.port = p} manager
+  let theReq = getReq {HC.port = p}
+  statusCode . HC.responseStatus <$> HC.httpLbs theReq manager
 
 -- statusOfGet' :: Int -> Text -> IO Int
 -- statusOfGet' p path = do

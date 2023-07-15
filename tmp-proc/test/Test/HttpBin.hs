@@ -101,10 +101,10 @@ ping' handle = toPinged @HC.HttpException Proxy $ do
 -- | Determine the status from a Get on localhost.
 handleGet :: ProcHandle a -> Text -> IO Int
 handleGet handle urlPath = do
-  let theUri = "http://" <> hAddr handle <> Text.dropWhile (== '/') urlPath
+  let theUri = "http://" <> hAddr handle <> "/" <> Text.dropWhile (== '/') urlPath
   manager <- HC.newManager HC.defaultManagerSettings
   getReq <- HC.parseRequest $ Text.unpack theUri
-  (statusCode . HC.responseStatus) <$> HC.httpLbs getReq manager
+  statusCode . HC.responseStatus <$> HC.httpLbs getReq manager
 
 
 -- | Verify that the compile time type computations related to 'manyNamed' are ok.
