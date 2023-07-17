@@ -91,7 +91,6 @@ test-suite integration-test
     , hspec
     , http-client
     , http-types
-    , req
     , text
     , tmp-proc
     , wai
@@ -143,6 +142,5 @@ executable readme
     , hspec
     , http-client
     , http-types
-    , req
     , text
     , tmp-proc
