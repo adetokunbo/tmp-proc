@@ -2,6 +2,10 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
+## 0.5.2.1 -- 2023-07-17
+
+* Avoid non-building dependencies in the testable README
+
 ## 0.5.2.0 -- 2023-07-12
 
 * Bump minimum required version of warp-tls

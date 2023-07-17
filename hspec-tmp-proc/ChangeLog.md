@@ -1,5 +1,9 @@
 # Revision history for hspec-tmp-proc
 
+## 0.5.2.0 -- 2023-07-17
+
+* Reflect new lower bounds in tmp-proc 0.5.2.0
+
 ## 0.5.1.2 -- 2022-08-11
 
 * Relax version bounds
