@@ -43,8 +43,8 @@ import           Data.List             (foldl')
 import           Data.Proxy            (Proxy (..))
 import           Data.Text             (Text)
 import qualified Data.Text             as Text
-import           Network.HTTP.Req
-
+import qualified Network.HTTP.Client as HC
+import Network.HTTP.Types.Status (statusCode)
 import           System.TmpProc        (HList (..), HandlesOf, HostIpAddress,
                                         Pinged (..), Proc (..), ProcHandle (..),
                                         SvcURI, manyNamed, startupAll, toPinged,
@@ -89,16 +89,17 @@ integration testing.
 ```haskell
 
 pingImpl :: ProcHandle a -> IO Pinged
-pingImpl handle = toPinged @HttpException Proxy $ do
-  gotStatus <- runReq defaultHttpConfig $ do
-    r <- req GET (handleUrl handle "/status/200") NoReqBody ignoreResponse $ mempty
-    pure $ responseStatusCode r
-  if (gotStatus == 200) then pure OK else pure NotOK
+pingImpl handle = toPinged @HC.HttpException Proxy $ do
+  gotStatus <- handleGet handle "/status/200"
+  if gotStatus == 200 then pure OK else pure NotOK
 
 
-handleUrl :: ProcHandle a -> Text -> Url 'Http
-handleUrl handle urlPath = foldl' (/:) (http $ hAddr handle)
-  $ Text.splitOn "/" $ Text.dropWhile (== '/') urlPath
+handleGet :: ProcHandle a -> Text -> IO Int
+handleGet handle urlPath = do
+  let theUri = "http://" <> hAddr handle <> "/" <> Text.dropWhile (== '/') urlPath
+  manager <- HC.newManager HC.defaultManagerSettings
+  getReq <- HC.parseRequest $ Text.unpack theUri
+  statusCode . HC.responseStatus <$> HC.httpLbs getReq manager
 
 
 ```

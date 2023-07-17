@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               tmp-proc
-version:            0.5.2.0
+version:            0.5.2.1
 synopsis:           Run 'tmp' processes in integration tests
 description:
   @tmp-proc@ runs services in docker containers for use in integration tests.
@@ -140,15 +140,9 @@ executable readme
   build-depends:
     , base
     , bytestring
-    , connection
-    , data-default
     , hspec
     , http-client
-    , http-client-tls
     , http-types
     , req
     , text
     , tmp-proc
-    , wai
-    , warp
-    , warp-tls
