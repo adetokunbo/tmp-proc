@@ -2,7 +2,7 @@ packages:
   ./tmp-proc
   ./tmp-proc-example
   ./tmp-proc-postgres
- -- indirectly depends on connnection -- tmp-proc-rabbitmq
+  ./tmp-proc-rabbitmq
   ./tmp-proc-redis
   ./tmp-proc-zipkin
   ./hspec-tmp-proc
