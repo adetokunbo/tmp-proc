@@ -40,5 +40,4 @@ jobs:
             ${{ runner.os }}-${{ matrix.ghc }}-
       - run: cabal build all $CONFIG
       - run: cabal test tmp-proc tmp-proc-rabbitmq tmp-proc-redis tmp-proc-postgres $CONFIG
-      - run: cabal haddock all $CONFIG
       - run: cabal sdist all
