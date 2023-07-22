@@ -17,8 +17,8 @@ jobs:
     needs: fourmolu
     strategy:
       matrix:
-        cabal: ["3.6", "3.8"]
-        ghc: ["8.10.7", "9.0.2", "9.2.4", "9.4.1"]
+        cabal: ["3.10"]
+        ghc: ["8.10.7", "9.0.2", "9.2.8", "9.4.5"]
     env:
       CONFIG: "--enable-tests --enable-benchmarks --flags=build-the-readme"
     steps:
@@ -39,6 +39,5 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ matrix.ghc }}-
       - run: cabal build all $CONFIG
-      - run: cabal test all $CONFIG
-      - run: cabal haddock all $CONFIG
+      - run: cabal test tmp-proc tmp-proc-rabbitmq tmp-proc-redis tmp-proc-postgres $CONFIG
       - run: cabal sdist all

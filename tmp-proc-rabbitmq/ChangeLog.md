@@ -1,5 +1,10 @@
 # Revision history for tmp-proc-rabbitmq
 
+## 0.5.2.0 -- 2023-07-20
+
+* Restrict the lower bounds of amqp and tmp-proc to prevent
+  depending on the connection package
+
 ## 0.5.1.4 -- 2023-07-12
 
 * Extend the version bounds of bytestring to allow 0.12
