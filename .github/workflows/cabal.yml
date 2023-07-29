@@ -39,5 +39,5 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ matrix.ghc }}-
       - run: cabal build all $CONFIG
-      - run: cabal test tmp-proc tmp-proc-rabbitmq tmp-proc-redis tmp-proc-postgres $CONFIG
+      - run: cabal test tmp-proc tmp-proc-zipkin tmp-proc-rabbitmq tmp-proc-redis tmp-proc-postgres $CONFIG
       - run: cabal sdist all
