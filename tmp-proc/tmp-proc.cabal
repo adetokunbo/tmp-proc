@@ -36,13 +36,15 @@ extra-source-files:
   ChangeLog.md
 tested-with:
   GHC == 8.8.4
-  GHC == 8.10.5
   GHC == 8.10.7
-  GHC == 9.2.2
+  GHC == 9.0.2
+  GHC == 9.2.8
+  GHC == 9.4.5
 
 source-repository head
   type:     git
   location: https://github.com/adetokunbo/tmp-proc.git
+  subdir:   tmp-proc
 
 library
   exposed-modules:

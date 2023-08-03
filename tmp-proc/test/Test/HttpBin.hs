@@ -12,23 +12,39 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Network.HTTP.Client as HC
 import Network.HTTP.Types.Status (statusCode)
-import System.TmpProc (
-  HList (..),
-  HandlesOf,
-  HostIpAddress,
-  Pinged (..),
-  Proc (..),
-  ProcHandle (..),
-  SvcURI,
-  manyNamed,
-  startupAll,
-  toPinged,
-  (&:),
- )
+import System.TmpProc
+  ( HList (..)
+  , HandlesOf
+  , HostIpAddress
+  , Pinged (..)
+  , Proc (..)
+  , ProcHandle (..)
+  , SvcURI
+  , manyNamed
+  , startupAll
+  , toPinged
+  , (&:)
+  )
 
 
-setupHandles :: IO (HandlesOf '[HttpBinTest, HttpBinTest2, HttpBinTest3])
-setupHandles = startupAll $ HttpBinTest &: HttpBinTest2 &: HttpBinTest3 &: HNil
+setupHandles :: IO (HandlesOf '[HttpBinTest, NginxTest, HttpBinTest3])
+setupHandles = startupAll $ HttpBinTest &: NginxTest &: HttpBinTest3 &: HNil
+
+
+-- | A data type representing a connection to an Nginx server.
+data NginxTest = NginxTest
+
+
+-- | Run HttpBin as temporary process.
+instance Proc NginxTest where
+  type Image NginxTest = "nginx:1.25.1"
+  type Name NginxTest = "nginx-test"
+
+
+  uriOf = mkUri'
+  runArgs = []
+  reset _ = pure ()
+  ping = ping'
 
 
 -- | A data type representing a connection to a HttpBin server.
@@ -126,7 +142,7 @@ typeLevelCheck3 = do
   pure $ manyNamed @'["http-bin-test-3", "http-bin-test"] Proxy allHandles
 
 
-typeLevelCheck4 :: IO (HandlesOf '[HttpBinTest2, HttpBinTest3, HttpBinTest])
+typeLevelCheck4 :: IO (HandlesOf '[HttpBinTest3, NginxTest, HttpBinTest])
 typeLevelCheck4 = do
   allHandles <- setupHandles
-  pure $ manyNamed @'["http-bin-test-2", "http-bin-test-3", "http-bin-test"] Proxy allHandles
+  pure $ manyNamed @'["http-bin-test-3", "nginx-test", "http-bin-test"] Proxy allHandles
