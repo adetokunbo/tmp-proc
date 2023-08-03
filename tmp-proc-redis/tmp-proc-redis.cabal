@@ -25,6 +25,7 @@ tested-with:
 source-repository head
   type:     git
   location: https://github.com/adetokunbo/tmp-proc.git
+  subdir:   tmp-proc-redis
 
 library
   exposed-modules:  System.TmpProc.Docker.Redis

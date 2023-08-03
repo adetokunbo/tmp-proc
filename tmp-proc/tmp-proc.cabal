@@ -43,6 +43,7 @@ tested-with:
 source-repository head
   type:     git
   location: https://github.com/adetokunbo/tmp-proc.git
+  subdir:   tmp-proc
 
 library
   exposed-modules:

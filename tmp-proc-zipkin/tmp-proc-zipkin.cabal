@@ -10,7 +10,7 @@ license-file:       LICENSE
 copyright:          2021 Tim Emiola
 author:             Tim Emiola
 maintainer:         adetokunbo@users.noreply.github.com
-category:           testing
+category:           testing, docker, zipkin
 bug-reports:        https://github.com/adetokunbo/tmp-proc/issues
 build-type:         Simple
 extra-source-files:
@@ -25,6 +25,7 @@ tested-with:
 source-repository head
   type:     git
   location: https://github.com/adetokunbo/tmp-proc.git
+  subdir:   tmp-proc-zipkin
 
 library
   exposed-modules:  System.TmpProc.Docker.Zipkin

@@ -24,6 +24,7 @@ tested-with:
 source-repository head
   type:     git
   location: https://github.com/adetokunbo/tmp-proc.git
+  subdir:   hspec-tmp-proc
 
 library
   exposed-modules:  Test.Hspec.TmpProc
