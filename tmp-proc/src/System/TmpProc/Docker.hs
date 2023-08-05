@@ -222,7 +222,7 @@ terminate handle = do
 -- | Specifies how to a get a connection to a 'Proc'.
 class Proc a => Connectable a where
   -- | The connection type.
-  type Conn a = (conn :: *) | conn -> a
+  type Conn a = (conn :: Type) | conn -> a
 
 
   -- | Get a connection to the Proc via its 'ProcHandle'.
@@ -314,7 +314,7 @@ pingGap' _ = pingGap @a
 
 -- | Simplifies use of 'uriOf'.
 uriOf' :: forall a. (Proc a) => a -> HostIpAddress -> SvcURI
-uriOf' _ addr = uriOf @a addr
+uriOf' _ = uriOf @a
 
 
 -- | The full args of a @docker run@ command for starting up a 'Proc'.
@@ -444,7 +444,7 @@ type HasNamedHandle name a procs =
 
 -- | Run an action on a 'Connectable' handle as a callback on its 'Conn'
 withTmpConn :: Connectable a => ProcHandle a -> (Conn a -> IO b) -> IO b
-withTmpConn handle action = bracket (openConn handle) closeConn action
+withTmpConn handle = bracket (openConn handle) closeConn
 
 
 {- | Constraint alias when several @'Name's@ are used to find matching
@@ -473,7 +473,7 @@ manyNamed proxy xs = manyNamed' proxy $ toSortedKVs xs
 
 
 manyNamed' ::
-  forall (names :: [Symbol]) sortedNames (procs :: [*]) (ordered :: [*]) someProcs.
+  forall (names :: [Symbol]) sortedNames (procs :: [Type]) (ordered :: [Type]) someProcs.
   ( names ~ Proc2Name procs
   , sortedNames ~ SortSymbols names
   , ordered ~ SortHandles (Proc2Handle procs)
@@ -493,7 +493,7 @@ class HandleOf a procs b where
 
 
 instance (HasHandle p procs) => HandleOf p procs p where
-  handleOf _ procs = hOf @(ProcHandle p) Proxy procs
+  handleOf _ = hOf @(ProcHandle p) Proxy
 
 
 instance (HasNamedHandle name p procs) => HandleOf name procs p where
@@ -575,11 +575,11 @@ toSortedKVs procHandles = toKVs $ sortHandles procHandles
 
 -- | Convert a 'ProcHandle' to a 'KV'.
 toKV :: Proc a => ProcHandle a -> KV (Name a) (ProcHandle a)
-toKV h = V h
+toKV = V
 
 
 -- | Converts list of types to the corresponding @'ProcHandle'@ types.
-type family Proc2Handle (as :: [*]) = (handleTys :: [*]) | handleTys -> as where
+type family Proc2Handle (as :: [Type]) = (handleTys :: [Type]) | handleTys -> as where
   Proc2Handle '[] = '[]
   Proc2Handle (a ': as) = ProcHandle a ': Proc2Handle as
 
@@ -589,19 +589,19 @@ type HandlesOf procs = HList (Proc2Handle procs)
 
 
 -- | Converts list of 'Proc' the corresponding @'Name'@ symbols.
-type family Proc2Name (as :: [*]) = (nameTys :: [Symbol]) | nameTys -> as where
+type family Proc2Name (as :: [Type]) = (nameTys :: [Symbol]) | nameTys -> as where
   Proc2Name '[] = '[]
   Proc2Name (a ': as) = Name a ': Proc2Name as
 
 
 -- | Convert list of 'ProcHandle' types to corresponding @'KV'@ types.
-type family Handle2KV (ts :: [*]) = (kvTys :: [*]) | kvTys -> ts where
+type family Handle2KV (ts :: [Type]) = (kvTys :: [Type]) | kvTys -> ts where
   Handle2KV '[] = '[]
   Handle2KV (ProcHandle t ': ts) = KV (Name t) (ProcHandle t) ': Handle2KV ts
 
 
 -- | Used by @'AreProcs'@ to prove a list of types just contains @'Proc's@.
-data SomeProcs (as :: [*]) where
+data SomeProcs (as :: [Type]) where
   SomeProcsNil :: SomeProcs '[]
   SomeProcsCons :: (Proc a, IsAbsent a as) => SomeProcs as -> SomeProcs (a ': as)
 
@@ -620,7 +620,7 @@ instance (Proc a, AreProcs as, IsAbsent a as) => AreProcs (a ': as) where
 
 
 -- | Used to prove a list of types just contains @'ProcHandle's@.
-data SomeHandles (as :: [*]) where
+data SomeHandles (as :: [Type]) where
   SomeHandlesNil :: SomeHandles '[]
   SomeHandlesCons :: Proc a => SomeHandles as -> SomeHandles (ProcHandle a ': as)
 
@@ -631,7 +631,7 @@ p2h (SomeProcsCons cons) = SomeHandlesCons (p2h cons)
 
 
 -- | Used by @'Connectables'@ to prove a list of types just contains @'Connectable's@.
-data SomeConns (as :: [*]) where
+data SomeConns (as :: [Type]) where
   SomeConnsNil :: SomeConns '[]
   SomeConnsCons :: (Connectable a, IsAbsent a as) => SomeConns as -> SomeConns (a ': as)
 
@@ -650,7 +650,7 @@ instance (Connectable a, Connectables as, IsAbsent a as) => Connectables (a ': a
 
 
 -- | Convert list of 'Connectable' types to corresponding 'Conn' types.
-type family ConnsOf (cs :: [*]) = (conns :: [*]) | conns -> cs where
+type family ConnsOf (cs :: [Type]) = (conns :: [Type]) | conns -> cs where
   ConnsOf '[] = '[]
   ConnsOf (c ': cs) = Conn c ': ConnsOf cs
 
@@ -720,7 +720,7 @@ sortHandles = hReorder
 
 
 unsortHandles ::
-  ( sorted ~ SortHandles (handles)
+  ( sorted ~ SortHandles handles
   , handles ~ Proc2Handle ps
   , ReorderH sorted handles
   ) =>
