@@ -32,6 +32,9 @@ module System.TmpProc.TypeLevel
   ( -- * Heterogenous List
     HList (..)
   , (&:)
+  , only
+  , (&:&)
+  , both
   , hHead
   , hOf
   , ReorderH (..)
@@ -92,10 +95,7 @@ data HList :: [Type] -> Type where
   HCons :: anyTy -> HList manyTys -> HList (anyTy ': manyTys)
 
 
-infixr 5 `HCons`
-
-
-infixr 5 &:
+infixr 5 `HCons`, &:
 
 
 -- | An infix alias for 'HCons'.
@@ -117,6 +117,24 @@ instance Eq (HList '[]) where
 
 instance (Eq x, Eq (HList xs)) => Eq (HList (x ': xs)) where
   (HCons x xs) == (HCons y ys) = x == y && xs == ys
+
+
+-- | Construct a two-item HList.
+both :: x -> y -> HList '[x, y]
+both v w = v &: w &: HNil
+
+
+infixr 6 `both`, &:&
+
+
+-- | An infix alias for 'both'.
+(&:&) :: x -> y -> HList '[x, y]
+(&:&) = both
+
+
+-- | Construct a singleton HList
+only :: x -> HList '[x]
+only v = v &: HNil
 
 
 -- | Use a type-level symbol as /key/ type that indexes a /value/ type.

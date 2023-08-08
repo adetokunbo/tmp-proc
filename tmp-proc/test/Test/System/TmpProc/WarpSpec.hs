@@ -15,24 +15,24 @@ import Data.Text (Text)
 import qualified Network.HTTP.Client as HC
 import Network.HTTP.Types (status200, status400)
 import Network.Wai (Application, pathInfo, responseLBS)
-import System.TmpProc.Docker (
-  HList (..),
-  HandlesOf,
-  Pinged (..),
-  ProcHandle,
-  handleOf,
-  ixPing,
- )
-import System.TmpProc.Warp (
-  ServerHandle,
-  handles,
-  runServer,
-  runTLSServer,
-  serverPort,
-  shutdown,
-  testWithApplication,
-  testWithTLSApplication,
- )
+import System.TmpProc.Docker
+  ( HList (..)
+  , HandlesOf
+  , Pinged (..)
+  , ProcHandle
+  , handleOf
+  , ixPing
+  )
+import System.TmpProc.Warp
+  ( ServerHandle
+  , handles
+  , runServer
+  , runTLSServer
+  , serverPort
+  , shutdown
+  , testWithApplication
+  , testWithTLSApplication
+  )
 import Test.Hspec
 import Test.Hspec.TmpProc (tdescribe)
 import Test.HttpBin
@@ -151,6 +151,6 @@ pingOrFail handle = do
                   )
   catchHttp $ do
     gotStatus <- handleGet handle "/status/200"
-    if (gotStatus == 200)
+    if gotStatus == 200
       then pure ()
       else fail "tmp proc:httpbin:incorrect ping status"
