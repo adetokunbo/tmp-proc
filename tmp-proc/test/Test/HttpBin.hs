@@ -13,8 +13,7 @@ import qualified Data.Text as Text
 import qualified Network.HTTP.Client as HC
 import Network.HTTP.Types.Status (statusCode)
 import System.TmpProc
-  ( HList (..)
-  , HandlesOf
+  ( HandlesOf
   , HostIpAddress
   , Pinged (..)
   , Proc (..)
@@ -24,23 +23,22 @@ import System.TmpProc
   , startupAll
   , toPinged
   , (&:)
+  , (&:&)
   )
 
 
 setupHandles :: IO (HandlesOf '[HttpBinTest, NginxTest, HttpBinTest3])
-setupHandles = startupAll $ HttpBinTest &: NginxTest &: HttpBinTest3 &: HNil
+setupHandles = startupAll $ HttpBinTest &: NginxTest &:& HttpBinTest3
 
 
 -- | A data type representing a connection to an Nginx server.
 data NginxTest = NginxTest
 
 
--- | Run HttpBin as temporary process.
+-- | Run Nginx as temporary process.
 instance Proc NginxTest where
   type Image NginxTest = "nginx:1.25.1"
   type Name NginxTest = "nginx-test"
-
-
   uriOf = mkUri'
   runArgs = []
   reset _ = pure ()
@@ -55,8 +53,6 @@ data HttpBinTest = HttpBinTest
 instance Proc HttpBinTest where
   type Image HttpBinTest = "kennethreitz/httpbin"
   type Name HttpBinTest = "http-bin-test"
-
-
   uriOf = mkUri'
   runArgs = []
   reset _ = pure ()
@@ -75,8 +71,6 @@ data HttpBinTest2 = HttpBinTest2
 instance Proc HttpBinTest2 where
   type Image HttpBinTest2 = "kennethreitz/httpbin"
   type Name HttpBinTest2 = "http-bin-test-2"
-
-
   uriOf = mkUri'
   runArgs = []
   reset _ = pure ()
@@ -95,8 +89,6 @@ data HttpBinTest3 = HttpBinTest3
 instance Proc HttpBinTest3 where
   type Image HttpBinTest3 = "kennethreitz/httpbin"
   type Name HttpBinTest3 = "http-bin-test-3"
-
-
   uriOf = mkUri'
   runArgs = []
   reset _ = pure ()

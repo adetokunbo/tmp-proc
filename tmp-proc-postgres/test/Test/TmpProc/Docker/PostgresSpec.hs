@@ -1,42 +1,38 @@
-{-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE TypeApplications #-}
+
 module Test.TmpProc.Docker.PostgresSpec where
 
-import           Test.Hspec
-import           Test.Hspec.TmpProc
-
-import           Control.Exception              (onException)
-import           Data.Proxy                     (Proxy (..))
-import           Data.Text                      (Text)
-import qualified Data.Text                      as Text
-import           Database.PostgreSQL.Simple     (execute_)
-
-import           System.TmpProc.Docker.Postgres
+import Control.Exception (onException)
+import Data.Proxy (Proxy (..))
+import Data.Text (Text)
+import qualified Data.Text as Text
+import Database.PostgreSQL.Simple (execute_)
+import System.TmpProc.Docker.Postgres
+import Test.Hspec
+import Test.Hspec.TmpProc
 
 
 spec :: Spec
 spec = tdescribe desc $ do
   beforeAll setupHandles $ afterAll terminateAll $ do
     context "when accessing from a list of other procs" $ do
-
       context "ixPing" $ do
-
-        it "should succeed" $ \hs
-          -> ixPing @TmpPostgres Proxy hs `shouldReturn` OK
+        it "should succeed" $ \hs ->
+          ixPing @TmpPostgres Proxy hs `shouldReturn` OK
 
       context "ixReset" $ do
+        it "should succeed when accessed by Name" $ \hs ->
+          ixReset @"a-postgres-db" Proxy hs `shouldReturn` ()
 
-        it "should succeed when accessed by Name" $ \hs
-          -> ixReset @"a-postgres-db" Proxy hs `shouldReturn` ()
-
-        it "should succeed when accessed by Type" $ \hs
-          -> ixReset @TmpPostgres Proxy hs `shouldReturn` ()
+        it "should succeed when accessed by Type" $ \hs ->
+          ixReset @TmpPostgres Proxy hs `shouldReturn` ()
 
 
 setupHandles :: IO (HList '[ProcHandle TmpPostgres])
 setupHandles = do
-  hs <- startupAll $ testProc `HCons` HNil
+  hs <- startupAll $ only testProc
   initTable hs `onException` terminateAll hs
   pure hs
 
