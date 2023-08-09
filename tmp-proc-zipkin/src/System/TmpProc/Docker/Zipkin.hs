@@ -55,6 +55,7 @@ import System.TmpProc
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
+  , only
   , startupAll
   , toPinged
   , withTmpConn
@@ -63,7 +64,7 @@ import System.TmpProc
 
 -- | A singleton 'HList' containing a 'TmpZipkin'.
 aProc :: HList '[TmpZipkin]
-aProc = TmpZipkin `HCons` HNil
+aProc = only TmpZipkin
 
 
 -- | An 'HList' that just contains the handle created by 'aProc'.
@@ -79,19 +80,13 @@ data TmpZipkin = TmpZipkin
 instance Proc TmpZipkin where
   type Image TmpZipkin = "openzipkin/zipkin-slim"
   type Name TmpZipkin = "a-zipkin-server"
-
-
   uriOf = mkUri'
   runArgs = []
   pingCount = 6
-
-
   ping h = toPinged @HttpException Proxy $ do
-    z <- openConn' h
+    z <- ZPK.new $ toSettings h
     ZPK.run tracedPing z
     ZPK.publish z
-
-
   reset _ = pure ()
 
 
@@ -102,14 +97,8 @@ a close analogue.
 -}
 instance Connectable TmpZipkin where
   type Conn TmpZipkin = ZPK.Zipkin
-
-
-  openConn = openConn'
+  openConn = ZPK.new . toSettings
   closeConn _ = pure ()
-
-
-openConn' :: ProcHandle TmpZipkin -> IO ZPK.Zipkin
-openConn' = ZPK.new . toSettings
 
 
 -- | Make a simple HTTP uri to the zipkin server.

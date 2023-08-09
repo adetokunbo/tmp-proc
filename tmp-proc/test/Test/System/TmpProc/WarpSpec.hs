@@ -22,6 +22,7 @@ import System.TmpProc.Docker
   , ProcHandle
   , handleOf
   , ixPing
+  , only
   )
 import System.TmpProc.Warp
   ( ServerHandle
@@ -45,7 +46,7 @@ spec = tdescribe "Tmp.Proc: Warp server with Tmp.Proc dependency" $ do
 
 
 testProcs :: HList '[HttpBinTest]
-testProcs = HttpBinTest `HCons` HNil
+testProcs = only HttpBinTest
 
 
 testApp :: HandlesOf '[HttpBinTest] -> IO Application

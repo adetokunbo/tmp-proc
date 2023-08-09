@@ -48,7 +48,7 @@ import Network.HTTP.Types.Status (statusCode)
 import           System.TmpProc        (HList (..), HandlesOf, HostIpAddress,
                                         Pinged (..), Proc (..), ProcHandle (..),
                                         SvcURI, manyNamed, startupAll, toPinged,
-                                        (&:), ixPing, nameOf, terminateAll)
+                                        only, ixPing, nameOf, terminateAll)
 
 ```
 
@@ -116,7 +116,7 @@ Each `Proc` instance must provide a valid `ping` implementation, `tmp-proc` uses
 
 spec :: Spec
 spec = describe ("Tmp.Proc: " ++ Text.unpack (nameOf HttpBinLhs)) $ do
-  beforeAll (startupAll $ HttpBinLhs &: HNil) $ afterAll terminateAll $ do
+  beforeAll (startupAll $ only HttpBinLhs) $ afterAll terminateAll $ do
     context "When accessing the services in the list of test tmp procs" $ do
 
       context "ixPing" $ do
@@ -136,7 +136,7 @@ features of `tmp-proc`.  E.g,
 
   ```ignore
   ...
-  beforeAll (startupAll $ HttpBinLhs &: HNil) $ afterAll terminateAll $ do
+  beforeAll (startupAll $ only HttpBinLhs) $ afterAll terminateAll $ do
   ```
 
    - this results in an `HList` of [ProcHandle][9] types being passed to each test.

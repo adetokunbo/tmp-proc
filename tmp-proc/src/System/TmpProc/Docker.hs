@@ -149,10 +149,14 @@ import System.TmpProc.TypeLevel
   , ReorderH (..)
   , SortSymbols
   , Take
+  , both
+  , hHead
   , hOf
+  , only
   , select
   , selectMany
   , (&:)
+  , (&:&)
   )
 
 
