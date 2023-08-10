@@ -2,6 +2,10 @@
 
 `tmp-proc-example` uses [PVP Versioning][1].
 
+## 0.5.3.0 -- 2023-08-10
+
+* Use the new `both` constructor
+
 ## 0.5.1.2 -- 2022-08-16
 
 * Bump versions of tmp-proc dependencies

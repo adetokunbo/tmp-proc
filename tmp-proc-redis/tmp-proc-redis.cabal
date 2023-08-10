@@ -1,9 +1,9 @@
 cabal-version:      3.0
 name:               tmp-proc-redis
-version:            0.5.1.4
-synopsis:           Shows how to run redis as a tmp proc
+version:            0.5.3.0
+synopsis:           Launch Redis in docker using tmp-proc
 description:
-  An example of using tmp-proc to launch dockerized redis in integration tests.
+  Demos how to use tmp-proc to run Redis in docker in a unittest.
 
 license:            BSD-3-Clause
 license-file:       LICENSE

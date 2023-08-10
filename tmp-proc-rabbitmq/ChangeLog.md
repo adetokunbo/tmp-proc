@@ -1,5 +1,12 @@
 # Revision history for tmp-proc-rabbitmq
 
+`tmp-proc-rabbitmq` uses [PVP Versioning][1].
+
+## 0.5.3.0 -- 2023-08-10
+
+* Use the new `only` constructor
+* Refactor the integration test
+
 ## 0.5.2.0 -- 2023-07-20
 
 * Restrict the lower bounds of amqp and tmp-proc to prevent
@@ -21,3 +28,5 @@
 
 * First version
 * Initial upload to hackage
+
+[1]: https://pvp.haskell.org

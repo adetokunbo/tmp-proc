@@ -1,5 +1,11 @@
 # Revision history for tmp-proc-zipkin
 
+`tmp-proc-zipkin` uses [PVP Versioning][1].
+
+## 0.5.3.0 -- 2023-08-10
+
+* Use new `only` constructor
+
 ## 0.5.1.4 -- 2023-07-12
 
 * Extend the version bounds of bytestring to allow 0.12
@@ -16,3 +22,5 @@
 
 * First version
 * Initial upload to hackage
+
+[1]: https://pvp.haskell.org

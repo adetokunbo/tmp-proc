@@ -1,9 +1,10 @@
 cabal-version:      3.0
 name:               tmp-proc-example
-version:            0.5.1.2
-synopsis:           Shows how to test a simple service using tmp-proc
+version:            0.5.3.0
+synopsis:           Test a simple service with backends running on docker using tmp-proc
 description:
-  Provides working examples that use tmp-proc to test a simple postgresql/redis servant-based API service
+  An example of testing a service that uses Postgresql and Redis where these
+  backends are launched in docker via simple test setup code that uses tmp-proc
 
 license:            BSD-3-Clause
 license-file:       LICENSE
