@@ -2,7 +2,7 @@
 
 `tmp-proc-postgres` uses [PVP Versioning][1].
 
-## 0.5.3.0 -- 2023-08-10
+## 0.5.3.0 -- 2023-08-11
 
 * Extend the upper version bound for postgresql-simple
 * Use the new `only` constructor
