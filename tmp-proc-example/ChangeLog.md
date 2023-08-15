@@ -2,6 +2,10 @@
 
 `tmp-proc-example` uses [PVP Versioning][1].
 
+## 0.5.3.1 -- 2023-08-16
+
+* correct the lower bound on tmp-proc
+
 ## 0.5.3.0 -- 2023-08-11
 
 * Use the new `both` constructor
