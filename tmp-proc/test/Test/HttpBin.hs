@@ -19,6 +19,7 @@ import System.TmpProc
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
+  , ToRunCmd (..)
   , manyNamed
   , startupAll
   , toPinged
@@ -43,6 +44,10 @@ instance Proc NginxTest where
   runArgs = []
   reset _ = pure ()
   ping = ping'
+
+
+instance ToRunCmd NginxTest where
+  toRunCmd _ = []
 
 
 -- | A data type representing a connection to a HttpBin server.
