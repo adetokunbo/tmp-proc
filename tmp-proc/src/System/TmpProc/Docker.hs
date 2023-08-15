@@ -110,6 +110,7 @@ import Control.Monad (void, when)
 import qualified Data.ByteString.Char8 as C8
 import Data.Kind (Type)
 import Data.List (dropWhileEnd)
+import Data.Maybe (isJust)
 import Data.Proxy (Proxy (..))
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -770,7 +771,7 @@ dockerRun args = do
 
 
 showDebug :: IO Bool
-showDebug = fmap (maybe False (const True)) $ lookupEnv debugEnv
+showDebug = isJust <$> lookupEnv debugEnv
 
 
 debugEnv :: String
