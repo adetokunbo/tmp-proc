@@ -59,6 +59,9 @@ module System.TmpProc.Docker
   , uriOf'
   , runArgs'
 
+    -- * @'ToRunCmd'@
+  , ToRunCmd (..)
+
     -- * @'ProcHandle'@
   , ProcHandle (..)
   , Proc2Handle
@@ -110,6 +113,7 @@ import Control.Monad (void, when)
 import qualified Data.ByteString.Char8 as C8
 import Data.Kind (Type)
 import Data.List (dropWhileEnd)
+import Data.Maybe (isJust)
 import Data.Proxy (Proxy (..))
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -223,6 +227,23 @@ terminate handle = do
   void $ readProcess "docker" ["rm", pid] ""
 
 
+{- | Allow customization of the docker command that launches a @'Proc'@
+|
+| The full command is
+|   `docker run -d <optional-args> $(imageText a)`
+|
+| A fallback instance is provided that works for any instance of @Proc a@
+| Specify a new instance of @ToRunCmd@ to control <optional-args>
+-}
+class ToRunCmd a where
+  -- * Generate args that follow the initial ['docker', 'run', '-d']
+  toRunCmd :: a -> [Text]
+
+
+instance {-# OVERLAPPABLE #-} (Proc a) => ToRunCmd a where
+  toRunCmd _ = runArgs @a
+
+
 -- | Specifies how to a get a connection to a 'Proc'.
 class Proc a => Connectable a where
   -- | The connection type.
@@ -322,13 +343,8 @@ uriOf' _ = uriOf @a
 
 
 -- | The full args of a @docker run@ command for starting up a 'Proc'.
-dockerCmdArgs :: forall a. (Proc a) => [Text]
-dockerCmdArgs =
-  [ "run"
-  , "-d"
-  ]
-    <> runArgs @a
-    <> [imageText' @a]
+dockerCmdArgs :: forall a. (Proc a, ToRunCmd a) => a -> [Text]
+dockerCmdArgs x = ["run", "-d"] <> toRunCmd x <> [imageText' @a]
 
 
 imageText' :: forall a. (Proc a) => Text
@@ -350,12 +366,12 @@ throwing an exception if it did not.
 
 Returns the 'ProcHandle' used to control the 'Proc' once a ping has succeeded.
 -}
-startup :: forall a. Proc a => a -> IO (ProcHandle a)
+startup :: (Proc a, ToRunCmd a) => a -> IO (ProcHandle a)
 startup x = do
-  let fullArgs = dockerCmdArgs @a
+  let fullArgs = map Text.unpack $ dockerCmdArgs x
       isGarbage = flip elem ['\'', '\n']
       trim = dropWhileEnd isGarbage . dropWhile isGarbage
-  runCmd <- dockerRun (map Text.unpack fullArgs)
+  runCmd <- dockerRun fullArgs
   hPid <- trim <$> readCreateProcess runCmd ""
   hAddr <-
     Text.pack . trim
@@ -367,8 +383,7 @@ startup x = do
         , "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
         ]
         ""
-  let hUri = uriOf @a hAddr
-      h = ProcHandle {hProc = x, hPid, hUri, hAddr}
+  let h = ProcHandle {hProc = x, hPid, hUri = uriOf' x hAddr, hAddr}
   (nPings h `onException` terminate h) >>= \case
     OK -> pure h
     pinged -> do
@@ -619,7 +634,14 @@ instance AreProcs '[] where
   procProof = SomeProcsNil
 
 
-instance (Proc a, AreProcs as, IsAbsent a as) => AreProcs (a ': as) where
+instance
+  ( Proc a
+  , ToRunCmd a
+  , AreProcs as
+  , IsAbsent a as
+  ) =>
+  AreProcs (a ': as)
+  where
   procProof = SomeProcsCons procProof
 
 
@@ -770,7 +792,7 @@ dockerRun args = do
 
 
 showDebug :: IO Bool
-showDebug = fmap (maybe False (const True)) $ lookupEnv debugEnv
+showDebug = isJust <$> lookupEnv debugEnv
 
 
 debugEnv :: String
