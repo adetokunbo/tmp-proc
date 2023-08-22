@@ -52,7 +52,6 @@ module System.TmpProc.Docker
     Proc (..)
   , Pinged (..)
   , AreProcs
-  , SomeProcs (..)
   , nameOf
   , startup
   , toPinged
@@ -200,11 +199,12 @@ data ProcHandle a = ProcHandle
 startupAll :: AreProcs procs => HList procs -> IO (HandlesOf procs)
 startupAll = go procProof
   where
-    go :: SomeProcs as -> HList as -> IO (HandlesOf as)
-    go SomeProcsNil HNil = pure HNil
-    go (SomeProcsCons cons) (x `HCons` y) = do
-      h <- startup x
-      others <- go cons y `onException` terminate h
+    go :: Uniquely Proc AreProcs as -> HList as -> IO (HandlesOf as)
+    go UniquelyNil HNil = pure HNil
+    go (UniquelyCons cons) (x `HCons` y) = do
+      others <- go cons y
+      h <- startup x `onException` terminateAll others
+      -- others <- go cons y `onException` terminate h
       pure $ h `HCons` others
 
 
@@ -619,19 +619,13 @@ type family Handle2KV (ts :: [Type]) = (kvTys :: [Type]) | kvTys -> ts where
   Handle2KV (ProcHandle t ': ts) = KV (Name t) (ProcHandle t) ': Handle2KV ts
 
 
--- | Used by @'AreProcs'@ to prove a list of types just contains @'Proc's@.
-data SomeProcs (as :: [Type]) where
-  SomeProcsNil :: SomeProcs '[]
-  SomeProcsCons :: (Proc a, IsAbsent a as) => SomeProcs as -> SomeProcs (a ': as)
-
-
 -- | Declares a proof that a list of types only contains @'Proc's@.
 class AreProcs as where
-  procProof :: SomeProcs as
+  procProof :: Uniquely Proc AreProcs as
 
 
 instance AreProcs '[] where
-  procProof = SomeProcsNil
+  procProof = UniquelyNil
 
 
 instance
@@ -642,7 +636,7 @@ instance
   ) =>
   AreProcs (a ': as)
   where
-  procProof = SomeProcsCons procProof
+  procProof = UniquelyCons procProof
 
 
 -- | Used to prove a list of types just contains @'ProcHandle's@.
@@ -651,28 +645,22 @@ data SomeHandles (as :: [Type]) where
   SomeHandlesCons :: Proc a => SomeHandles as -> SomeHandles (ProcHandle a ': as)
 
 
-p2h :: SomeProcs as -> SomeHandles (Proc2Handle as)
-p2h SomeProcsNil = SomeHandlesNil
-p2h (SomeProcsCons cons) = SomeHandlesCons (p2h cons)
-
-
--- | Used by @'Connectables'@ to prove a list of types just contains @'Connectable's@.
-data SomeConns (as :: [Type]) where
-  SomeConnsNil :: SomeConns '[]
-  SomeConnsCons :: (Connectable a, IsAbsent a as) => SomeConns as -> SomeConns (a ': as)
+p2h :: Uniquely Proc AreProcs as -> SomeHandles (Proc2Handle as)
+p2h UniquelyNil = SomeHandlesNil
+p2h (UniquelyCons cons) = SomeHandlesCons (p2h cons)
 
 
 -- | Declares a proof that a list of types only contains @'Connectable's@.
 class Connectables as where
-  connProof :: SomeConns as
+  connProof :: Uniquely Connectable Connectables as
 
 
 instance Connectables '[] where
-  connProof = SomeConnsNil
+  connProof = UniquelyNil
 
 
 instance (Connectable a, Connectables as, IsAbsent a as) => Connectables (a ': as) where
-  connProof = SomeConnsCons connProof
+  connProof = UniquelyCons connProof
 
 
 -- | Convert list of 'Connectable' types to corresponding 'Conn' types.
@@ -685,9 +673,9 @@ type family ConnsOf (cs :: [Type]) = (conns :: [Type]) | conns -> cs where
 openAll :: Connectables xs => HandlesOf xs -> IO (HList (ConnsOf xs))
 openAll = go connProof
   where
-    go :: SomeConns as -> HandlesOf as -> IO (HList (ConnsOf as))
-    go SomeConnsNil HNil = pure HNil
-    go (SomeConnsCons cons) (x `HCons` y) = do
+    go :: Uniquely Connectable Connectables as -> HandlesOf as -> IO (HList (ConnsOf as))
+    go UniquelyNil HNil = pure HNil
+    go (UniquelyCons cons) (x `HCons` y) = do
       c <- openConn x
       others <- go cons y `onException` closeConn c
       pure $ c `HCons` others
@@ -697,9 +685,9 @@ openAll = go connProof
 closeAll :: Connectables procs => HList (ConnsOf procs) -> IO ()
 closeAll = go connProof
   where
-    go :: SomeConns as -> HList (ConnsOf as) -> IO ()
-    go SomeConnsNil HNil = pure ()
-    go (SomeConnsCons cons) (x `HCons` y) = closeConn x >> go cons y
+    go :: Uniquely Connectable Connectables as -> HList (ConnsOf as) -> IO ()
+    go UniquelyNil HNil = pure ()
+    go (UniquelyCons cons) (x `HCons` y) = closeConn x >> go cons y
 
 
 -- | Open some connections, use them in an action; close them.
@@ -733,6 +721,14 @@ withNamedConns ::
   (HList (ConnsOf namedConns) -> IO b) ->
   IO b
 withNamedConns proxy = withConns . manyNamed proxy
+
+
+{- | Used to support type classes that prove a list of types is constrained to
+unique instances of another type class.
+-}
+data Uniquely f fs (as :: [Type]) where
+  UniquelyNil :: Uniquely f fs '[]
+  UniquelyCons :: (IsAbsent a as, f a, fs as) => Uniquely f fs as -> Uniquely f fs (a ': as)
 
 
 sortHandles ::
