@@ -2,6 +2,10 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
+## 0.6.0.0 -- 2023-08-30
+
+* Removed SomeProcs
+
 ## 0.5.3.0 -- 2023-08-11
 
 * Add HList constructors `only` and `both` (alias: `&:&`)

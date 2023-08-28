@@ -1,5 +1,11 @@
 # Revision history for hspec-tmp-proc
 
+`hspec-tmp-proc` uses [PVP Versioning][1].
+
+## 0.6.0.0 -- 2023-08-30
+
+* Extend the upper bound for tmp-proc to 0.6
+
 ## 0.5.2.0 -- 2023-07-17
 
 * Reflect new lower bounds in tmp-proc 0.5.2.0
@@ -20,3 +26,5 @@
 
 * Initial release
 * Initial upload to hackage
+
+[1]: https://pvp.haskell.org
