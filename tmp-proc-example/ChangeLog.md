@@ -2,6 +2,10 @@
 
 `tmp-proc-example` uses [PVP Versioning][1].
 
+## 0.6.0.0 -- 2023-08-30
+
+* Extend the upper bound for tmp-proc to 0.6
+
 ## 0.5.3.1 -- 2023-08-16
 
 * correct the lower bound on tmp-proc
