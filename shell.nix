@@ -1,5 +1,5 @@
 let
-  project = import ./default.nix;
+  project = import ./default.nix {};
 in
   project.shellFor {
     # Builds a Hoogle documentation index of all dependencies,
@@ -9,9 +9,10 @@ in
     # Some common tools can be added with the `tools` argument
     tools = {
       cabal = "latest";
+      hlint = "latest"; # Selects the latest version in the hackage.nix snapshot
       haskell-language-server = "latest";
       ghcid = "latest";
-      fourmolu = "latest";
+      fourmolu = "0.14.0.0";
       cabal-fmt = "latest";
     };
     # See overlays/tools.nix for more details
