@@ -1,6 +1,6 @@
 let
-  # Pin haskell-nix to a recent (as of 2023/11/24) commit
-  h8x-commit = "c6e3c91844e91f86cb64015258eed2ed8545d2a9";
+  dev = import ./dev.nix;
+  inherit (dev) h8x-commit;
   h8x-pin = "https://github.com/input-output-hk/haskell.nix/archive/${h8x-commit}.tar.gz";
   h8x-src = builtins.fetchTarball h8x-pin;
   h8x = import h8x-src {};
