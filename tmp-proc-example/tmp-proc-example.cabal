@@ -55,7 +55,6 @@ library
     , hspec
     , hspec-tmp-proc
     , http-client
-    , http-client-tls
     , monad-logger
     , mtl
     , persistent

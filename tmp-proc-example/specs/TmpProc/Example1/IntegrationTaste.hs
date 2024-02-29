@@ -18,8 +18,7 @@ import Data.Either (isLeft)
 import Data.Maybe (isJust)
 import Data.Proxy (Proxy (..))
 import Database.Redis (parseConnectInfo)
-import Network.HTTP.Client (newManager)
-import Network.HTTP.Client.TLS (tlsManagerSettings)
+import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Servant.Client
   ( BaseUrl (..)
   , ClientEnv
@@ -157,9 +156,9 @@ cacheLocFrom handle = case parseConnectInfo $ C8.unpack $ hUri handle of
   Right x -> pure x
 
 
-clientEnvOf :: AreProcs procs => ServerHandle procs -> IO ClientEnv
+clientEnvOf :: (AreProcs procs) => ServerHandle procs -> IO ClientEnv
 clientEnvOf s = do
-  mgr <- newManager tlsManagerSettings
+  mgr <- newManager defaultManagerSettings
   pure $ mkClientEnv mgr $ BaseUrl Http "localhost" (serverPort s) ""
 
 

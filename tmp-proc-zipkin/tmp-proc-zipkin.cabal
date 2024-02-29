@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               tmp-proc-zipkin
-version:            0.6.0.0
+version:            0.6.0.1
 synopsis:           Launch ZipKin in docker using tmp-proc
 description:
   Demos how to use tmp-proc to run ZipKin in docker in a unittest.
@@ -33,7 +33,7 @@ library
   hs-source-dirs:   src
   build-depends:
     , base         >=4.11     && <5
-    , bytestring   >=0.10.8.2 && <0.12.1
+    , bytestring   >=0.10.8.2 && <0.12.2
     , http-client  >=0.5.13.1 && <0.8.0.0
     , text         >=1.2.3 && <2.2
     , tmp-proc     >=0.5.3  && <0.7

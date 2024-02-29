@@ -2,6 +2,10 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
+## 0.6.0.1 -- 2024-02-28
+
+* Extend the version bounds of bytestring to allow 0.12.1
+
 ## 0.6.0.0 -- 2024-01-09
 
 * Removed SomeProcs

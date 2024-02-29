@@ -17,8 +17,7 @@ import Control.Exception (onException)
 import Data.Either (isLeft)
 import Data.Maybe (isJust)
 import Data.Proxy (Proxy (..))
-import Network.HTTP.Client (newManager)
-import Network.HTTP.Client.TLS (tlsManagerSettings)
+import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Servant.Client
   ( BaseUrl (..)
   , ClientEnv
@@ -106,7 +105,7 @@ spec = tdescribe "Tmp.Proc:Demo of testing of DB/Cache server" $ do
 
 Note the use of the 'HasHandle' constraint to indicate what TmpProcs the function uses.
 -}
-hasInCache :: HasHandle TmpRedis procs => ServerHandle procs -> ContactID -> IO Bool
+hasInCache :: (HasHandle TmpRedis procs) => ServerHandle procs -> ContactID -> IO Bool
 hasInCache sh cid = withConnOf @TmpRedis Proxy (handles sh) $ \cache ->
   fmap isJust $ Cache.loadContact cache cid
 
@@ -157,9 +156,9 @@ shutdown' :: Fixture -> IO ()
 shutdown' (sh, _) = shutdown sh
 
 
-clientEnvOf :: AreProcs procs => ServerHandle procs -> IO ClientEnv
+clientEnvOf :: (AreProcs procs) => ServerHandle procs -> IO ClientEnv
 clientEnvOf s = do
-  mgr <- newManager tlsManagerSettings
+  mgr <- newManager defaultManagerSettings
   pure $ mkClientEnv mgr $ BaseUrl Http "localhost" (serverPort s) ""
 
 
