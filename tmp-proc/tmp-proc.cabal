@@ -63,7 +63,7 @@ library
     , network     >=2.6.3.6  && <3.2
     , process     ^>=1.6.3.0
     , text        >=1.2.3 && <2.2
-    , tls-session-manager < 0.0.5
+    , tls         >=1.7 && <2.0
     , unliftio    ^>=0.2.7
     , wai         >=3.2      && <3.3
     , warp        >=3.3      && <3.5
