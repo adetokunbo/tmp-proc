@@ -18,7 +18,7 @@ jobs:
     strategy:
       matrix:
         cabal: ["3.10"]
-        ghc: ["8.8.4", "8.10.7", "9.0.2", "9.2.8", "9.4.5"]
+        ghc: ["8.10.7", "9.0.2", "9.2.8", "9.4.5"]
     env:
       CONFIG: "--enable-tests --enable-benchmarks --flags=build-the-readme"
     steps:
