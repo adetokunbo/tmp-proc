@@ -2,6 +2,11 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
+## 0.6.1.0 -- 2024-03-14
+
+* Extend the version bounds of tls to allow 2.1
+* Drop support for compiling with GHC 8.8.4
+
 ## 0.6.0.1 -- 2024-02-28
 
 * Extend the version bounds of bytestring to allow 0.12.1
