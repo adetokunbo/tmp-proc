@@ -245,7 +245,7 @@ instance {-# OVERLAPPABLE #-} (Proc a) => ToRunCmd a where
 
 
 -- | Specifies how to a get a connection to a 'Proc'.
-class Proc a => Connectable a where
+class (Proc a) => Connectable a where
   -- | The connection type.
   type Conn a = (conn :: Type) | conn -> a
 
@@ -391,7 +391,7 @@ startup x = do
       fail $ pingedMsg x pinged
 
 
-pingedMsg :: Proc a => a -> Pinged -> String
+pingedMsg :: (Proc a) => a -> Pinged -> String
 pingedMsg _ OK = ""
 pingedMsg p NotOK = "tmp proc:" ++ Text.unpack (nameOf p) ++ ":could not be pinged"
 pingedMsg p (PingFailed err) =
@@ -402,12 +402,12 @@ pingedMsg p (PingFailed err) =
 
 
 -- | Use an action that might throw an exception as a ping.
-toPinged :: forall e a. Exception e => Proxy e -> IO a -> IO Pinged
+toPinged :: forall e a. (Exception e) => Proxy e -> IO a -> IO Pinged
 toPinged _ action = (action >> pure OK) `catch` (\(_ :: e) -> pure NotOK)
 
 
 -- | Ping a 'ProcHandle' several times.
-nPings :: Proc a => ProcHandle a -> IO Pinged
+nPings :: (Proc a) => ProcHandle a -> IO Pinged
 nPings h@ProcHandle {hProc = p} =
   let
     count = fromEnum $ pingCount' p
@@ -462,7 +462,7 @@ type HasNamedHandle name a procs =
 
 
 -- | Run an action on a 'Connectable' handle as a callback on its 'Conn'
-withTmpConn :: Connectable a => ProcHandle a -> (Conn a -> IO b) -> IO b
+withTmpConn :: (Connectable a) => ProcHandle a -> (Conn a -> IO b) -> IO b
 withTmpConn handle = bracket (openConn handle) closeConn
 
 
@@ -484,7 +484,7 @@ type SomeNamedHandles names procs someProcs sortedProcs =
 
 -- | Select the named @'ProcHandle's@ from an 'HList' of @'ProcHandle'@.
 manyNamed ::
-  SomeNamedHandles names namedProcs someProcs sortedProcs =>
+  (SomeNamedHandles names namedProcs someProcs sortedProcs) =>
   Proxy names ->
   HandlesOf someProcs ->
   HandlesOf namedProcs
@@ -593,7 +593,7 @@ toSortedKVs procHandles = toKVs $ sortHandles procHandles
 
 
 -- | Convert a 'ProcHandle' to a 'KV'.
-toKV :: Proc a => ProcHandle a -> KV (Name a) (ProcHandle a)
+toKV :: (Proc a) => ProcHandle a -> KV (Name a) (ProcHandle a)
 toKV = V
 
 
@@ -642,7 +642,7 @@ instance
 -- | Used to prove a list of types just contains @'ProcHandle's@.
 data SomeHandles (as :: [Type]) where
   SomeHandlesNil :: SomeHandles '[]
-  SomeHandlesCons :: Proc a => SomeHandles as -> SomeHandles (ProcHandle a ': as)
+  SomeHandlesCons :: (Proc a) => SomeHandles as -> SomeHandles (ProcHandle a ': as)
 
 
 p2h :: Uniquely Proc AreProcs as -> SomeHandles (Proc2Handle as)
@@ -670,7 +670,7 @@ type family ConnsOf (cs :: [Type]) = (conns :: [Type]) | conns -> cs where
 
 
 -- | Open all the 'Connectable' types to corresponding 'Conn' types.
-openAll :: Connectables xs => HandlesOf xs -> IO (HList (ConnsOf xs))
+openAll :: (Connectables xs) => HandlesOf xs -> IO (HList (ConnsOf xs))
 openAll = go connProof
   where
     go :: Uniquely Connectable Connectables as -> HandlesOf as -> IO (HList (ConnsOf as))
@@ -682,7 +682,7 @@ openAll = go connProof
 
 
 -- | Close some 'Connectable' types.
-closeAll :: Connectables procs => HList (ConnsOf procs) -> IO ()
+closeAll :: (Connectables procs) => HList (ConnsOf procs) -> IO ()
 closeAll = go connProof
   where
     go :: Uniquely Connectable Connectables as -> HList (ConnsOf as) -> IO ()
@@ -692,7 +692,7 @@ closeAll = go connProof
 
 -- | Open some connections, use them in an action; close them.
 withConns ::
-  Connectables procs =>
+  (Connectables procs) =>
   HandlesOf procs ->
   (HList (ConnsOf procs) -> IO b) ->
   IO b
