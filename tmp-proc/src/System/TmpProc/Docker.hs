@@ -65,10 +65,15 @@ module System.TmpProc.Docker
   , ProcHandle (..)
   , Proc2Handle
   , HandlesOf
+  , NetworkHandlesOf
   , startupAll
+  , startupAll'
   , terminateAll
+  , netwTerminateAll
+  , netwStartupAll
   , withTmpProcs
   , manyNamed
+  , genNetworkName
   , handleOf
   , ixReset
   , ixPing
@@ -112,11 +117,13 @@ import Control.Monad (void, when)
 import qualified Data.ByteString.Char8 as C8
 import Data.Kind (Type)
 import Data.List (dropWhileEnd)
-import Data.Maybe (isJust)
+import Data.Maybe (fromMaybe, isJust)
 import Data.Proxy (Proxy (..))
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
+import Data.Word (Word16)
+import Fmt ((+|), (|+))
 import GHC.TypeLits
   ( CmpSymbol
   , KnownSymbol
@@ -139,6 +146,7 @@ import System.Process
   , waitForProcess
   , withCreateProcess
   )
+import System.Random (randomIO)
 import System.TmpProc.TypeLevel
   ( Drop
   , HList (..)
@@ -179,11 +187,13 @@ hasDocker = do
 
 -- | Set up some @'Proc's@, run an action that uses them, then terminate them.
 withTmpProcs ::
-  AreProcs procs =>
+  (AreProcs procs) =>
   HList procs ->
   (HandlesOf procs -> IO b) ->
   IO b
-withTmpProcs procs = bracket (startupAll procs) terminateAll
+withTmpProcs procs action =
+  let wrapAction f (_, ps) = f ps
+   in bracket (netwStartupAll procs) netwTerminateAll $ wrapAction action
 
 
 -- | Provides access to a 'Proc' that has been started.
@@ -196,20 +206,42 @@ data ProcHandle a = ProcHandle
 
 
 -- | Start up processes for each 'Proc' type.
-startupAll :: AreProcs procs => HList procs -> IO (HandlesOf procs)
-startupAll = go procProof
-  where
+startupAll :: (AreProcs procs) => HList procs -> IO (HandlesOf procs)
+startupAll ps = snd <$> startupAll' Nothing ps
+
+
+-- | Like 'startupAll' but creates a new docker network and that the processes use
+netwStartupAll :: (AreProcs procs) => HList procs -> IO (NetworkHandlesOf procs)
+netwStartupAll ps = do
+  netwName <- genNetworkName
+  startupAll' (Just netwName) ps
+
+
+-- | Start up processes for each 'Proc' type.
+startupAll' :: (AreProcs procs) => Maybe Text -> HList procs -> IO (NetworkHandlesOf procs)
+startupAll' ntwkMb ps =
+  let
+    mayCreateNetwork = case ntwkMb of
+      Nothing -> pure ()
+      Just name -> void $ readProcess "docker" (createNetworkArgs $ Text.unpack name) ""
+    wrap x = (fromMaybe "" ntwkMb, x)
+
+    -- generate a network name before calling go
     go :: Uniquely Proc AreProcs as -> HList as -> IO (HandlesOf as)
     go UniquelyNil HNil = pure HNil
     go (UniquelyCons cons) (x `HCons` y) = do
       others <- go cons y
-      h <- startup x `onException` terminateAll others
+      h <- startup' ntwkMb x `onException` terminateAll others
       -- others <- go cons y `onException` terminate h
       pure $ h `HCons` others
+   in
+    do
+      mayCreateNetwork
+      wrap <$> go procProof ps
 
 
 -- | Terminate all processes owned by some @'ProcHandle's@.
-terminateAll :: AreProcs procs => HandlesOf procs -> IO ()
+terminateAll :: (AreProcs procs) => HandlesOf procs -> IO ()
 terminateAll = go $ p2h procProof
   where
     go :: SomeHandles as -> HList as -> IO ()
@@ -217,6 +249,16 @@ terminateAll = go $ p2h procProof
     go (SomeHandlesCons cons) (x `HCons` y) = do
       terminate x
       go cons y
+
+
+{- | Like 'terminateAll', but also removes the docker network connecting the
+processes.
+-}
+netwTerminateAll :: (AreProcs procs) => NetworkHandlesOf procs -> IO ()
+netwTerminateAll (ntwk, ps) = do
+  let name' = Text.unpack ntwk
+  terminateAll ps
+  void $ readProcess "docker" (removeNetworkArgs name') ""
 
 
 -- | Terminate the process owned by a @'ProcHandle's@.
@@ -343,12 +385,19 @@ uriOf' _ = uriOf @a
 
 
 -- | The full args of a @docker run@ command for starting up a 'Proc'.
-dockerCmdArgs :: forall a. (Proc a, ToRunCmd a) => a -> [Text]
-dockerCmdArgs x = ["run", "-d"] <> toRunCmd x <> [imageText' @a]
+dockerCmdArgs :: forall a. (Proc a, ToRunCmd a) => a -> Maybe Text -> [Text]
+dockerCmdArgs x ntwkMb =
+  let toNetworkArgs n = ["--network", n]
+      networkArg = maybe mempty toNetworkArgs ntwkMb
+   in ["run", "-d"] <> nameArg @a <> networkArg <> toRunCmd x <> [imageText' @a]
 
 
 imageText' :: forall a. (Proc a) => Text
 imageText' = Text.pack $ symbolVal (Proxy :: Proxy (Image a))
+
+
+nameArg :: forall a. (Proc a) => [Text]
+nameArg = ["--name", Text.pack $ symbolVal $ Proxy @(Name a)]
 
 
 -- | The IP address of the docker host.
@@ -367,8 +416,13 @@ throwing an exception if it did not.
 Returns the 'ProcHandle' used to control the 'Proc' once a ping has succeeded.
 -}
 startup :: (Proc a, ToRunCmd a) => a -> IO (ProcHandle a)
-startup x = do
-  let fullArgs = map Text.unpack $ dockerCmdArgs x
+startup = startup' Nothing
+
+
+startup' :: (Proc a, ToRunCmd a) => Maybe Text -> a -> IO (ProcHandle a)
+startup' ntwkMb x = do
+  -- network name needs to be passed in
+  let fullArgs = map Text.unpack $ dockerCmdArgs x ntwkMb
       isGarbage = flip elem ['\'', '\n']
       trim = dropWhileEnd isGarbage . dropWhile isGarbage
   runCmd <- dockerRun fullArgs
@@ -607,6 +661,10 @@ type family Proc2Handle (as :: [Type]) = (handleTys :: [Type]) | handleTys -> as
 type HandlesOf procs = HList (Proc2Handle procs)
 
 
+-- | A list of @'ProcHandle'@ values with the docker network of their processes
+type NetworkHandlesOf procs = (Text, HList (Proc2Handle procs))
+
+
 -- | Converts list of 'Proc' the corresponding @'Name'@ symbols.
 type family Proc2Name (as :: [Type]) = (nameTys :: [Symbol]) | nameTys -> as where
   Proc2Name '[] = '[]
@@ -799,3 +857,20 @@ printDebug :: Text -> IO ()
 printDebug t = do
   canPrint <- showDebug
   when canPrint $ Text.hPutStrLn stderr t
+
+
+-- | generate a random network name
+genNetworkName :: IO Text
+genNetworkName = networkNameOf <$> randomIO
+
+
+networkNameOf :: Word16 -> Text
+networkNameOf suffix = "tmp-proc-" +| suffix |+ ""
+
+
+createNetworkArgs :: String -> [String]
+createNetworkArgs name = ["network", "create", "-d", "bridge", name]
+
+
+removeNetworkArgs :: String -> [String]
+removeNetworkArgs name = ["network", "remove", "-f", name]

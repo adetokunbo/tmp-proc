@@ -31,100 +31,120 @@ module System.TmpProc.Warp
     -- * Health check support
   , checkHealth
   )
-
 where
 
-import           Control.Concurrent          (myThreadId, newEmptyMVar, putMVar,
-                                              readMVar, takeMVar, threadDelay,
-                                              throwTo)
-import           Control.Exception           (ErrorCall (..))
-import           Control.Monad               (void, when)
-import           Control.Monad.Cont          (cont, runCont)
-import           Network.Socket              (Socket, close)
-import           Network.Wai                 (Application)
-import qualified Network.Wai.Handler.Warp    as Warp
+import Control.Concurrent
+  ( myThreadId
+  , newEmptyMVar
+  , putMVar
+  , readMVar
+  , takeMVar
+  , threadDelay
+  , throwTo
+  )
+import Control.Exception (ErrorCall (..))
+import Control.Monad (void, when)
+import Control.Monad.Cont (cont, runCont)
+import Data.Text (Text)
+import Network.Socket (Socket, close)
+import Network.Wai (Application)
+import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
-import           UnliftIO                    (Async, async, bracket, cancel,
-                                              catch, onException, race, throwIO,
-                                              waitEither)
-
-import           System.TmpProc.Docker       (AreProcs, HList (..), HandlesOf,
-                                              startupAll, terminateAll,
-                                              withTmpProcs)
+import System.TmpProc.Docker
+  ( AreProcs
+  , HList (..)
+  , HandlesOf
+  , netwStartupAll
+  , netwTerminateAll
+  , withTmpProcs
+  )
+import UnliftIO
+  ( Async
+  , async
+  , bracket
+  , cancel
+  , catch
+  , onException
+  , race
+  , throwIO
+  , waitEither
+  )
 
 
 -- | Represents a started Warp application and any 'AreProcs' dependencies.
 data ServerHandle procs = ServerHandle
-  { shServer  :: !(Async ())
-  , shPort    :: !Warp.Port
-  , shSocket  :: !Socket
+  { shServer :: !(Async ())
+  , shPort :: !Warp.Port
+  , shSocket :: !Socket
   , shHandles :: !(HandlesOf procs)
+  , shNetwork :: !Text
   }
 
+
 -- | Runs an 'Application' with @ProcHandle@ dependencies on a free port.
-runServer
-  :: AreProcs procs
-  => HList procs
-  -> (HandlesOf procs -> IO Application)
-  -> IO (ServerHandle procs)
+runServer ::
+  (AreProcs procs) =>
+  HList procs ->
+  (HandlesOf procs -> IO Application) ->
+  IO (ServerHandle procs)
 runServer = runReadyServer doNothing
 
 
-{-| Like 'runServer'; with an additional @ready@ that determines if the server is ready.'. -}
-runReadyServer
-  :: AreProcs procs
-  => (Warp.Port -> IO ())       --  ^ throws an exception if the server is not ready
-  -> HList procs                --  ^ defines the dependent @Proc@s
-  -> (HandlesOf procs -> IO Application)
-  -> IO (ServerHandle procs)
+-- | Like 'runServer'; with an additional @ready@ that determines if the server is ready.'.
+runReadyServer ::
+  (AreProcs procs) =>
+  (Warp.Port -> IO ()) -> --  ^ throws an exception if the server is not ready
+  HList procs -> --  ^ defines the dependent @Proc@s
+  (HandlesOf procs -> IO Application) ->
+  IO (ServerHandle procs)
 runReadyServer = runReadyServer' Warp.runSettingsSocket
 
 
-{-| Like 'runServer'; the port is secured with 'Warp.TLSSettings'. -}
-runTLSServer
-  :: AreProcs procs
-  => Warp.TLSSettings
-  -> HList procs
-  -> (HandlesOf procs -> IO Application)
-  -> IO (ServerHandle procs)
-runTLSServer tlsSettings = runReadyServer' (Warp.runTLSSocket tlsSettings)  doNothing
+-- | Like 'runServer'; the port is secured with 'Warp.TLSSettings'.
+runTLSServer ::
+  (AreProcs procs) =>
+  Warp.TLSSettings ->
+  HList procs ->
+  (HandlesOf procs -> IO Application) ->
+  IO (ServerHandle procs)
+runTLSServer tlsSettings = runReadyServer' (Warp.runTLSSocket tlsSettings) doNothing
 
 
-{-| Like 'runReadyServer'; the port is secured with 'Warp.TLSSettings'. -}
-runReadyTLSServer
-  :: AreProcs procs
-  => Warp.TLSSettings
-  -> (Warp.Port -> IO ())       --  ^ throws an exception if the server is not ready
-  -> HList procs                --  ^ defines the dependent @Proc@s
-  -> (HandlesOf procs -> IO Application)
-  -> IO (ServerHandle procs)
+-- | Like 'runReadyServer'; the port is secured with 'Warp.TLSSettings'.
+runReadyTLSServer ::
+  (AreProcs procs) =>
+  Warp.TLSSettings ->
+  (Warp.Port -> IO ()) -> --  ^ throws an exception if the server is not ready
+  HList procs -> --  ^ defines the dependent @Proc@s
+  (HandlesOf procs -> IO Application) ->
+  IO (ServerHandle procs)
 runReadyTLSServer tlsSettings = runReadyServer' (Warp.runTLSSocket tlsSettings)
 
 
 -- | Used to implement 'runReadyServer'
-runReadyServer'
-  :: AreProcs procs
-  => (Warp.Settings -> Socket -> Application -> IO ())
-  -> (Warp.Port -> IO ())       --  ^ throws an exception if the server is not ready
-  -> HList procs                   --  ^ defines the dependent @Proc@s
-  -> (HandlesOf procs -> IO Application)
-  -> IO (ServerHandle procs)
+runReadyServer' ::
+  (AreProcs procs) =>
+  (Warp.Settings -> Socket -> Application -> IO ()) ->
+  (Warp.Port -> IO ()) -> --  ^ throws an exception if the server is not ready
+  HList procs -> --  ^ defines the dependent @Proc@s
+  (HandlesOf procs -> IO Application) ->
+  IO (ServerHandle procs)
 runReadyServer' runApp check procs mkApp = do
   callingThread <- myThreadId
-  h <- startupAll procs
+  (netw, h) <- netwStartupAll procs
   (p, sock) <- Warp.openFreePort
   signal <- newEmptyMVar
-  let settings = readySettings(putMVar signal ())
+  let settings = readySettings (putMVar signal ())
   app <- mkApp h
   let wrappedApp request respond =
-        app request respond `catch` \ e -> do
+        app request respond `catch` \e -> do
           when
             (Warp.defaultShouldDisplayException e)
             (throwTo callingThread e)
           throwIO e
-  s <- async (pure wrappedApp >>= runApp settings sock)
+  s <- async $ runApp settings sock wrappedApp
   aConfirm <- async (takeMVar signal)
-  let result = ServerHandle s p sock h
+  let result = ServerHandle s p sock h netw
   waitEither s aConfirm >>= \case
     Left _ -> do
       shutdown result
@@ -135,16 +155,16 @@ runReadyServer' runApp check procs mkApp = do
 
 
 -- | Shuts down the 'ServerHandle' server and its @tmp proc@ dependencies.
-shutdown :: AreProcs procs => ServerHandle procs -> IO ()
+shutdown :: (AreProcs procs) => ServerHandle procs -> IO ()
 shutdown h = do
-  let ServerHandle { shServer, shSocket, shHandles } = h
-  terminateAll shHandles
+  let ServerHandle {shServer, shSocket, shHandles, shNetwork} = h
+  netwTerminateAll (shNetwork, shHandles)
   cancel shServer
   close shSocket
 
 
 -- | The @'ServerHandle's@  @ProcHandles@.
-handles :: AreProcs procs => ServerHandle procs -> HandlesOf procs
+handles :: (AreProcs procs) => ServerHandle procs -> HandlesOf procs
 handles = shHandles
 
 
