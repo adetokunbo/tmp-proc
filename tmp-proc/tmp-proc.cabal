@@ -4,19 +4,13 @@ version:            0.6.1.0
 synopsis:           Run 'tmp' processes in integration tests
 description:
   @tmp-proc@ runs services in docker containers for use in integration tests.
-
   It aims to make using these services become like accessing /tmp/ processes,
   similar to how /tmp/ file or directories are used.
-
   It aspires to provide a user-friendly API, while including useful features
   such as
-
   * launch of multiple services on docker during test setup
-
   * delayed test execution until the launched services are available
-
   * simplified use of connections to the services from a [WAI](https://hackage.haskell.org/package/wai) server under test
-
   * good integration with haskell testing frameworks like [hspec](https://hspec.github.io)
   and [tasty](https://hackage.haskell.org/package/tasty)
 
@@ -27,18 +21,16 @@ author:             Tim Emiola
 maintainer:         adetokunbo@users.noreply.github.com
 category:           testing, docker
 bug-reports:        https://github.com/adetokunbo/tmp-proc/issues
-homepage:           https://github.com/adetokunbo/tmp-proc/tree/master/tmp-proc#tmp-proc
+homepage:
+  https://github.com/adetokunbo/tmp-proc/tree/master/tmp-proc#tmp-proc
+
 build-type:         Simple
 data-files:
   test_certs/*.csr
   test_certs/*.pem
-extra-source-files:
-  ChangeLog.md
-tested-with:
-  GHC == 8.10.7
-  GHC == 9.0.2
-  GHC == 9.2.8
-  GHC == 9.4.5
+
+extra-source-files: ChangeLog.md
+tested-with:        GHC ==8.10.7 || ==9.0.2 || ==9.2.8 || ==9.4.5
 
 source-repository head
   type:     git
@@ -75,15 +67,14 @@ test-suite integration-test
   type:             exitcode-stdio-1.0
   main-is:          Spec.hs
   autogen-modules:  Paths_tmp_proc
-
   other-modules:
+    Paths_tmp_proc
     Test.Hspec.TmpProc
     Test.HttpBin
     Test.SimpleServer
     Test.System.TmpProc.Hspec
     Test.System.TmpProc.HttpBinSpec
     Test.System.TmpProc.WarpSpec
-    Paths_tmp_proc
 
   hs-source-dirs:   test
   build-depends:
@@ -102,15 +93,17 @@ test-suite integration-test
   ghc-options:
     -threaded -rtsopts -with-rtsopts=-N -fno-ignore-asserts -Wall
 
-Flag use-doc-tests
+flag use-doc-tests
   description: Include the doctests in the package tests
   default:     False
 
 test-suite doctests
   if flag(use-doc-tests)
-     buildable:     True
+    buildable: True
+
   else
-     buildable:     False
+    buildable: False
+
   type:             exitcode-stdio-1.0
   main-is:          Main.hs
   build-depends:
@@ -122,20 +115,21 @@ test-suite doctests
   default-language: Haskell2010
   ghc-options:      -threaded
 
-
-Flag build-the-readme
+flag build-the-readme
   description: Allow the readme to build
   default:     False
 
-
 executable readme
-  if os(windows) || !flag(build-the-readme)
+  if (os(windows) || !flag(build-the-readme))
     buildable: False
+
   else
     buildable: True
 
   build-tool-depends: markdown-unlit:markdown-unlit
-  ghc-options:        -pgmL markdown-unlit -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:
+    -pgmL markdown-unlit -threaded -rtsopts -with-rtsopts=-N
+
   main-is:            README.lhs
   default-language:   Haskell2010
   build-depends:
