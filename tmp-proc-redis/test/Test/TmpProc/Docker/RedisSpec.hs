@@ -18,22 +18,22 @@ import Test.Hspec.TmpProc
 
 spec :: Spec
 spec = tdescribe desc $ do
-  beforeAll setupHandles $ afterAll terminateAll $ do
+  beforeAll setupHandles $ afterAll netwTerminateAll $ do
     context "when using the Proc from the HList by its 'Name'" $ do
       context "ixPing" $ do
-        it "should succeed" $ \hs ->
+        it "should succeed" $ \(_, hs) ->
           ixPing @"a-redis-db" Proxy hs `shouldReturn` OK
 
       context "ixReset" $ do
         context "before resetting, the test key" $ do
-          it "should exist" $ \hs ->
+          it "should exist" $ \(_, hs) ->
             checkTestKey (handleOf @"a-redis-db" Proxy hs) `shouldReturn` True
 
-        it "should succeed" $ \hs ->
+        it "should succeed" $ \(_, hs) ->
           ixReset @"a-redis-db" Proxy hs `shouldReturn` ()
 
         context "after resetting, the test key" $ do
-          it "should not exist" $ \hs ->
+          it "should not exist" $ \(_, hs) ->
             checkTestKey (handleOf @"a-redis-db" Proxy hs) `shouldReturn` False
 
 
@@ -41,14 +41,14 @@ theProc :: HList '[TmpRedis]
 theProc = only $ TmpRedis [testKey]
 
 
-setupHandles :: IO (HList '[ProcHandle TmpRedis])
+setupHandles :: IO (NetworkHandlesOf '[TmpRedis])
 setupHandles = do
-  hs <- startupAll theProc
-  initRedis hs `onException` terminateAll hs
-  pure hs
+  hs' <- netwStartupAll theProc
+  initRedis (snd hs') `onException` netwTerminateAll hs'
+  pure hs'
 
 
-initRedis :: HList '[ProcHandle TmpRedis] -> IO ()
+initRedis :: HandlesOf '[TmpRedis] -> IO ()
 initRedis = addTestKeyValue . handleOf @"a-redis-db" Proxy
 
 

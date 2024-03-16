@@ -114,7 +114,7 @@ hasInCache sh cid = withConnOf @TmpRedis Proxy (handles sh) $ \cache ->
 
 Here, ServerHandle specifies the full list of types required by the calling test code.
 -}
-hasInDb :: ServerHandle ('[TmpPostgres, TmpRedis]) -> ContactID -> IO Bool
+hasInDb :: ServerHandle '[TmpPostgres, TmpRedis] -> ContactID -> IO Bool
 hasInDb sh cid = do
   let dbUriOf = hUri . handleOf @"a-postgres-db" Proxy . handles
   fmap isJust $ flip DB.fetch cid $ dbUriOf sh
@@ -127,7 +127,7 @@ It allows tests to
 - use the servant client to invoke the backend
 - check the state of service backends via the @ProcHandles@ in the 'ServerHandle'.
 -}
-type Fixture = (ServerHandle ('[TmpPostgres, TmpRedis]), ClientEnv)
+type Fixture = (ServerHandle '[TmpPostgres, TmpRedis], ClientEnv)
 
 
 mkFixture :: IO Fixture
