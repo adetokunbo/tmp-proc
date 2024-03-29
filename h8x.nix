@@ -1,9 +1,11 @@
 let
   dev = import ./dev.nix;
-  inherit (dev) h8x-commit;
+  inherit (dev) h8x-commit hackage-nix-commit;
   h8x-pin = "https://github.com/input-output-hk/haskell.nix/archive/${h8x-commit}.tar.gz";
   h8x-src = builtins.fetchTarball h8x-pin;
-  h8x = import h8x-src {};
+  hackage-nix-pin = "https://github.com/input-output-hk/hackage.nix/archive/${hackage-nix-commit}.tar.gz";
+  hackage-nix-src = builtins.fetchTarball hackage-nix-pin;
+  h8x = import h8x-src { sourcesOverride = { hackage = hackage-nix-src; }; };
 
 in
   import
