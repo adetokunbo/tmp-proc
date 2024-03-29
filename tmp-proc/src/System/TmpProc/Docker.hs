@@ -58,8 +58,9 @@ module System.TmpProc.Docker
   , uriOf'
   , runArgs'
 
-    -- * @'ToRunCmd'@
+    -- * customize docker startup
   , ToRunCmd (..)
+  , Preparer (..)
 
     -- * @'ProcHandle'@
   , ProcHandle (..)
@@ -217,6 +218,14 @@ netwStartupAll ps = do
   startupAll' (Just netwName) ps
 
 
+addresses :: (AreProcs procs) => HandlesOf procs -> [(Text, HostIpAddress)]
+addresses = go procProof
+  where
+    go :: SomeProcs as -> HandlesOf as -> [(Text, HostIpAddress)]
+    go SomeProcsNil HNil = []
+    go (SomeProcsCons cons) (x `HCons` y) = (nameOf $ hProc x, hAddr x) : go cons y
+
+
 -- | Start up processes for each 'Proc' type.
 startupAll' :: (AreProcs procs) => Maybe Text -> HList procs -> IO (NetworkHandlesOf procs)
 startupAll' ntwkMb ps =
@@ -226,13 +235,12 @@ startupAll' ntwkMb ps =
       Just name -> void $ readProcess "docker" (createNetworkArgs $ Text.unpack name) ""
     wrap x = (fromMaybe "" ntwkMb, x)
 
-    -- generate a network name before calling go
-    go :: Uniquely Proc AreProcs as -> HList as -> IO (HandlesOf as)
-    go UniquelyNil HNil = pure HNil
-    go (UniquelyCons cons) (x `HCons` y) = do
+    go :: SomeProcs as -> HList as -> IO (HandlesOf as)
+    go SomeProcsNil HNil = pure HNil
+    go (SomeProcsCons cons) (x `HCons` y) = do
       others <- go cons y
-      h <- startup' ntwkMb x `onException` terminateAll others
-      -- others <- go cons y `onException` terminate h
+      let addrs = addresses others
+      h <- startup' ntwkMb addrs x `onException` terminateAll others
       pure $ h `HCons` others
    in
     do
@@ -284,6 +292,15 @@ class ToRunCmd a where
 
 instance {-# OVERLAPPABLE #-} (Proc a) => ToRunCmd a where
   toRunCmd _ = runArgs @a
+
+
+class Preparer a where
+  -- * Hook to run before the docker container is started
+  prepare :: [(Text, HostIpAddress)] -> a -> IO a
+
+
+instance {-# OVERLAPPABLE #-} (Proc a) => Preparer a where
+  prepare _ = pure
 
 
 -- | Specifies how to a get a connection to a 'Proc'.
@@ -415,17 +432,26 @@ throwing an exception if it did not.
 
 Returns the 'ProcHandle' used to control the 'Proc' once a ping has succeeded.
 -}
-startup :: (Proc a, ToRunCmd a) => a -> IO (ProcHandle a)
-startup = startup' Nothing
+startup :: (ProcPlus a) => a -> IO (ProcHandle a)
+startup = startup' Nothing mempty
 
 
-startup' :: (Proc a, ToRunCmd a) => Maybe Text -> a -> IO (ProcHandle a)
-startup' ntwkMb x = do
-  -- network name needs to be passed in
+-- | A @Constraint@ that combines @'Proc'@  and its supporting typeclasses
+type ProcPlus a = (Proc a, ToRunCmd a, Preparer a)
+
+
+startup' ::
+  (ProcPlus a) =>
+  Maybe Text ->
+  [(Text, HostIpAddress)] ->
+  a ->
+  IO (ProcHandle a)
+startup' ntwkMb addrs x = do
   let fullArgs = map Text.unpack $ dockerCmdArgs x ntwkMb
       isGarbage = flip elem ['\'', '\n']
       trim = dropWhileEnd isGarbage . dropWhile isGarbage
-  runCmd <- dockerRun fullArgs
+  runCmd <- createDockerCmdProcess fullArgs
+  x' <- prepare addrs x
   hPid <- trim <$> readCreateProcess runCmd ""
   hAddr <-
     Text.pack . trim
@@ -437,7 +463,7 @@ startup' ntwkMb x = do
         , "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
         ]
         ""
-  let h = ProcHandle {hProc = x, hPid, hUri = uriOf' x hAddr, hAddr}
+  let h = ProcHandle {hProc = x', hPid, hUri = uriOf' x' hAddr, hAddr}
   (nPings h `onException` terminate h) >>= \case
     OK -> pure h
     pinged -> do
@@ -662,7 +688,7 @@ type HandlesOf procs = HList (Proc2Handle procs)
 
 
 -- | A list of @'ProcHandle'@ values with the docker network of their processes
-type NetworkHandlesOf procs = (Text, HList (Proc2Handle procs))
+type NetworkHandlesOf procs = (Text, HandlesOf procs)
 
 
 -- | Converts list of 'Proc' the corresponding @'Name'@ symbols.
@@ -679,33 +705,38 @@ type family Handle2KV (ts :: [Type]) = (kvTys :: [Type]) | kvTys -> ts where
 
 -- | Declares a proof that a list of types only contains @'Proc's@.
 class AreProcs as where
-  procProof :: Uniquely Proc AreProcs as
+  procProof :: SomeProcs as
 
 
 instance AreProcs '[] where
-  procProof = UniquelyNil
+  procProof = SomeProcsNil
 
 
 instance
-  ( Proc a
-  , ToRunCmd a
+  ( ProcPlus a
   , AreProcs as
   , IsAbsent a as
   ) =>
   AreProcs (a ': as)
   where
-  procProof = UniquelyCons procProof
+  procProof = SomeProcsCons procProof
 
 
 -- | Used to prove a list of types just contains @'ProcHandle's@.
 data SomeHandles (as :: [Type]) where
   SomeHandlesNil :: SomeHandles '[]
-  SomeHandlesCons :: (Proc a) => SomeHandles as -> SomeHandles (ProcHandle a ': as)
+  SomeHandlesCons :: (ProcPlus a) => SomeHandles as -> SomeHandles (ProcHandle a ': as)
 
 
-p2h :: Uniquely Proc AreProcs as -> SomeHandles (Proc2Handle as)
-p2h UniquelyNil = SomeHandlesNil
-p2h (UniquelyCons cons) = SomeHandlesCons (p2h cons)
+p2h :: SomeProcs as -> SomeHandles (Proc2Handle as)
+p2h SomeProcsNil = SomeHandlesNil
+p2h (SomeProcsCons cons) = SomeHandlesCons (p2h cons)
+
+
+-- | Used to prove a list of types just contains @'Proc's@.
+data SomeProcs (as :: [Type]) where
+  SomeProcsNil :: SomeProcs '[]
+  SomeProcsCons :: (ProcPlus a, AreProcs as, IsAbsent a as) => SomeProcs as -> SomeProcs (a ': as)
 
 
 -- | Declares a proof that a list of types only contains @'Connectable's@.
@@ -839,8 +870,8 @@ devNull :: IO Handle
 devNull = openBinaryFile "/dev/null" WriteMode
 
 
-dockerRun :: [String] -> IO CreateProcess
-dockerRun args = do
+createDockerCmdProcess :: [String] -> IO CreateProcess
+createDockerCmdProcess args = do
   devNull' <- devNull
   pure $ (proc "docker" args) {std_err = UseHandle devNull'}
 

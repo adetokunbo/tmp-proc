@@ -1,0 +1,42 @@
+server {
+  listen 80;
+  listen [::]:80;
+  server_name {{common_name}};
+  location / {
+    rewrite ^ https://$host$request_uri? permanent;
+  }
+}
+
+server {
+  listen 443 ssl;
+  listen [::]:443 ssl;
+  server_name {{commonName}};
+  server_tokens off;
+  ssl_certificate /etc/tmp-proc/certs/certificate.pem;
+  ssl_certificate_key /etc/tmp-proc/certs/key.pem;
+  ssl_buffer_size 8k;
+  ssl_protocols TLSv1.2;
+  ssl_prefer_server_ciphers on;
+  ssl_ciphers ECDH+AESGCM:ECDH+AES256:ECDH+AES128:DH+3DES:!ADH:!AECDH:!MD5;
+  ssl_ecdh_curve secp384r1;
+  ssl_session_tickets off;
+  ssl_stapling on;
+  ssl_stapling_verify on;
+  resolver 8.8.8.8;
+
+  location / {
+    try_files $uri @tmp-proc-target;
+  }
+
+  location @tmp-proc-target {
+    proxy_pass http://{{targetName}}:{{targetPort}};
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    add_header Content-Security-Policy "default-src * data: 'unsafe-eval' 'unsafe-inline'" always;
+  }
+
+  root /var/www/html;
+  index index.html index.htm index.nginx-debian.html;
+}

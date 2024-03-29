@@ -6,16 +6,23 @@
 
 module Test.HttpBin where
 
+import Control.Concurrent (getChanContents)
 import qualified Data.ByteString.Char8 as C8
 import Data.Proxy (Proxy (..))
 import Data.Text (Text)
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text
 import qualified Network.HTTP.Client as HC
 import Network.HTTP.Types.Status (statusCode)
+import Paths_tmp_proc
+import System.Directory (createDirectory)
+import System.FilePath ((</>))
+import System.IO.Temp (createTempDirectory, getCanonicalTemporaryDirectory)
 import System.TmpProc
   ( HandlesOf
   , HostIpAddress
   , Pinged (..)
+  , Preparer (..)
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
@@ -26,17 +33,90 @@ import System.TmpProc
   , (&:)
   , (&:&)
   )
+import Text.Mustache
+  ( ToMustache (..)
+  , automaticCompile
+  , object
+  , substitute
+  , (~>)
+  )
 
 
 setupHandles :: IO (HandlesOf '[HttpBinTest, NginxTest, HttpBinTest3])
-setupHandles = startupAll $ HttpBinTest &: NginxTest &:& HttpBinTest3
+setupHandles = startupAll $ HttpBinTest &: anNginxTest &:& HttpBinTest3
 
 
 -- | A data type representing a connection to an Nginx server.
 data NginxTest = NginxTest
+  { ntCommonName :: !Text
+  , ntTargetDir :: !FilePath
+  , ntTargetPort :: !Int
+  , ntTargetName :: !Text
+  }
+  deriving (Eq, Show)
 
 
--- | Run Nginx as temporary process.
+instance ToMustache NginxTest where
+  toMustache nt =
+    object
+      [ "commonName" ~> ntCommonName nt
+      , "targetDir" ~> ntTargetDir nt
+      , "targetPort" ~> ntTargetPort nt
+      , "targetName" ~> ntTargetName nt
+      ]
+
+
+anNginxTest :: NginxTest
+anNginxTest =
+  NginxTest
+    { ntCommonName = "localhost"
+    , ntTargetDir = "/tmp"
+    , ntTargetPort = 80
+    , ntTargetName = "http-bin-test-3"
+    }
+
+
+-- Prepare
+-- expand the template with commonName to target-dir/nginx
+-- create certs with commonName to target-dir/certs
+-- used fixed cert basenames (certificate.pem and key.pem)
+prepare' :: [(Text, HostIpAddress)] -> NginxTest -> IO NginxTest
+prepare' addrs nt = do
+  let templateName = "nginx-test.conf.template"
+  confDir <- (</> "conf") <$> getDataDir
+  compiled <- automaticCompile [confDir] templateName
+  case compiled of
+    Left err -> error $ "the template did not compile:" ++ show err
+    Right template -> do
+      (workingDir, _confDir, certsDir) <- createTmpNginxDirs
+      let nt' = nt {ntTargetDir = workingDir}
+      Text.writeFile (confDir </> "nginx.conf") $ substitute template nt'
+      Text.writeFile (certsDir </> "nginx.conf") $ substitute template nt'
+      print $ "the template compiled to:" ++ show confDir
+      print addrs
+      pure nt'
+
+
+createTmpNginxDirs :: IO (FilePath, FilePath, FilePath)
+createTmpNginxDirs = do
+  tmpDir <- getCanonicalTemporaryDirectory
+  workingDir <- createTempDirectory "nginx-test" tmpDir
+  let (confDir, certsDir) = certDirsOf workingDir
+  createDirectory confDir
+  createDirectory certsDir
+  pure (workingDir, confDir, certsDir)
+
+
+certDirsOf :: FilePath -> (FilePath, FilePath)
+certDirsOf workingDir = (workingDir </> "conf", workingDir </> "certs")
+
+
+--
+-- ToRunCmd
+-- mount volume /etc/tmp-proc/certs as target-dir/certs
+-- mount volume /etc/tmp-proc/nginx as target-dir/nginx
+
+-- | Run Nginx as a temporary process.
 instance Proc NginxTest where
   type Image NginxTest = "nginx:1.25.1"
   type Name NginxTest = "nginx-test"
@@ -48,6 +128,10 @@ instance Proc NginxTest where
 
 instance ToRunCmd NginxTest where
   toRunCmd _ = []
+
+
+instance Preparer NginxTest where
+  prepare = prepare'
 
 
 -- | A data type representing a connection to a HttpBin server.
