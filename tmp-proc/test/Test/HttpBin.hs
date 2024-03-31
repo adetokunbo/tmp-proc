@@ -82,9 +82,9 @@ anNginxTest =
 -- used fixed cert basenames (certificate.pem and key.pem)
 prepare' :: [(Text, HostIpAddress)] -> NginxTest -> IO NginxTest
 prepare' addrs nt = do
-  let templateName = "nginx-test.conf.template"
   confDir <- (</> "conf") <$> getDataDir
   compiled <- automaticCompile [confDir] templateName
+  let templateName = "nginx-test.conf.mustache"
   case compiled of
     Left err -> error $ "the template did not compile:" ++ show err
     Right template -> do
