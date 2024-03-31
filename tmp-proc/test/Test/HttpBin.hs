@@ -112,6 +112,28 @@ prepare' addrs nt = do
       pure nt'
 
 
+toRunCmd' :: NginxTest -> [Text]
+toRunCmd' NginxTest {ntTargetDir, ntUserID, ntGroupID} =
+  -- specify user ID and group ID to fix volume mount permissions
+  -- mount volume /etc/tmp-proc/certs as target-dir/certs
+  -- mount volume /etc/tmp-proc/nginx as target-dir/nginx
+  let (confDir, certsDir) = toConfCertsDirs ntTargetDir
+      confPath = confDir </> "nginx.conf"
+      envArg name v =
+        [ "-e"
+        , name ++ "=" ++ show v
+        ]
+      volumeArg actualPath hostedPath =
+        [ "-v"
+        , actualPath ++ ":" ++ hostedPath
+        ]
+      confArg = volumeArg confPath $ dockerConf ++ ":ro"
+      certsArg = volumeArg certsDir dockerCertsDir
+      puidArg = envArg "PUID" ntUserID
+      guidArg = envArg "GUID" ntGroupID
+   in Text.pack <$> confArg ++ certsArg ++ puidArg ++ guidArg
+
+
 createWorkingDirs :: IO (FilePath, FilePath, FilePath)
 createWorkingDirs = do
   tmpDir <- getCanonicalTemporaryDirectory
@@ -147,7 +169,7 @@ instance Proc NginxTest where
 
 
 instance ToRunCmd NginxTest where
-  toRunCmd _ = []
+  toRunCmd = toRunCmd'
 
 
 instance Preparer NginxTest where
