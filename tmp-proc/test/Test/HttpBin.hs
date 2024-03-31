@@ -191,13 +191,13 @@ mkUri' ip = "http://" <> C8.pack (Text.unpack ip) <> "/"
 
 ping' :: ProcHandle a -> IO Pinged
 ping' handle = toPinged @HC.HttpException Proxy $ do
-  gotStatus <- handleGet handle "/status/200"
+  gotStatus <- httpGet handle "/status/200"
   if gotStatus == 200 then pure OK else pure NotOK
 
 
 -- | Determine the status from a Get on localhost.
-handleGet :: ProcHandle a -> Text -> IO Int
-handleGet handle urlPath = do
+httpGet :: ProcHandle a -> Text -> IO Int
+httpGet handle urlPath = do
   let theUri = "http://" <> hAddr handle <> "/" <> Text.dropWhile (== '/') urlPath
   manager <- HC.newManager HC.defaultManagerSettings
   getReq <- HC.parseRequest $ Text.unpack theUri

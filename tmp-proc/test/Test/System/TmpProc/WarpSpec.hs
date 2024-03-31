@@ -151,7 +151,7 @@ pingOrFail handle = do
                       fail "tmp proc:httpbin:ping failed"
                   )
   catchHttp $ do
-    gotStatus <- handleGet handle "/status/200"
+    gotStatus <- httpGet handle "/status/200"
     if gotStatus == 200
       then pure ()
       else fail "tmp proc:httpbin:incorrect ping status"
