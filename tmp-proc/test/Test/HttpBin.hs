@@ -6,7 +6,6 @@
 
 module Test.HttpBin where
 
-import Control.Concurrent (getChanContents)
 import qualified Data.ByteString.Char8 as C8
 import Data.Proxy (Proxy (..))
 import Data.Text (Text)
