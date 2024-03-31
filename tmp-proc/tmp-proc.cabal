@@ -90,8 +90,8 @@ test-suite integration-test
     , http-types
     , mustache    >=2.3 && <2.5
     , temporary   >=1.2 && <1.5
+    , test-certs  >=0.1 && <0.2
     , text
-    , temporary
     , tmp-proc
     , wai
     , warp

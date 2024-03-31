@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -32,6 +33,7 @@ import System.TmpProc
   , (&:)
   , (&:&)
   )
+import Test.Certs.Temp (CertPaths (..), defaultConfig, generateAndStore)
 import Text.Mustache
   ( ToMustache (..)
   , automaticCompile
@@ -81,43 +83,54 @@ anNginxTest =
 -- used fixed cert basenames (certificate.pem and key.pem)
 prepare' :: [(Text, HostIpAddress)] -> NginxTest -> IO NginxTest
 prepare' addrs nt = do
-  confDir <- (</> "conf") <$> getDataDir
-  compiled <- automaticCompile [confDir] templateName
   let templateName = "nginx-test.conf.mustache"
+  templateDir <- (</> "conf") <$> getDataDir
+  compiled <- automaticCompile [templateDir] templateName
   case compiled of
     Left err -> error $ "the template did not compile:" ++ show err
     Right template -> do
-      (workingDir, _confDir, certsDir) <- createTmpNginxDirs
-      let nt' = nt {ntTargetDir = workingDir}
-      Text.writeFile (confDir </> "nginx.conf") $ substitute template nt'
-      Text.writeFile (certsDir </> "nginx.conf") $ substitute template nt'
-      print $ "the template compiled to:" ++ show confDir
+      (ntTargetDir, nginxConfDir, cpDir) <- createWorkingDirs
+      let nt' = nt {ntTargetDir}
+          cp =
+            CertPaths
+              { cpKey = "key.pem"
+              , cpCert = "certificate.pem"
+              , cpDir
+              }
+      generateAndStore cp defaultConfig
+      Text.writeFile (nginxConfDir </> "nginx.conf") $ substitute template nt'
+      print $ "the output files are below:" ++ show ntTargetDir
       print addrs
       pure nt'
 
 
-createTmpNginxDirs :: IO (FilePath, FilePath, FilePath)
-createTmpNginxDirs = do
+createWorkingDirs :: IO (FilePath, FilePath, FilePath)
+createWorkingDirs = do
   tmpDir <- getCanonicalTemporaryDirectory
-  workingDir <- createTempDirectory "nginx-test" tmpDir
-  let (confDir, certsDir) = certDirsOf workingDir
+  topDir <- createTempDirectory tmpDir "nginx-test"
+  let (confDir, certsDir) = toConfCertsDirs topDir
   createDirectory confDir
   createDirectory certsDir
-  pure (workingDir, confDir, certsDir)
+  pure (topDir, confDir, certsDir)
 
 
-certDirsOf :: FilePath -> (FilePath, FilePath)
-certDirsOf workingDir = (workingDir </> "conf", workingDir </> "certs")
+toConfCertsDirs :: FilePath -> (FilePath, FilePath)
+toConfCertsDirs topDir = (topDir </> "conf", topDir </> "certs")
 
 
---
--- ToRunCmd
--- mount volume /etc/tmp-proc/certs as target-dir/certs
--- mount volume /etc/tmp-proc/nginx as target-dir/nginx
+dockerCertsDir :: FilePath
+dockerCertsDir = "/etc/tmp-proc/certs"
+
+
+dockerConf :: FilePath
+dockerConf = "/data/conf/nginx.conf"
+
 
 -- | Run Nginx as a temporary process.
 instance Proc NginxTest where
-  type Image NginxTest = "nginx:1.25.1"
+  -- use this linuxserver.io nginx as it is setup to allow easy override of
+  -- config
+  type Image NginxTest = "lscr.io/linuxserver/nginx"
   type Name NginxTest = "nginx-test"
   uriOf = mkUri'
   runArgs = []
