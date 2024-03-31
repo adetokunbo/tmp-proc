@@ -450,6 +450,7 @@ startup' ntwkMb addrs x = do
   let fullArgs = map Text.unpack $ dockerCmdArgs x ntwkMb
       isGarbage = flip elem ['\'', '\n']
       trim = dropWhileEnd isGarbage . dropWhile isGarbage
+  printDebug $ Text.pack $ show fullArgs
   runCmd <- createDockerCmdProcess fullArgs
   x' <- prepare addrs x
   hPid <- trim <$> readCreateProcess runCmd ""
