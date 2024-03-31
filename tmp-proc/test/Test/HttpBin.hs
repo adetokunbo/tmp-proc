@@ -18,6 +18,8 @@ import Paths_tmp_proc
 import System.Directory (createDirectory)
 import System.FilePath ((</>))
 import System.IO.Temp (createTempDirectory, getCanonicalTemporaryDirectory)
+import System.Posix.ByteString (getEffectiveGroupID, getEffectiveUserID)
+import System.Posix.Types (GroupID, UserID)
 import System.TmpProc
   ( HandlesOf
   , HostIpAddress
@@ -47,12 +49,14 @@ setupHandles :: IO (HandlesOf '[HttpBinTest, NginxTest, HttpBinTest3])
 setupHandles = startupAll $ HttpBinTest &: anNginxTest &:& HttpBinTest3
 
 
--- | A data type representing a connection to an Nginx server.
+-- | A data type that configures an Nginx tmp proc.
 data NginxTest = NginxTest
   { ntCommonName :: !Text
   , ntTargetDir :: !FilePath
   , ntTargetPort :: !Int
   , ntTargetName :: !Text
+  , ntUserID :: !UserID
+  , ntGroupID :: !GroupID
   }
   deriving (Eq, Show)
 
@@ -74,6 +78,8 @@ anNginxTest =
     , ntTargetDir = "/tmp"
     , ntTargetPort = 80
     , ntTargetName = "http-bin-test-3"
+    , ntUserID = 1000
+    , ntGroupID = 1000
     }
 
 
@@ -90,7 +96,9 @@ prepare' addrs nt = do
     Left err -> error $ "the template did not compile:" ++ show err
     Right template -> do
       (ntTargetDir, nginxConfDir, cpDir) <- createWorkingDirs
-      let nt' = nt {ntTargetDir}
+      ntUserID <- getEffectiveUserID
+      ntGroupID <- getEffectiveGroupID
+      let nt' = nt {ntTargetDir, ntGroupID, ntUserID}
           cp =
             CertPaths
               { cpKey = "key.pem"
