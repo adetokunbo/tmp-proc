@@ -82,20 +82,23 @@ test-suite integration-test
   build-depends:
     , base
     , bytestring
+    , crypton-connection  >=0.3 && <0.4
     , data-default
-    , directory   >=1.3 && <1.4
-    , filepath    >=1.4      && <1.6
-    , hspec
-    , http-client
-    , http-types
-    , mustache    >=2.3 && <2.5
-    , temporary   >=1.2 && <1.5
-    , test-certs  >=0.1 && <0.2
+    , directory           >=1.3 && <1.4
+    , filepath            >=1.4 && <1.6
+    , hspec               >=2.7 && <2.12
+    , http-client         >=0.5 && <0.8
+    , http-client-tls     >=0.3 && <0.4
+    , http-types          >=0.8
+    , mustache            >=2.3 && <2.5
+    , temporary           >=1.2 && <1.5
+    , test-certs          >=0.1 && <0.2
+    , tls
     , text
     , tmp-proc
     , wai
     , warp
-    , unix        >=2.7 && <2.9
+    , unix                >=2.7 && <2.9
 
   default-language: Haskell2010
   ghc-options:

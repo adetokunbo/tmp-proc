@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 
 module Test.HttpBin where
 
@@ -12,8 +13,12 @@ import Data.Proxy (Proxy (..))
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
+import Network.Connection (TLSSettings (TLSSettings))
 import qualified Network.HTTP.Client as HC
+import qualified Network.HTTP.Client.TLS as HC
+import Network.HTTP.Types.Header (hHost)
 import Network.HTTP.Types.Status (statusCode)
+import Network.TLS (defaultParamsClient)
 import Paths_tmp_proc
 import System.Directory (createDirectory)
 import System.FilePath ((</>))
@@ -162,10 +167,10 @@ instance Proc NginxTest where
   -- config
   type Image NginxTest = "lscr.io/linuxserver/nginx"
   type Name NginxTest = "nginx-test"
-  uriOf = mkUri'
+  uriOf = httpUri
   runArgs = []
   reset _ = pure ()
-  ping = ping'
+  ping = pingHttp
 
 
 instance ToRunCmd NginxTest where
@@ -184,10 +189,10 @@ data HttpBinTest = HttpBinTest
 instance Proc HttpBinTest where
   type Image HttpBinTest = "kennethreitz/httpbin"
   type Name HttpBinTest = "http-bin-test"
-  uriOf = mkUri'
+  uriOf = httpUri
   runArgs = []
   reset _ = pure ()
-  ping = ping'
+  ping = pingHttp
 
 
 {- | Another data type representing a connection to a HttpBin server.
@@ -202,10 +207,10 @@ data HttpBinTest2 = HttpBinTest2
 instance Proc HttpBinTest2 where
   type Image HttpBinTest2 = "kennethreitz/httpbin"
   type Name HttpBinTest2 = "http-bin-test-2"
-  uriOf = mkUri'
+  uriOf = httpUri
   runArgs = []
   reset _ = pure ()
-  ping = ping'
+  ping = pingHttp
 
 
 {- | Yet another data type representing a connection to a HttpBin server.
@@ -220,30 +225,48 @@ data HttpBinTest3 = HttpBinTest3
 instance Proc HttpBinTest3 where
   type Image HttpBinTest3 = "kennethreitz/httpbin"
   type Name HttpBinTest3 = "http-bin-test-3"
-  uriOf = mkUri'
+  uriOf = httpUri
   runArgs = []
   reset _ = pure ()
-  ping = ping'
+  ping = pingHttp
 
 
 -- | Make a uri access the http-bin server.
-mkUri' :: HostIpAddress -> SvcURI
-mkUri' ip = "http://" <> C8.pack (Text.unpack ip) <> "/"
+httpUri :: HostIpAddress -> SvcURI
+httpUri ip = "http://" <> C8.pack (Text.unpack ip) <> "/"
 
 
-ping' :: ProcHandle a -> IO Pinged
-ping' handle = toPinged @HC.HttpException Proxy $ do
+pingHttp :: ProcHandle a -> IO Pinged
+pingHttp handle = toPinged @HC.HttpException Proxy $ do
   gotStatus <- httpGet handle "/status/200"
   if gotStatus == 200 then pure OK else pure NotOK
 
 
--- | Determine the status from a Get on localhost.
+pingHttps :: ProcHandle a -> IO Pinged
+pingHttps handle = toPinged @HC.HttpException Proxy $ do
+  gotStatus <- httpsGet handle "/status/200"
+  putStrLn $ "pingHttps:status:" ++ show gotStatus
+  if gotStatus == 200 then pure OK else pure NotOK
+
+
+-- | Determine the status from a Get.
 httpGet :: ProcHandle a -> Text -> IO Int
 httpGet handle urlPath = do
   let theUri = "http://" <> hAddr handle <> "/" <> Text.dropWhile (== '/') urlPath
   manager <- HC.newManager HC.defaultManagerSettings
   getReq <- HC.parseRequest $ Text.unpack theUri
   statusCode . HC.responseStatus <$> HC.httpLbs getReq manager
+
+
+-- | Determine the status from a secure Get to host localhost.
+httpsGet :: ProcHandle a -> Text -> IO Int
+httpsGet handle urlPath = do
+  let theUri = "https://" <> hAddr handle <> "/" <> Text.dropWhile (== '/') urlPath
+      tlsSettings = TLSSettings $ defaultParamsClient "localhost" "443"
+  manager <- HC.newTlsManagerWith $ HC.mkManagerSettings tlsSettings Nothing
+  getReq <- HC.parseRequest $ Text.unpack theUri
+  let withHost = getReq {HC.requestHeaders = [(hHost, "localhost")]}
+  statusCode . HC.responseStatus <$> HC.httpLbs withHost manager
 
 
 -- | Verify that the compile time type computations related to 'manyNamed' are ok.
