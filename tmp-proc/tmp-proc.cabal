@@ -83,13 +83,19 @@ test-suite integration-test
     , base
     , bytestring
     , data-default
+    , directory   >=1.3 && <1.4
+    , filepath    >=1.4      && <1.6
     , hspec
     , http-client
     , http-types
+    , mustache    >=2.3 && <2.5
+    , temporary   >=1.2 && <1.5
+    , test-certs  >=0.1 && <0.2
     , text
     , tmp-proc
     , wai
     , warp
+    , unix        >=2.7 && <2.9
 
   default-language: Haskell2010
   ghc-options:

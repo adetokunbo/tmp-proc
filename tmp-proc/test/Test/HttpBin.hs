@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -10,12 +11,20 @@ import qualified Data.ByteString.Char8 as C8
 import Data.Proxy (Proxy (..))
 import Data.Text (Text)
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text
 import qualified Network.HTTP.Client as HC
 import Network.HTTP.Types.Status (statusCode)
+import Paths_tmp_proc
+import System.Directory (createDirectory)
+import System.FilePath ((</>))
+import System.IO.Temp (createTempDirectory, getCanonicalTemporaryDirectory)
+import System.Posix.ByteString (getEffectiveGroupID, getEffectiveUserID)
+import System.Posix.Types (GroupID, UserID)
 import System.TmpProc
   ( HandlesOf
   , HostIpAddress
   , Pinged (..)
+  , Preparer (..)
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
@@ -26,19 +35,132 @@ import System.TmpProc
   , (&:)
   , (&:&)
   )
+import Test.Certs.Temp (CertPaths (..), defaultConfig, generateAndStore)
+import Text.Mustache
+  ( ToMustache (..)
+  , automaticCompile
+  , object
+  , substitute
+  , (~>)
+  )
 
 
 setupHandles :: IO (HandlesOf '[HttpBinTest, NginxTest, HttpBinTest3])
-setupHandles = startupAll $ HttpBinTest &: NginxTest &:& HttpBinTest3
+setupHandles = startupAll $ HttpBinTest &: anNginxTest &:& HttpBinTest3
 
 
--- | A data type representing a connection to an Nginx server.
+-- | A data type that configures an Nginx tmp proc.
 data NginxTest = NginxTest
+  { ntCommonName :: !Text
+  , ntTargetDir :: !FilePath
+  , ntTargetPort :: !Int
+  , ntTargetName :: !Text
+  , ntUserID :: !UserID
+  , ntGroupID :: !GroupID
+  }
+  deriving (Eq, Show)
 
 
--- | Run Nginx as temporary process.
+instance ToMustache NginxTest where
+  toMustache nt =
+    object
+      [ "commonName" ~> ntCommonName nt
+      , "targetDir" ~> ntTargetDir nt
+      , "targetPort" ~> ntTargetPort nt
+      , "targetName" ~> ntTargetName nt
+      ]
+
+
+anNginxTest :: NginxTest
+anNginxTest =
+  NginxTest
+    { ntCommonName = "localhost"
+    , ntTargetDir = "/tmp"
+    , ntTargetPort = 80
+    , ntTargetName = "http-bin-test-3"
+    , ntUserID = 1000
+    , ntGroupID = 1000
+    }
+
+
+-- Prepare
+-- expand the template with commonName to target-dir/nginx
+-- create certs with commonName to target-dir/certs
+-- used fixed cert basenames (certificate.pem and key.pem)
+prepare' :: [(Text, HostIpAddress)] -> NginxTest -> IO NginxTest
+prepare' addrs nt = do
+  let templateName = "nginx-test.conf.mustache"
+  templateDir <- (</> "conf") <$> getDataDir
+  compiled <- automaticCompile [templateDir] templateName
+  case compiled of
+    Left err -> error $ "the template did not compile:" ++ show err
+    Right template -> do
+      (ntTargetDir, nginxConfDir, cpDir) <- createWorkingDirs
+      ntUserID <- getEffectiveUserID
+      ntGroupID <- getEffectiveGroupID
+      let nt' = nt {ntTargetDir, ntGroupID, ntUserID}
+          cp =
+            CertPaths
+              { cpKey = "key.pem"
+              , cpCert = "certificate.pem"
+              , cpDir
+              }
+      generateAndStore cp defaultConfig
+      Text.writeFile (nginxConfDir </> "nginx.conf") $ substitute template nt'
+      print $ "the output files are below:" ++ show ntTargetDir
+      print addrs
+      pure nt'
+
+
+toRunCmd' :: NginxTest -> [Text]
+toRunCmd' NginxTest {ntTargetDir, ntUserID, ntGroupID} =
+  -- specify user ID and group ID to fix volume mount permissions
+  -- mount volume /etc/tmp-proc/certs as target-dir/certs
+  -- mount volume /etc/tmp-proc/nginx as target-dir/nginx
+  let (confDir, certsDir) = toConfCertsDirs ntTargetDir
+      confPath = confDir </> "nginx.conf"
+      envArg name v =
+        [ "-e"
+        , name ++ "=" ++ show v
+        ]
+      volumeArg actualPath hostedPath =
+        [ "-v"
+        , actualPath ++ ":" ++ hostedPath
+        ]
+      confArg = volumeArg confPath $ dockerConf ++ ":ro"
+      certsArg = volumeArg certsDir dockerCertsDir
+      puidArg = envArg "PUID" ntUserID
+      guidArg = envArg "GUID" ntGroupID
+   in Text.pack <$> confArg ++ certsArg ++ puidArg ++ guidArg
+
+
+createWorkingDirs :: IO (FilePath, FilePath, FilePath)
+createWorkingDirs = do
+  tmpDir <- getCanonicalTemporaryDirectory
+  topDir <- createTempDirectory tmpDir "nginx-test"
+  let (confDir, certsDir) = toConfCertsDirs topDir
+  createDirectory confDir
+  createDirectory certsDir
+  pure (topDir, confDir, certsDir)
+
+
+toConfCertsDirs :: FilePath -> (FilePath, FilePath)
+toConfCertsDirs topDir = (topDir </> "conf", topDir </> "certs")
+
+
+dockerCertsDir :: FilePath
+dockerCertsDir = "/etc/tmp-proc/certs"
+
+
+dockerConf :: FilePath
+dockerConf = "/data/conf/nginx.conf"
+
+
+-- | Run Nginx as a temporary process.
 instance Proc NginxTest where
-  type Image NginxTest = "nginx:1.25.1"
+  -- use this linuxserver.io nginx as it is setup to allow easy override of
+  -- config
+  type Image NginxTest = "lscr.io/linuxserver/nginx"
   type Name NginxTest = "nginx-test"
   uriOf = mkUri'
   runArgs = []
@@ -47,7 +169,11 @@ instance Proc NginxTest where
 
 
 instance ToRunCmd NginxTest where
-  toRunCmd _ = []
+  toRunCmd = toRunCmd'
+
+
+instance Preparer NginxTest where
+  prepare = prepare'
 
 
 -- | A data type representing a connection to a HttpBin server.
@@ -107,13 +233,13 @@ mkUri' ip = "http://" <> C8.pack (Text.unpack ip) <> "/"
 
 ping' :: ProcHandle a -> IO Pinged
 ping' handle = toPinged @HC.HttpException Proxy $ do
-  gotStatus <- handleGet handle "/status/200"
+  gotStatus <- httpGet handle "/status/200"
   if gotStatus == 200 then pure OK else pure NotOK
 
 
 -- | Determine the status from a Get on localhost.
-handleGet :: ProcHandle a -> Text -> IO Int
-handleGet handle urlPath = do
+httpGet :: ProcHandle a -> Text -> IO Int
+httpGet handle urlPath = do
   let theUri = "http://" <> hAddr handle <> "/" <> Text.dropWhile (== '/') urlPath
   manager <- HC.newManager HC.defaultManagerSettings
   getReq <- HC.parseRequest $ Text.unpack theUri
