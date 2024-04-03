@@ -42,8 +42,15 @@ This module does all that via its data types:
 * A /'Proc'/ specifies a docker image that provides a service and other details
   related to its use in tests.
 
+* @'Proc's@ may need additional setup before the docker command runs, this can
+  be done using by providing a specific /'Preparer'/ instance for it
+
+* @'Proc's@ may need additional arguments in the docker command that launches
+  it; this can be done using by providing a specific /'ToRunCmd'/ instance for
+  it
+
 * A /'ProcHandle'/ is created whenever a service specifed by a /'Proc'/ is
-started, and is used to access and eventually terminate the running service.
+started, and is used to access and eventually terminate the service.
 
 * Some @'Proc's@ will also be /'Connectable'/; these specify how access the
 service via some /'Conn'-ection/ type.
@@ -63,25 +70,29 @@ module System.TmpProc.Docker
   , ToRunCmd (..)
   , Preparer (..)
 
-    -- * @'ProcHandle'@
-  , ProcHandle (..)
-  , Proc2Handle
-  , HandlesOf
-  , NetworkHandlesOf
+    -- * start/stop multiple procs
   , startupAll
   , startupAll'
   , terminateAll
   , netwTerminateAll
   , netwStartupAll
   , withTmpProcs
-  , manyNamed
-  , genNetworkName
+
+    -- * access a started @'Proc'@
+  , ProcHandle (..)
+  , Proc2Handle
+  , HasHandle
+  , HasNamedHandle
   , handleOf
   , ixReset
   , ixPing
   , ixUriOf
-  , HasHandle
-  , HasNamedHandle
+
+    -- * access multiple procs
+  , HandlesOf
+  , NetworkHandlesOf
+  , manyNamed
+  , genNetworkName
   , SomeNamedHandles
 
     -- * @'Connectable'@
