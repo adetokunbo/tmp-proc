@@ -3,9 +3,10 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PolyKinds #-}
@@ -277,30 +278,45 @@ terminate handle = do
   void $ readProcess "docker" ["rm", pid] ""
 
 
-{- | Allow customization of the docker command that launches a @'Proc'@
-|
-| The full command is
-|   `docker run -d <optional-args> $(imageText a)`
-|
-| A fallback instance is provided that works for any instance of @Proc a@
-| Specify a new instance of @ToRunCmd@ to control <optional-args>
+{- | Prepare resources for use by a  @'Proc'@
+
+ Preparation occurs before the @Proc's @docker container is a launched, and
+ resources generated are made accessible via the @prepared@ data type
+
+ Usually, it will be used by @'toRunCmd'@ to provide additional arguments to the
+ docker command
+
+ There is an @Overlappable@ fallback instance that works for any @'Proc'@,
+ so this typeclass need only be specified for @'Proc'@ that require some
+ setup
 -}
-class ToRunCmd a where
-  -- * Generate args that follow the initial ['docker', 'run', '-d']
-  toRunCmd :: a -> [Text]
+class Preparer a prepared | a -> prepared where
+  -- * Generate a @prepared@ before the docker container is started
+  prepare :: [(Text, HostIpAddress)] -> a -> IO prepared
 
 
-instance {-# OVERLAPPABLE #-} (Proc a) => ToRunCmd a where
-  toRunCmd _ = runArgs @a
-
-
-class Preparer a where
-  -- * Hook to run before the docker container is started
-  prepare :: [(Text, HostIpAddress)] -> a -> IO a
-
-
-instance {-# OVERLAPPABLE #-} (Proc a) => Preparer a where
+instance {-# OVERLAPPABLE #-} (a ~ a', Proc a) => Preparer a a' where
+  prepare :: [(Text, HostIpAddress)] -> a -> IO a'
   prepare _ = pure
+
+
+{- | Allow customization of the docker command that launches a @'Proc'@
+
+ The full command is
+   `docker run -d <optional-args> --name $(name a) $(imageText a)`
+ Specify a new instance of @ToRunCmd@ to control <optional-args>
+
+ There is an @Overlappable@ fallback instance that works for any @'Proc'@,
+ so this typeclass need only be specified for @'Proc'@ that need extra
+ args in the docker command
+-}
+class (Preparer a prepared) => ToRunCmd a prepared where
+  -- * Generate docker command args to immeidately an initial ['docker', 'run', '-d']
+  toRunCmd :: a -> prepared -> [Text]
+
+
+instance {-# OVERLAPPABLE #-} (a ~ a', Proc a) => ToRunCmd a a' where
+  toRunCmd _ _ = runArgs @a
 
 
 -- | Specifies how to a get a connection to a 'Proc'.
@@ -402,11 +418,11 @@ uriOf' _ = uriOf @a
 
 
 -- | The full args of a @docker run@ command for starting up a 'Proc'.
-dockerCmdArgs :: forall a. (Proc a, ToRunCmd a) => a -> Maybe Text -> [Text]
-dockerCmdArgs x ntwkMb =
+dockerCmdArgs :: forall a prepared. (Proc a, Preparer a prepared, ToRunCmd a prepared) => a -> prepared -> Maybe Text -> [Text]
+dockerCmdArgs x prep ntwkMb =
   let toNetworkArgs n = ["--network", n]
       networkArg = maybe mempty toNetworkArgs ntwkMb
-   in ["run", "-d"] <> nameArg @a <> networkArg <> toRunCmd x <> [imageText' @a]
+   in ["run", "-d"] <> nameArg @a <> networkArg <> toRunCmd x prep <> [imageText' @a]
 
 
 imageText' :: forall a. (Proc a) => Text
@@ -432,23 +448,23 @@ throwing an exception if it did not.
 
 Returns the 'ProcHandle' used to control the 'Proc' once a ping has succeeded.
 -}
-startup :: (ProcPlus a) => a -> IO (ProcHandle a)
+startup :: (ProcPlus a prepared) => a -> IO (ProcHandle a)
 startup = startup' Nothing mempty
 
 
 -- | A @Constraint@ that combines @'Proc'@  and its supporting typeclasses
-type ProcPlus a = (Proc a, ToRunCmd a, Preparer a)
+type ProcPlus a prepared = (Proc a, ToRunCmd a prepared, Preparer a prepared)
 
 
 startup' ::
-  (ProcPlus a) =>
+  (ProcPlus a prepared) =>
   Maybe Text ->
   [(Text, HostIpAddress)] ->
   a ->
   IO (ProcHandle a)
 startup' ntwkMb addrs x = do
   x' <- prepare addrs x
-  let fullArgs = map Text.unpack $ dockerCmdArgs x' ntwkMb
+  let fullArgs = map Text.unpack $ dockerCmdArgs x x' ntwkMb
       isGarbage = flip elem ['\'', '\n']
       trim = dropWhileEnd isGarbage . dropWhile isGarbage
   printDebug $ Text.pack $ show fullArgs
@@ -464,7 +480,7 @@ startup' ntwkMb addrs x = do
         , "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
         ]
         ""
-  let h = ProcHandle {hProc = x', hPid, hUri = uriOf' x' hAddr, hAddr}
+  let h = ProcHandle {hProc = x, hPid, hUri = uriOf' x hAddr, hAddr}
   (nPings h `onException` terminate h) >>= \case
     OK -> pure h
     pinged -> do
@@ -718,7 +734,7 @@ instance AreProcs '[] where
 
 
 instance
-  ( ProcPlus a
+  ( ProcPlus a prepared
   , AreProcs as
   , IsAbsent a as
   ) =>
@@ -730,7 +746,7 @@ instance
 -- | Used to prove a list of types just contains @'ProcHandle's@.
 data SomeHandles (as :: [Type]) where
   SomeHandlesNil :: SomeHandles '[]
-  SomeHandlesCons :: (ProcPlus a) => SomeHandles as -> SomeHandles (ProcHandle a ': as)
+  SomeHandlesCons :: (ProcPlus a prepared) => SomeHandles as -> SomeHandles (ProcHandle a ': as)
 
 
 p2h :: SomeProcs as -> SomeHandles (Proc2Handle as)
@@ -741,7 +757,7 @@ p2h (SomeProcsCons cons) = SomeHandlesCons (p2h cons)
 -- | Used to prove a list of types just contains @'Proc's@.
 data SomeProcs (as :: [Type]) where
   SomeProcsNil :: SomeProcs '[]
-  SomeProcsCons :: (ProcPlus a, AreProcs as, IsAbsent a as) => SomeProcs as -> SomeProcs (a ': as)
+  SomeProcsCons :: (ProcPlus a prepared, AreProcs as, IsAbsent a as) => SomeProcs as -> SomeProcs (a ': as)
 
 
 -- | Declares a proof that a list of types only contains @'Connectable's@.

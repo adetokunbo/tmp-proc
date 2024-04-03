@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -59,20 +61,31 @@ setupHandles = startupAll $ HttpBinTest &: anNginxTest &:& HttpBinTest3
 -- | A data type that configures an Nginx tmp proc.
 data NginxTest = NginxTest
   { ntCommonName :: !Text
-  , ntTargetDir :: !FilePath
   , ntTargetPort :: !Int
   , ntTargetName :: !Text
-  , ntUserID :: !UserID
-  , ntGroupID :: !GroupID
   }
   deriving (Eq, Show)
+
+
+data NginxPrep = NginxPrep
+  { npUserID :: !UserID
+  , npGroupID :: !GroupID
+  , npTargetDir :: !FilePath
+  }
+  deriving (Eq, Show)
+
+
+instance ToMustache NginxPrep where
+  toMustache np =
+    object
+      [ "targetDir" ~> npTargetDir np
+      ]
 
 
 instance ToMustache NginxTest where
   toMustache nt =
     object
       [ "commonName" ~> ntCommonName nt
-      , "targetDir" ~> ntTargetDir nt
       , "targetPort" ~> ntTargetPort nt
       , "targetName" ~> ntTargetName nt
       ]
@@ -82,11 +95,8 @@ anNginxTest :: NginxTest
 anNginxTest =
   NginxTest
     { ntCommonName = "localhost"
-    , ntTargetDir = "/tmp"
     , ntTargetPort = 80
     , ntTargetName = "http-bin-test-3"
-    , ntUserID = 1000
-    , ntGroupID = 1000
     }
 
 
@@ -94,7 +104,7 @@ anNginxTest =
 -- expand the template with commonName to target-dir/nginx
 -- create certs with commonName to target-dir/certs
 -- used fixed cert basenames (certificate.pem and key.pem)
-prepare' :: [(Text, HostIpAddress)] -> NginxTest -> IO NginxTest
+prepare' :: [(Text, HostIpAddress)] -> NginxTest -> IO NginxPrep
 prepare' addrs nt = do
   let templateName = "nginx-test.conf.mustache"
   templateDir <- (</> "conf") <$> getDataDir
@@ -102,29 +112,29 @@ prepare' addrs nt = do
   case compiled of
     Left err -> error $ "the template did not compile:" ++ show err
     Right template -> do
-      (ntTargetDir, nginxConfDir, cpDir) <- createWorkingDirs
-      ntUserID <- getEffectiveUserID
-      ntGroupID <- getEffectiveGroupID
-      let nt' = nt {ntTargetDir, ntGroupID, ntUserID}
-          cp =
+      (npTargetDir, nginxConfDir, cpDir) <- createWorkingDirs
+      npUserID <- getEffectiveUserID
+      npGroupID <- getEffectiveGroupID
+      let cp =
             CertPaths
               { cpKey = "key.pem"
               , cpCert = "certificate.pem"
               , cpDir
               }
+          np = NginxPrep {npUserID, npGroupID, npTargetDir}
       generateAndStore cp defaultConfig
-      Text.writeFile (nginxConfDir </> "nginx.conf") $ substitute template nt'
-      print $ "the output files are below:" ++ show ntTargetDir
+      Text.writeFile (nginxConfDir </> "nginx.conf") $ substitute template (nt, np)
+      print $ "the output files are below:" ++ show npTargetDir
       print addrs
-      pure nt'
+      pure np
 
 
-toRunCmd' :: NginxTest -> [Text]
-toRunCmd' NginxTest {ntTargetDir, ntUserID, ntGroupID} =
+toRunCmd' :: NginxTest -> NginxPrep -> [Text]
+toRunCmd' _ np =
   -- specify user ID and group ID to fix volume mount permissions
   -- mount volume /etc/tmp-proc/certs as target-dir/certs
   -- mount volume /etc/tmp-proc/nginx as target-dir/nginx
-  let (confDir, certsDir) = toConfCertsDirs ntTargetDir
+  let (confDir, certsDir) = toConfCertsDirs $ npTargetDir np
       confPath = confDir </> "nginx.conf"
       envArg name v =
         [ "-e"
@@ -136,8 +146,8 @@ toRunCmd' NginxTest {ntTargetDir, ntUserID, ntGroupID} =
         ]
       confArg = volumeArg confPath $ dockerConf ++ ":ro"
       certsArg = volumeArg certsDir dockerCertsDir
-      puidArg = envArg "PUID" ntUserID
-      guidArg = envArg "GUID" ntGroupID
+      puidArg = envArg "PUID" $ npUserID np
+      guidArg = envArg "GUID" $ npGroupID np
    in Text.pack <$> confArg ++ certsArg ++ puidArg ++ guidArg
 
 
@@ -175,11 +185,11 @@ instance Proc NginxTest where
   ping = pingHttp
 
 
-instance ToRunCmd NginxTest where
+instance ToRunCmd NginxTest NginxPrep where
   toRunCmd = toRunCmd'
 
 
-instance Preparer NginxTest where
+instance Preparer NginxTest NginxPrep where
   prepare = prepare'
 
 
