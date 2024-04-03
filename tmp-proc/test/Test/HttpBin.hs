@@ -8,12 +8,18 @@
 module Test.HttpBin where
 
 import qualified Data.ByteString.Char8 as C8
+import Data.Default (Default (..))
 import Data.Proxy (Proxy (..))
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
+import Network.Connection (TLSSettings (..))
 import qualified Network.HTTP.Client as HC
+import qualified Network.HTTP.Client.TLS as HC
+import Network.HTTP.Types.Header (hHost)
 import Network.HTTP.Types.Status (statusCode)
+import Network.TLS (ClientParams (..), HostName, Shared (..), Supported (..), defaultParamsClient)
+import Network.TLS.Extra (ciphersuite_default)
 import Paths_tmp_proc
 import System.Directory (createDirectory)
 import System.FilePath ((</>))
@@ -35,6 +41,7 @@ import System.TmpProc
   , (&:)
   , (&:&)
   )
+import System.X509 (getSystemCertificateStore)
 import Test.Certs.Temp (CertPaths (..), defaultConfig, generateAndStore)
 import Text.Mustache
   ( ToMustache (..)
@@ -162,10 +169,10 @@ instance Proc NginxTest where
   -- config
   type Image NginxTest = "lscr.io/linuxserver/nginx"
   type Name NginxTest = "nginx-test"
-  uriOf = mkUri'
+  uriOf = httpUri
   runArgs = []
   reset _ = pure ()
-  ping = ping'
+  ping = pingHttp
 
 
 instance ToRunCmd NginxTest where
@@ -184,10 +191,10 @@ data HttpBinTest = HttpBinTest
 instance Proc HttpBinTest where
   type Image HttpBinTest = "kennethreitz/httpbin"
   type Name HttpBinTest = "http-bin-test"
-  uriOf = mkUri'
+  uriOf = httpUri
   runArgs = []
   reset _ = pure ()
-  ping = ping'
+  ping = pingHttp
 
 
 {- | Another data type representing a connection to a HttpBin server.
@@ -202,10 +209,10 @@ data HttpBinTest2 = HttpBinTest2
 instance Proc HttpBinTest2 where
   type Image HttpBinTest2 = "kennethreitz/httpbin"
   type Name HttpBinTest2 = "http-bin-test-2"
-  uriOf = mkUri'
+  uriOf = httpUri
   runArgs = []
   reset _ = pure ()
-  ping = ping'
+  ping = pingHttp
 
 
 {- | Yet another data type representing a connection to a HttpBin server.
@@ -220,30 +227,68 @@ data HttpBinTest3 = HttpBinTest3
 instance Proc HttpBinTest3 where
   type Image HttpBinTest3 = "kennethreitz/httpbin"
   type Name HttpBinTest3 = "http-bin-test-3"
-  uriOf = mkUri'
+  uriOf = httpUri
   runArgs = []
   reset _ = pure ()
-  ping = ping'
+  ping = pingHttp
 
 
 -- | Make a uri access the http-bin server.
-mkUri' :: HostIpAddress -> SvcURI
-mkUri' ip = "http://" <> C8.pack (Text.unpack ip) <> "/"
+httpUri :: HostIpAddress -> SvcURI
+httpUri ip = "http://" <> C8.pack (Text.unpack ip) <> "/"
 
 
-ping' :: ProcHandle a -> IO Pinged
-ping' handle = toPinged @HC.HttpException Proxy $ do
+pingHttp :: ProcHandle a -> IO Pinged
+pingHttp handle = toPinged @HC.HttpException Proxy $ do
   gotStatus <- httpGet handle "/status/200"
   if gotStatus == 200 then pure OK else pure NotOK
 
 
--- | Determine the status from a Get on localhost.
+pingHttps :: ProcHandle a -> IO Pinged
+pingHttps handle = toPinged @HC.HttpException Proxy $ do
+  gotStatus <- httpsGet handle "/status/200"
+  if gotStatus == 200 then pure OK else pure NotOK
+
+
+-- | Determine the status from a Get.
 httpGet :: ProcHandle a -> Text -> IO Int
 httpGet handle urlPath = do
   let theUri = "http://" <> hAddr handle <> "/" <> Text.dropWhile (== '/') urlPath
   manager <- HC.newManager HC.defaultManagerSettings
   getReq <- HC.parseRequest $ Text.unpack theUri
   statusCode . HC.responseStatus <$> HC.httpLbs getReq manager
+
+
+-- | Determine the status from a secure Get to host localhost.
+httpsGet :: ProcHandle a -> Text -> IO Int
+httpsGet handle urlPath = do
+  -- _tlsSettings <- TLSSettings <$> _mkClientParams "localHost"
+  let theUri = "https://" <> hAddr handle <> "/" <> Text.dropWhile (== '/') urlPath
+      -- use TLS settings that disable hostname verification. What's not
+      -- currently possible is to actually specify the hostname to use for SNI
+      -- that differs from the connection IP address, that's not supported by
+      -- http-client-tls
+      tlsSettings = TLSSettingsSimple True False False
+  manager <- HC.newTlsManagerWith $ HC.mkManagerSettings tlsSettings Nothing
+  getReq <- HC.parseRequest $ Text.unpack theUri
+  let withHost = getReq {HC.requestHeaders = [(hHost, "localhost")]}
+  statusCode . HC.responseStatus <$> HC.httpLbs withHost manager
+
+
+-- currently unused, since the server specified in ClientParams for SNI is
+-- overridden by Connection, which resets it to the connection hostname
+_mkClientParams :: HostName -> IO ClientParams
+_mkClientParams server = do
+  cs <- getSystemCertificateStore
+  pure $
+    (defaultParamsClient server "")
+      { clientSupported =
+          def
+            { supportedCiphers = ciphersuite_default
+            }
+      , clientShared = def {sharedCAStore = cs}
+      , clientUseServerNameIndication = True
+      }
 
 
 -- | Verify that the compile time type computations related to 'manyNamed' are ok.

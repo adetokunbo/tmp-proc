@@ -484,7 +484,11 @@ pingedMsg p (PingFailed err) =
 
 -- | Use an action that might throw an exception as a ping.
 toPinged :: forall e a. (Exception e) => Proxy e -> IO a -> IO Pinged
-toPinged _ action = (action >> pure OK) `catch` (\(_ :: e) -> pure NotOK)
+toPinged _ action =
+  let handler (ex :: e) = do
+        printDebug $ "toPinged:" <> Text.pack (show ex)
+        pure NotOK
+   in (action >> pure OK) `catch` handler
 
 
 -- | Ping a 'ProcHandle' several times.

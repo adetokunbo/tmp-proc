@@ -14,6 +14,7 @@ import System.TmpProc
   , ixReset
   , terminateAll
   )
+import System.TmpProc.Docker (ProcHandle, hOf)
 import Test.Hspec
 import Test.Hspec.TmpProc (tdescribe)
 import Test.HttpBin
@@ -25,7 +26,7 @@ spec = tdescribe "Tmp.Proc: ping and reset" $ do
     context "When accessing the services in the list of test tmp procs" $ do
       context "ixPing" $ do
         it "should succeed when accessing the nginx proc by name" $ \hs ->
-          ixPing @"nginx-test" Proxy hs `shouldReturn` OK
+          pingHttps (hOf @(ProcHandle NginxTest) Proxy hs) `shouldReturn` OK
 
         it "should succeed when accessing the http-bin proc by name" $ \hs ->
           ixPing @"http-bin-test" Proxy hs `shouldReturn` OK
