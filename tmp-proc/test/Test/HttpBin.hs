@@ -4,21 +4,22 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 
 module Test.HttpBin where
 
 import qualified Data.ByteString.Char8 as C8
+import Data.Default (Default (..))
 import Data.Proxy (Proxy (..))
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
-import Network.Connection (TLSSettings (TLSSettings))
+import Network.Connection (TLSSettings (..))
 import qualified Network.HTTP.Client as HC
 import qualified Network.HTTP.Client.TLS as HC
 import Network.HTTP.Types.Header (hHost)
 import Network.HTTP.Types.Status (statusCode)
-import Network.TLS (defaultParamsClient)
+import Network.TLS (ClientParams (..), HostName, Shared (..), Supported (..), defaultParamsClient)
+import Network.TLS.Extra (ciphersuite_default)
 import Paths_tmp_proc
 import System.Directory (createDirectory)
 import System.FilePath ((</>))
@@ -40,6 +41,7 @@ import System.TmpProc
   , (&:)
   , (&:&)
   )
+import System.X509 (getSystemCertificateStore)
 import Test.Certs.Temp (CertPaths (..), defaultConfig, generateAndStore)
 import Text.Mustache
   ( ToMustache (..)
@@ -245,7 +247,6 @@ pingHttp handle = toPinged @HC.HttpException Proxy $ do
 pingHttps :: ProcHandle a -> IO Pinged
 pingHttps handle = toPinged @HC.HttpException Proxy $ do
   gotStatus <- httpsGet handle "/status/200"
-  putStrLn $ "pingHttps:status:" ++ show gotStatus
   if gotStatus == 200 then pure OK else pure NotOK
 
 
@@ -261,12 +262,33 @@ httpGet handle urlPath = do
 -- | Determine the status from a secure Get to host localhost.
 httpsGet :: ProcHandle a -> Text -> IO Int
 httpsGet handle urlPath = do
+  -- _tlsSettings <- TLSSettings <$> _mkClientParams "localHost"
   let theUri = "https://" <> hAddr handle <> "/" <> Text.dropWhile (== '/') urlPath
-      tlsSettings = TLSSettings $ defaultParamsClient "localhost" "443"
+      -- use TLS settings that disable hostname verification. What's not
+      -- currently possible is to actually specify the hostname to use for SNI
+      -- that differs from the connection IP address, that's not supported by
+      -- http-client-tls
+      tlsSettings = TLSSettingsSimple True False False
   manager <- HC.newTlsManagerWith $ HC.mkManagerSettings tlsSettings Nothing
   getReq <- HC.parseRequest $ Text.unpack theUri
   let withHost = getReq {HC.requestHeaders = [(hHost, "localhost")]}
   statusCode . HC.responseStatus <$> HC.httpLbs withHost manager
+
+
+-- currently unused, since the server specified in ClientParams for SNI is
+-- overridden by Connection, which resets it to the connection hostname
+_mkClientParams :: HostName -> IO ClientParams
+_mkClientParams server = do
+  cs <- getSystemCertificateStore
+  pure $
+    (defaultParamsClient server "")
+      { clientSupported =
+          def
+            { supportedCiphers = ciphersuite_default
+            }
+      , clientShared = def {sharedCAStore = cs}
+      , clientUseServerNameIndication = True
+      }
 
 
 -- | Verify that the compile time type computations related to 'manyNamed' are ok.
