@@ -58,7 +58,7 @@ setupHandles :: IO (HandlesOf '[HttpBinTest, NginxTest, HttpBinTest3])
 setupHandles = startupAll $ HttpBinTest &: anNginxTest &:& HttpBinTest3
 
 
--- | A data type that configures an Nginx tmp proc.
+-- | A data type that configures a tmp proc nginx reverse proxy.
 data NginxTest = NginxTest
   { ntCommonName :: !Text
   , ntTargetPort :: !Int
@@ -70,7 +70,7 @@ data NginxTest = NginxTest
 data NginxPrep = NginxPrep
   { npUserID :: !UserID
   , npGroupID :: !GroupID
-  , npTargetDir :: !FilePath
+  , npVolumeRoot :: !FilePath
   }
   deriving (Eq, Show)
 
@@ -78,7 +78,7 @@ data NginxPrep = NginxPrep
 instance ToMustache NginxPrep where
   toMustache np =
     object
-      [ "targetDir" ~> npTargetDir np
+      [ "targetDir" ~> npVolumeRoot np
       ]
 
 
@@ -106,27 +106,32 @@ anNginxTest =
 -- used fixed cert basenames (certificate.pem and key.pem)
 prepare' :: [(Text, HostIpAddress)] -> NginxTest -> IO NginxPrep
 prepare' addrs nt = do
-  let templateName = "nginx-test.conf.mustache"
-  templateDir <- (</> "conf") <$> getDataDir
-  compiled <- automaticCompile [templateDir] templateName
-  case compiled of
-    Left err -> error $ "the template did not compile:" ++ show err
-    Right template -> do
-      (npTargetDir, nginxConfDir, cpDir) <- createWorkingDirs
-      npUserID <- getEffectiveUserID
-      npGroupID <- getEffectiveGroupID
-      let cp =
-            CertPaths
-              { cpKey = "key.pem"
-              , cpCert = "certificate.pem"
-              , cpDir
-              }
-          np = NginxPrep {npUserID, npGroupID, npTargetDir}
-      generateAndStore cp defaultConfig
-      Text.writeFile (nginxConfDir </> "nginx.conf") $ substitute template (nt, np)
-      print $ "the output files are below:" ++ show npTargetDir
-      print addrs
-      pure np
+  case lookup (ntTargetName nt) addrs of
+    Nothing -> error $ "could not find host " <> show (ntTargetName nt)
+    Just _ -> do
+      templateDir <- (</> "conf") <$> getDataDir
+      compiled <- automaticCompile [templateDir] templateName
+      case compiled of
+        Left err -> error $ "the template did not compile:" ++ show err
+        Right template -> do
+          npVolumeRoot <- createWorkingDirs
+          npUserID <- getEffectiveUserID
+          npGroupID <- getEffectiveGroupID
+          let (confDir, cpDir) = toConfCertsDirs npVolumeRoot
+              cp =
+                CertPaths
+                  { cpKey = "key.pem"
+                  , cpCert = "certificate.pem"
+                  , cpDir
+                  }
+              np = NginxPrep {npUserID, npGroupID, npVolumeRoot}
+          generateAndStore cp defaultConfig
+          Text.writeFile (confDir </> "nginx.conf") $ substitute template (nt, np)
+          pure np
+
+
+templateName :: FilePath
+templateName = "nginx-test.conf.mustache"
 
 
 toRunCmd' :: NginxTest -> NginxPrep -> [Text]
@@ -134,7 +139,7 @@ toRunCmd' _ np =
   -- specify user ID and group ID to fix volume mount permissions
   -- mount volume /etc/tmp-proc/certs as target-dir/certs
   -- mount volume /etc/tmp-proc/nginx as target-dir/nginx
-  let (confDir, certsDir) = toConfCertsDirs $ npTargetDir np
+  let (confDir, certsDir) = toConfCertsDirs $ npVolumeRoot np
       confPath = confDir </> "nginx.conf"
       envArg name v =
         [ "-e"
@@ -151,14 +156,14 @@ toRunCmd' _ np =
    in Text.pack <$> confArg ++ certsArg ++ puidArg ++ guidArg
 
 
-createWorkingDirs :: IO (FilePath, FilePath, FilePath)
+createWorkingDirs :: IO FilePath
 createWorkingDirs = do
   tmpDir <- getCanonicalTemporaryDirectory
   topDir <- createTempDirectory tmpDir "nginx-test"
   let (confDir, certsDir) = toConfCertsDirs topDir
   createDirectory confDir
   createDirectory certsDir
-  pure (topDir, confDir, certsDir)
+  pure topDir
 
 
 toConfCertsDirs :: FilePath -> (FilePath, FilePath)
