@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -18,6 +17,7 @@ import System.TmpProc.Docker (ProcHandle, hOf)
 import Test.Hspec
 import Test.Hspec.TmpProc (tdescribe)
 import Test.HttpBin
+import Test.NginxTest (NginxTest, pingHttps)
 
 
 spec :: Spec
