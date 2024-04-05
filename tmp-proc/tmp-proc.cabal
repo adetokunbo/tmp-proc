@@ -73,6 +73,7 @@ test-suite integration-test
     Paths_tmp_proc
     Test.Hspec.TmpProc
     Test.HttpBin
+    Test.NginxTest
     Test.SimpleServer
     Test.System.TmpProc.Hspec
     Test.System.TmpProc.HttpBinSpec
