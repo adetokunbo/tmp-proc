@@ -10,6 +10,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
@@ -80,9 +81,11 @@ module System.TmpProc.Docker
 
     -- * access a started @'Proc'@
   , ProcHandle (..)
+  , SlimHandle (..)
   , Proc2Handle
   , HasHandle
   , HasNamedHandle
+  , slim
   , handleOf
   , ixReset
   , ixPing
@@ -218,6 +221,33 @@ data ProcHandle a = ProcHandle
   }
 
 
+-- | Provides an untyped view of the data in a 'ProcHandle'
+data SlimHandle = SlimHandle
+  { shName :: !Text
+  , shIpAddress :: !HostIpAddress
+  , shPid :: !String
+  , shUri :: !SvcURI
+  }
+  deriving (Eq, Show)
+
+
+-- | Obtain the 'SlimHandle'.
+slim :: (Proc a) => ProcHandle a -> SlimHandle
+slim x =
+  SlimHandle
+    { shName = nameOf $ hProc x
+    , shIpAddress = hAddr x
+    , shPid = hPid x
+    , shUri = hUri x
+    }
+
+
+slimMany :: (AreProcs procs) => HandlesOf procs -> [SlimHandle]
+slimMany =
+  let step x acc = slim x : acc
+   in foldProcs step []
+
+
 -- | Start up processes for each 'Proc' type.
 startupAll :: (AreProcs procs) => HList procs -> IO (HandlesOf procs)
 startupAll ps = snd <$> startupAll' Nothing ps
@@ -230,12 +260,18 @@ netwStartupAll ps = do
   startupAll' (Just netwName) ps
 
 
-addresses :: (AreProcs procs) => HandlesOf procs -> [(Text, HostIpAddress)]
-addresses = go procProof
+foldProcs ::
+  forall procs b.
+  (AreProcs procs) =>
+  (forall a. (Proc a) => ProcHandle a -> b -> b) ->
+  b ->
+  HandlesOf procs ->
+  b
+foldProcs f acc = go procProof
   where
-    go :: SomeProcs as -> HandlesOf as -> [(Text, HostIpAddress)]
-    go SomeProcsNil HNil = []
-    go (SomeProcsCons cons) (x `HCons` y) = (nameOf $ hProc x, hAddr x) : go cons y
+    go :: SomeProcs as -> HandlesOf as -> b
+    go SomeProcsNil HNil = acc
+    go (SomeProcsCons cons) (x `HCons` y) = f x $ go cons y
 
 
 -- | Start up processes for each 'Proc' type.
@@ -251,8 +287,7 @@ startupAll' ntwkMb ps =
     go SomeProcsNil HNil = pure HNil
     go (SomeProcsCons cons) (x `HCons` y) = do
       others <- go cons y
-      let addrs = addresses others
-      h <- startup' ntwkMb addrs x `onException` terminateAll others
+      h <- startup' ntwkMb (slimMany others) x `onException` terminateAll others
       pure $ h `HCons` others
    in
     do
@@ -262,13 +297,9 @@ startupAll' ntwkMb ps =
 
 -- | Terminate all processes owned by some @'ProcHandle's@.
 terminateAll :: (AreProcs procs) => HandlesOf procs -> IO ()
-terminateAll = go $ p2h procProof
-  where
-    go :: SomeHandles as -> HList as -> IO ()
-    go SomeHandlesNil HNil = pure ()
-    go (SomeHandlesCons cons) (x `HCons` y) = do
-      terminate x
-      go cons y
+terminateAll =
+  let step x acc = terminate x >> acc
+   in foldProcs step $ pure ()
 
 
 {- | Like 'terminateAll', but also removes the docker network connecting the
@@ -292,7 +323,7 @@ terminate handle = do
 {- | Prepare resources for use by a  @'Proc'@
 
  Preparation occurs before the @Proc's @docker container is a launched, and
- resources generated are made accessible via the @prepared@ data type
+ resources generated are made accessible via the @prepared@ data type.
 
  Usually, it will be used by @'toRunCmd'@ to provide additional arguments to the
  docker command
@@ -300,14 +331,18 @@ terminate handle = do
  There is an @Overlappable@ fallback instance that works for any @'Proc'@,
  so this typeclass need only be specified for @'Proc'@ that require some
  setup
+
+ The 'prepare' method is given a list of 'SlimHandle' that represent preceding
+ @tmp-proc@ managed containers, to allow preparation to establish links to these
+ containers when necessary
 -}
 class Preparer a prepared | a -> prepared where
   -- * Generate a @prepared@ before the docker container is started
-  prepare :: [(Text, HostIpAddress)] -> a -> IO prepared
+  prepare :: [SlimHandle] -> a -> IO prepared
 
 
 instance {-# OVERLAPPABLE #-} (a ~ a', Proc a) => Preparer a a' where
-  prepare :: [(Text, HostIpAddress)] -> a -> IO a'
+  prepare :: [SlimHandle] -> a -> IO a'
   prepare _ = pure
 
 
@@ -429,7 +464,7 @@ uriOf' _ = uriOf @a
 
 
 -- | The full args of a @docker run@ command for starting up a 'Proc'.
-dockerCmdArgs :: forall a prepared. (Proc a, Preparer a prepared, ToRunCmd a prepared) => a -> prepared -> Maybe Text -> [Text]
+dockerCmdArgs :: forall a prepared. (Proc a, ToRunCmd a prepared) => a -> prepared -> Maybe Text -> [Text]
 dockerCmdArgs x prep ntwkMb =
   let toNetworkArgs n = ["--network", n]
       networkArg = maybe mempty toNetworkArgs ntwkMb
@@ -437,7 +472,7 @@ dockerCmdArgs x prep ntwkMb =
 
 
 imageText' :: forall a. (Proc a) => Text
-imageText' = Text.pack $ symbolVal (Proxy :: Proxy (Image a))
+imageText' = Text.pack $ symbolVal $ Proxy @(Image a)
 
 
 nameArg :: forall a. (Proc a) => [Text]
@@ -470,7 +505,7 @@ type ProcPlus a prepared = (Proc a, ToRunCmd a prepared, Preparer a prepared)
 startup' ::
   (ProcPlus a prepared) =>
   Maybe Text ->
-  [(Text, HostIpAddress)] ->
+  [SlimHandle] ->
   a ->
   IO (ProcHandle a)
 startup' ntwkMb addrs x = do
