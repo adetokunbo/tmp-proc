@@ -24,6 +24,7 @@ where
 import qualified Data.ByteString.Char8 as C8
 import Data.Data (Proxy (..))
 import Data.Default (Default (..))
+import Data.List (find)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
@@ -40,7 +41,17 @@ import System.FilePath ((</>))
 import System.IO.Temp (createTempDirectory, getCanonicalTemporaryDirectory)
 import System.Posix.ByteString (getEffectiveGroupID, getEffectiveUserID)
 import System.Posix.Types (GroupID, UserID)
-import System.TmpProc (HostIpAddress, Pinged (..), Preparer (..), Proc (..), ProcHandle (..), SvcURI, ToRunCmd (..), toPinged)
+import System.TmpProc
+  ( HostIpAddress
+  , Pinged (..)
+  , Preparer (..)
+  , Proc (..)
+  , ProcHandle (..)
+  , SlimHandle (..)
+  , SvcURI
+  , ToRunCmd (..)
+  , toPinged
+  )
 import System.X509 (getSystemCertificateStore)
 import Test.Certs.Temp (CertPaths (..), defaultConfig, generateAndStore)
 import Text.Mustache
@@ -158,10 +169,10 @@ toRunCmd' _ np =
 -- expand the template with commonName to target-dir/nginx
 -- create certs with commonName to target-dir/certs
 -- used fixed cert basenames (certificate.pem and key.pem)
-prepare' :: [(Text, HostIpAddress)] -> NginxTest -> IO NginxPrep
-prepare' addrs nt = do
-  case lookup (ntTargetName nt) addrs of
-    Nothing -> error $ "could not find host " <> show (ntTargetName nt)
+prepare' :: [SlimHandle] -> NginxTest -> IO NginxPrep
+prepare' views nt@NginxTest {ntTargetName = name} = do
+  case find ((== name) . shName) views of
+    Nothing -> error $ "could not find host " <> show name
     Just _ -> do
       templateDir <- (</> "conf") <$> getDataDir
       compiled <- automaticCompile [templateDir] templateName
