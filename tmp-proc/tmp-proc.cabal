@@ -26,6 +26,7 @@ homepage:
 
 build-type:         Simple
 data-files:
+  templates/*.mustache
   test_certs/*.csr
   test_certs/*.pem
 

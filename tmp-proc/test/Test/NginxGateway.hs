@@ -176,7 +176,7 @@ prepare' views nt@NginxGateway {ngTargetName = name} = do
   case find ((== name) . shName) views of
     Nothing -> error $ "could not find host " <> show name
     Just _ -> do
-      templateDir <- (</> "conf") <$> getDataDir
+      templateDir <- (</> "templates") <$> getDataDir
       compiled <- automaticCompile [templateDir] templateName
       case compiled of
         Left err -> error $ "the template did not compile:" ++ show err
