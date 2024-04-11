@@ -26,6 +26,7 @@ homepage:
 
 build-type:         Simple
 data-files:
+  templates/*.mustache
   test_certs/*.csr
   test_certs/*.pem
 
@@ -73,7 +74,7 @@ test-suite integration-test
     Paths_tmp_proc
     Test.Hspec.TmpProc
     Test.HttpBin
-    Test.NginxTest
+    Test.NginxGateway
     Test.SimpleServer
     Test.System.TmpProc.Hspec
     Test.System.TmpProc.HttpBinSpec

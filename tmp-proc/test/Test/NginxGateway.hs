@@ -6,14 +6,14 @@
 {-# LANGUAGE TypeFamilies #-}
 
 {- |
-Module      : Test.NginxTest
+Module      : Test.NginxGateway
 Copyright   : (c) 2022 Tim Emiola
 Maintainer  : Tim Emiola <adetokunbo@emio.la>
 SPDX-License-Identifier: BSD3
 -}
-module Test.NginxTest
+module Test.NginxGateway
   ( -- * data types
-    NginxTest (..)
+    NginxGateway (..)
   , NginxPrep (..)
 
     -- * ping via https
@@ -31,7 +31,7 @@ import qualified Data.Text.IO as Text
 import Network.Connection (TLSSettings (..))
 import qualified Network.HTTP.Client as HC
 import qualified Network.HTTP.Client.TLS as HC
-import Network.HTTP.Types.Header (hContentDisposition, hHost)
+import Network.HTTP.Types.Header (hHost)
 import Network.HTTP.Types.Status (statusCode)
 import Network.TLS (ClientParams (..), HostName, Shared (..), Supported (..), defaultParamsClient)
 import Network.TLS.Extra (ciphersuite_default)
@@ -64,44 +64,46 @@ import Text.Mustache
 
 
 -- | Run Nginx as a temporary process.
-instance Proc NginxTest where
+instance Proc NginxGateway where
   -- use this linuxserver.io nginx as it is setup to allow easy override of
   -- config
-  type Image NginxTest = "lscr.io/linuxserver/nginx"
-  type Name NginxTest = "nginx-test"
+  type Image NginxGateway = "lscr.io/linuxserver/nginx"
+  type Name NginxGateway = "nginx-test"
   uriOf = httpUri
   runArgs = []
   reset _ = pure ()
   ping = pingHttps
 
 
-instance ToRunCmd NginxTest NginxPrep where
+instance ToRunCmd NginxGateway NginxPrep where
   toRunCmd = toRunCmd'
 
 
-instance Preparer NginxTest NginxPrep where
+instance Preparer NginxGateway NginxPrep where
   prepare = prepare'
 
 
--- | Configures launch of a container thats uses nginx as a reverse proxy.
-data NginxTest = NginxTest
-  { ntCommonName :: !Text
-  , ntTargetPort :: !Int
-  , ntTargetName :: !Text
+{- | Configures launch of a container thats uses nginx as a gateway (a.k.a
+reverse proxy).
+-}
+data NginxGateway = NginxGateway
+  { ngCommonName :: !Text
+  , ngTargetPort :: !Int
+  , ngTargetName :: !Text
   }
   deriving (Eq, Show)
 
 
-instance ToMustache NginxTest where
+instance ToMustache NginxGateway where
   toMustache nt =
     object
-      [ "commonName" ~> ntCommonName nt
-      , "targetPort" ~> ntTargetPort nt
-      , "targetName" ~> ntTargetName nt
+      [ "commonName" ~> ngCommonName nt
+      , "targetPort" ~> ngTargetPort nt
+      , "targetName" ~> ngTargetName nt
       ]
 
 
--- | Values obtained while in preparation to launch the nginx container
+-- | Values obtained while preparing to launch the nginx container
 data NginxPrep = NginxPrep
   { npUserID :: !UserID
   , npGroupID :: !GroupID
@@ -143,7 +145,7 @@ createWorkingDirs = do
   pure topDir
 
 
-toRunCmd' :: NginxTest -> NginxPrep -> [Text]
+toRunCmd' :: NginxGateway -> NginxPrep -> [Text]
 toRunCmd' _ np =
   -- specify user ID and group ID to fix volume mount permissions
   -- mount volume /etc/tmp-proc/certs as target-dir/certs
@@ -169,12 +171,12 @@ toRunCmd' _ np =
 -- expand the template with commonName to target-dir/nginx
 -- create certs with commonName to target-dir/certs
 -- used fixed cert basenames (certificate.pem and key.pem)
-prepare' :: [SlimHandle] -> NginxTest -> IO NginxPrep
-prepare' views nt@NginxTest {ntTargetName = name} = do
+prepare' :: [SlimHandle] -> NginxGateway -> IO NginxPrep
+prepare' views nt@NginxGateway {ngTargetName = name} = do
   case find ((== name) . shName) views of
     Nothing -> error $ "could not find host " <> show name
     Just _ -> do
-      templateDir <- (</> "conf") <$> getDataDir
+      templateDir <- (</> "templates") <$> getDataDir
       compiled <- automaticCompile [templateDir] templateName
       case compiled of
         Left err -> error $ "the template did not compile:" ++ show err

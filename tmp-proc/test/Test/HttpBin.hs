@@ -27,20 +27,20 @@ import System.TmpProc
   , (&:)
   , (&:&)
   )
-import Test.NginxTest (NginxTest (..))
+import Test.NginxGateway (NginxGateway (..))
 
 
-anNginxTest :: NginxTest
-anNginxTest =
-  NginxTest
-    { ntCommonName = "localhost"
-    , ntTargetPort = 80
-    , ntTargetName = "http-bin-test-3"
+anNginxGateway :: NginxGateway
+anNginxGateway =
+  NginxGateway
+    { ngCommonName = "localhost"
+    , ngTargetPort = 80
+    , ngTargetName = "http-bin-test-3"
     }
 
 
-setupHandles :: IO (HandlesOf '[HttpBinTest, NginxTest, HttpBinTest3])
-setupHandles = startupAll $ HttpBinTest &: anNginxTest &:& HttpBinTest3
+setupHandles :: IO (HandlesOf '[HttpBinTest, NginxGateway, HttpBinTest3])
+setupHandles = startupAll $ HttpBinTest &: anNginxGateway &:& HttpBinTest3
 
 
 -- | A data type representing a connection to a HttpBin server.
@@ -132,7 +132,7 @@ typeLevelCheck3 = do
   pure $ manyNamed @'["http-bin-test-3", "http-bin-test"] Proxy allHandles
 
 
-typeLevelCheck4 :: IO (HandlesOf '[HttpBinTest3, NginxTest, HttpBinTest])
+typeLevelCheck4 :: IO (HandlesOf '[HttpBinTest3, NginxGateway, HttpBinTest])
 typeLevelCheck4 = do
   allHandles <- setupHandles
   pure $ manyNamed @'["http-bin-test-3", "nginx-test", "http-bin-test"] Proxy allHandles

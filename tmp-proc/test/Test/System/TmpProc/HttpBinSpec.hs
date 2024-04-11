@@ -17,7 +17,7 @@ import System.TmpProc.Docker (ProcHandle, hOf)
 import Test.Hspec
 import Test.Hspec.TmpProc (tdescribe)
 import Test.HttpBin
-import Test.NginxTest (NginxTest, pingHttps)
+import Test.NginxGateway (NginxGateway, pingHttps)
 
 
 spec :: Spec
@@ -26,7 +26,7 @@ spec = tdescribe "Tmp.Proc: ping and reset" $ do
     context "When accessing the services in the list of test tmp procs" $ do
       context "ixPing" $ do
         it "should succeed when accessing the nginx proc by name" $ \hs ->
-          pingHttps (hOf @(ProcHandle NginxTest) Proxy hs) `shouldReturn` OK
+          pingHttps (hOf @(ProcHandle NginxGateway) Proxy hs) `shouldReturn` OK
 
         it "should succeed when accessing the http-bin proc by name" $ \hs ->
           ixPing @"http-bin-test" Proxy hs `shouldReturn` OK
@@ -45,4 +45,4 @@ spec = tdescribe "Tmp.Proc: ping and reset" $ do
           ixReset @HttpBinTest Proxy hs `shouldReturn` ()
 
         it "should succeed when accessing the nginx proc by type" $ \hs ->
-          ixReset @NginxTest Proxy hs `shouldReturn` ()
+          ixReset @NginxGateway Proxy hs `shouldReturn` ()
