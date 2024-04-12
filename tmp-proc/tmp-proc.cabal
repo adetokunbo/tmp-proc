@@ -27,8 +27,6 @@ homepage:
 build-type:         Simple
 data-files:
   templates/*.mustache
-  test_certs/*.csr
-  test_certs/*.pem
 
 extra-source-files: ChangeLog.md
 tested-with:        GHC ==8.10.7 || ==9.0.2 || ==9.2.8 || ==9.4.5
