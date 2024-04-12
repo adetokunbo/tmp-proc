@@ -101,6 +101,7 @@ test-suite integration-test
     , tmp-proc
     , wai
     , warp
+    , warp-tls
     , unix                  >=2.7 && <2.9
 
   default-language: Haskell2010

@@ -7,5 +7,7 @@ packages:
   ./tmp-proc-zipkin
   ./hspec-tmp-proc
 
+test-show-details: streaming
+
 package tmp-proc
   flags: +use-doc-tests

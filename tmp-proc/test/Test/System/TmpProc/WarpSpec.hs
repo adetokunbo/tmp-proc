@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -15,6 +16,9 @@ import Data.Text (Text)
 import qualified Network.HTTP.Client as HC
 import Network.HTTP.Types (status200, status400)
 import Network.Wai (Application, pathInfo, responseLBS)
+import Network.Wai.Handler.WarpTLS (tlsSettings)
+import qualified Network.Wai.Handler.WarpTLS as Warp
+import System.IO.Temp (createTempDirectory, getCanonicalTemporaryDirectory)
 import System.TmpProc.Docker
   ( HList (..)
   , HandlesOf
@@ -34,36 +38,69 @@ import System.TmpProc.Warp
   , testWithApplication
   , testWithTLSApplication
   )
+import Test.Certs.Temp (CertPaths (..), certificatePath, defaultConfig, generateAndStore, keyPath, withCertPathsInTmp')
 import Test.Hspec
 import Test.Hspec.TmpProc (tdescribe)
 import Test.HttpBin
-import Test.SimpleServer (statusOfGet)
+import Test.NginxGateway (NginxGateway (..))
+import Test.SimpleServer (statusOfGet, statusOfGet')
 
 
 spec :: Spec
 spec = tdescribe "Tmp.Proc: Warp server with Tmp.Proc dependency" $ do
-  beforeAllSpec >> aroundSpec
+  checkBeforeAll prefixHttp setupBeforeAll statusOfGet
+  checkBeforeAll prefixHttps setupBeforeAllTls statusOfGet'
+  httpSpec prefixHttp setupAround statusOfGet
+  httpSpec prefixHttps setupAroundTls statusOfGet'
 
 
-testProcs :: HList '[HttpBinTest]
+type TmpProcs = '[HttpBinTest]
+
+
+testProcs :: HList TmpProcs
 testProcs = only HttpBinTest
 
 
-testApp :: HandlesOf '[HttpBinTest] -> IO Application
+theGateway :: NginxGateway
+theGateway =
+  NginxGateway
+    { ngCommonName = "localhost"
+    , ngTargetPort = 80
+    , ngTargetName = "http-bin-test"
+    }
+
+
+testApp :: HandlesOf TmpProcs -> IO Application
 testApp hs =
   mkTestApp'
     (pingOrFail $ handleOf @"http-bin-test" Proxy hs)
     (pingOrFail $ handleOf @"http-bin-test" Proxy hs)
 
 
-setupBeforeAll :: IO (ServerHandle '[HttpBinTest])
+setupBeforeAll :: IO (ServerHandle TmpProcs)
 setupBeforeAll = runServer testProcs testApp
 
 
--- setupBeforeAllTls :: IO (ServerHandle '[HttpBinTest])
--- setupBeforeAllTls = do
---   tls <- defaultTLSSettings
---   runTLSServer tls testProcs testApp
+setupBeforeAllTls :: IO (ServerHandle TmpProcs)
+setupBeforeAllTls = do
+  cp <- genCertPaths
+  let tls = tlsSettings (certificatePath cp) (keyPath cp)
+  runTLSServer tls testProcs testApp
+
+
+genCertPaths :: IO CertPaths
+genCertPaths = do
+  tmpDir <- getCanonicalTemporaryDirectory
+  cpDir <- createTempDirectory tmpDir "tmp-proc-warp-spec"
+  let cp =
+        CertPaths
+          { cpKey = "key.pem"
+          , cpCert = "certificate.pem"
+          , cpDir
+          }
+  generateAndStore cp defaultConfig
+  pure cp
+
 
 suffixAround, suffixBeforeAll, prefixHttp, prefixHttps :: String
 suffixAround = " when the server is restarted for each test"
@@ -72,16 +109,9 @@ prefixHttp = "Warp+HTTP:"
 prefixHttps = "Warp+HTTPS:"
 
 
-beforeAllSpec :: Spec
-beforeAllSpec = do
-  checkBeforeAll prefixHttp setupBeforeAll statusOfGet
-
-
--- checkBeforeAll prefixHttps setupBeforeAllTls statusOfGet'
-
 checkBeforeAll ::
   String ->
-  IO (ServerHandle '[HttpBinTest]) ->
+  IO (ServerHandle TmpProcs) ->
   (Int -> Text -> IO Int) ->
   Spec
 checkBeforeAll descPrefix setup getter = beforeAll setup $ afterAll shutdown $ do
@@ -93,29 +123,23 @@ checkBeforeAll descPrefix setup getter = beforeAll setup $ afterAll shutdown $ d
       getter (serverPort sh) "test" `shouldReturn` 200
 
 
-setupAround :: ((HandlesOf '[HttpBinTest], Int) -> IO a) -> IO a
+setupAround :: ((HandlesOf TmpProcs, Int) -> IO a) -> IO a
 setupAround = testWithApplication testProcs testApp
 
 
--- setupAroundTls :: ((HandlesOf '[HttpBinTest], Int) -> IO a) -> IO a
--- setupAroundTls cont = do
---   tls <- defaultTLSSettings
---   testWithTLSApplication tls testProcs testApp cont
-
-aroundSpec :: Spec
-aroundSpec = do
-  checkEachTest prefixHttp setupAround statusOfGet
+setupAroundTls :: ((HandlesOf TmpProcs, Int) -> IO a) -> IO a
+setupAroundTls cont = withCertPathsInTmp' $ \cp -> do
+  let tls = Warp.tlsSettings (certificatePath cp) (keyPath cp)
+  testWithTLSApplication tls testProcs testApp cont
 
 
--- checkEachTest prefixHttps setupAroundTls statusOfGet'
-
-checkEachTest ::
+httpSpec ::
   String ->
-  (ActionWith (HandlesOf '[HttpBinTest], Int) -> IO ()) ->
+  (ActionWith (HandlesOf TmpProcs, Int) -> IO ()) ->
   (Int -> Text -> IO Int) ->
   Spec
-checkEachTest descPrefix setup getter = around setup $ do
-  describe (descPrefix ++ suffixAround) $ do
+httpSpec prefix setup getter = around setup $ do
+  describe (prefix ++ suffixAround) $ do
     it "should ping the proc handle" $ \(h, _) ->
       ixPing @"http-bin-test" Proxy h `shouldReturn` OK
 
