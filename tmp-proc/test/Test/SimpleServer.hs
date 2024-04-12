@@ -1,14 +1,18 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Test.SimpleServer (
-  -- * functions
-  statusOfGet,
-) where
+module Test.SimpleServer
+  ( -- * functions
+    statusOfGet
+  , statusOfGet'
+  )
+where
 
 import Data.Text (Text)
 import qualified Data.Text as Text
+import qualified Network.Connection as HC
 import qualified Network.HTTP.Client as HC
+import Network.HTTP.Client.TLS (mkManagerSettings)
 import Network.HTTP.Types.Status (statusCode)
 import qualified Network.Wai.Handler.Warp as Warp
 
@@ -29,17 +33,18 @@ statusOfGet p urlPath = do
   let theReq = getReq {HC.port = p}
   statusCode . HC.responseStatus <$> HC.httpLbs theReq manager
 
--- statusOfGet' :: Int -> Text -> IO Int
--- statusOfGet' p path = do
---   manager <- mkSimpleTLSManager
---   runReq (defaultHttpConfig { httpConfigAltManager = Just manager }) $ do
---     r <- req GET (localHttpsUrl path) NoReqBody ignoreResponse $ port p
---     return $ responseStatusCode r
 
--- localHttpsUrl :: Text -> Url 'Https
--- localHttpsUrl p = foldl' (/:) (https "localhost")
---   $ Text.splitOn "/" $ Text.dropWhile (== '/') p
+-- | Determine the status from a Get on localhost.
+statusOfGet' :: Warp.Port -> Text -> IO Int
+statusOfGet' p urlPath = do
+  let theUri = "GET https://localhost/" <> Text.dropWhile (== '/') urlPath
+  manager <- mkSimpleTLSManager
+  getReq <- HC.parseRequest $ Text.unpack theUri
+  let theReq = getReq {HC.port = p}
+  statusCode . HC.responseStatus <$> HC.httpLbs theReq manager
 
--- mkSimpleTLSManager :: IO HC.Manager
--- mkSimpleTLSManager = HC.newManager
---   $ mkManagerSettings (HC.TLSSettingsSimple True False False) Nothing
+
+mkSimpleTLSManager :: IO HC.Manager
+mkSimpleTLSManager =
+  HC.newManager $
+    mkManagerSettings (HC.TLSSettingsSimple True False False) Nothing
