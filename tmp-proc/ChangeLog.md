@@ -2,9 +2,14 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
-## 0.6.99.0 -- 2024-04-07
+## 0.6.2.0 -- 2024-04-19
 
-* Unreleased
+* Introduce the Preparer typeclass that allows dynamic setup of resources for
+  containers
+
+* Relax the upper version bounds of connection to allow 3.2
+
+* Reenable the SSL integration tests using [test-certs][2]
 
 ## 0.6.1.0 -- 2024-03-14
 
@@ -91,3 +96,4 @@
 * First version. Extracted from some a non-public test library
 
 [1]: https://pvp.haskell.org
+[2]: https://hackage.haskell.org/package/test-certs
