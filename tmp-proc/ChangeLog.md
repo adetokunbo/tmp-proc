@@ -2,6 +2,10 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
+## 0.6.2.1 -- 2024-04-21
+
+* Fix formatting in the cabal description
+
 ## 0.6.2.0 -- 2024-04-19
 
 * Introduce the Preparer typeclass that allows dynamic setup of resources for
