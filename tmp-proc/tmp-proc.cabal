@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               tmp-proc
-version:            0.6.2.0
+version:            0.6.2.1
 synopsis:           Run 'tmp' processes in integration tests
 description:
   @tmp-proc@ runs services in docker containers for use in integration tests.
@@ -8,6 +8,7 @@ description:
   similar to how /tmp/ file or directories are used.
   It aspires to provide a user-friendly API, while including useful features
   such as
+
   * launch of multiple services on docker during test setup
   * delayed test execution until the launched services are available
   * simplified use of connections to the services from a [WAI](https://hackage.haskell.org/package/wai) server under test
