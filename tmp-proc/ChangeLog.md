@@ -2,6 +2,10 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
+## 0.7.0.0 -- Unreleased
+
+# Convert ProcHandle constructor into a unidirectional PatternSynonym 
+
 ## 0.6.2.1 -- 2024-04-21
 
 * Fix formatting in the cabal description
