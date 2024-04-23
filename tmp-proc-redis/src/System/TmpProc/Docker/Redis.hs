@@ -117,7 +117,7 @@ mkUri' ip = "redis://" <> C8.pack (Text.unpack ip) <> "/"
 
 
 clearKeys :: ProcHandle TmpRedis -> IO ()
-clearKeys handle@(ProcHandle {hProc}) =
+clearKeys handle@ProcHandle {hProc} =
   let go (TmpRedis []) = pure ()
       go (TmpRedis keys) = withTmpConn handle $ \c -> runRedis c $ void $ del keys
    in go hProc

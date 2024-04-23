@@ -9,6 +9,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -80,7 +81,7 @@ module System.TmpProc.Docker
   , withTmpProcs
 
     -- * access a started @'Proc'@
-  , ProcHandle (..)
+  , ProcHandle (ProcHandle, hUri, hPid, hAddr, hProc)
   , SlimHandle (..)
   , Proc2Handle
   , HasHandle
@@ -213,12 +214,34 @@ withTmpProcs procs action =
 
 
 -- | Provides access to a 'Proc' that has been started.
-data ProcHandle a = ProcHandle
-  { hProc :: !a
-  , hPid :: !String
-  , hUri :: !SvcURI
-  , hAddr :: !HostIpAddress
+data ProcHandle a = MkProcHandle
+  { mphProc :: !a
+  , mphPid :: !String
+  , mphUri :: !SvcURI
+  , mphAddr :: !HostIpAddress
   }
+
+
+{- | A @pattern@ constructor the provides selectors for the @ProcHandle@ fields
+
+The selectors are readonly, i.e they only match in pattern context since
+@ProcHandle@s cannot be constructed directly; they are obtained@ through
+'startupAll' or 'startup'
+-}
+pattern ProcHandle ::
+  -- | the 'Proc' that led to this @ProcHandle@
+  a ->
+  -- | the docker process ID corresponding to the started container
+  String ->
+  -- | the URI to the test service instance
+  SvcURI ->
+  -- | the IP address of the test service instance
+  HostIpAddress ->
+  ProcHandle a
+pattern ProcHandle {hProc, hPid, hUri, hAddr} <- MkProcHandle hProc hPid hUri hAddr
+
+
+{-# COMPLETE ProcHandle #-}
 
 
 -- | Provides an untyped view of the data in a 'ProcHandle'
@@ -515,18 +538,18 @@ startup' ntwkMb addrs x = do
       trim = dropWhileEnd isGarbage . dropWhile isGarbage
   printDebug $ Text.pack $ show fullArgs
   runCmd <- createDockerCmdProcess fullArgs
-  hPid <- trim <$> readCreateProcess runCmd ""
-  hAddr <-
+  mphPid <- trim <$> readCreateProcess runCmd ""
+  mphAddr <-
     Text.pack . trim
       <$> readProcess
         "docker"
         [ "inspect"
-        , hPid
+        , mphPid
         , "--format"
         , "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
         ]
         ""
-  let h = ProcHandle {hProc = x, hPid, hUri = uriOf' x hAddr, hAddr}
+  let h = MkProcHandle {mphProc = x, mphPid, mphUri = uriOf' x mphAddr, mphAddr}
   (nPings h `onException` terminate h) >>= \case
     OK -> pure h
     pinged -> do
@@ -555,8 +578,9 @@ toPinged _ action =
 
 -- | Ping a 'ProcHandle' several times.
 nPings :: (Proc a) => ProcHandle a -> IO Pinged
-nPings h@ProcHandle {hProc = p} =
+nPings h =
   let
+    p = hProc h
     count = fromEnum $ pingCount' p
     gap = fromEnum $ pingGap' p
 
