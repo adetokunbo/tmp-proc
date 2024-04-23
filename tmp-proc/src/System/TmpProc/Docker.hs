@@ -229,7 +229,7 @@ The selectors are readonly, i.e they only match in pattern context since
 'startupAll' or 'startup'
 -}
 pattern ProcHandle ::
-  -- | the 'Proc' that specified this @ProcHandle@
+  -- | the 'Proc' that led to this @ProcHandle@
   a ->
   -- | the docker process ID corresponding to the started container
   String ->
@@ -239,6 +239,9 @@ pattern ProcHandle ::
   HostIpAddress ->
   ProcHandle a
 pattern ProcHandle {hProc, hPid, hUri, hAddr} <- MkProcHandle hProc hPid hUri hAddr
+
+
+{-# COMPLETE ProcHandle #-}
 
 
 -- | Provides an untyped view of the data in a 'ProcHandle'

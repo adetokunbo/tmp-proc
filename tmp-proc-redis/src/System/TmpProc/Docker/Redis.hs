@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -116,7 +117,7 @@ mkUri' ip = "redis://" <> C8.pack (Text.unpack ip) <> "/"
 
 
 clearKeys :: ProcHandle TmpRedis -> IO ()
-clearKeys handle =
+clearKeys handle@ProcHandle {hProc} =
   let go (TmpRedis []) = pure ()
       go (TmpRedis keys) = withTmpConn handle $ \c -> runRedis c $ void $ del keys
-   in go $ hProc handle
+   in go hProc
