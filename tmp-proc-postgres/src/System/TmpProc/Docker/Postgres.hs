@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -124,8 +123,8 @@ toPinged action =
 
 -- | Empty all rows in the tables, if any are specified.
 reset' :: ProcHandle TmpPostgres -> IO ()
-reset' handle@(ProcHandle {hProc}) =
+reset' handle =
   let go (TmpPostgres []) = pure ()
       go (TmpPostgres tables) = withTmpConn handle $ \c ->
         mapM_ (execute_ c . (fromString . (++) "DELETE FROM ") . Text.unpack) tables
-   in go hProc
+   in go $ hProc handle
