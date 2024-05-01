@@ -326,9 +326,18 @@ startupAll' ntwkMb ps =
 
 -- | Terminate all processes owned by some @'ProcHandle's@.
 terminateAll :: (AreProcs procs) => HandlesOf procs -> IO ()
-terminateAll =
+terminateAll procs =
   let step x acc = terminate x >> acc
-   in foldProcs step $ pure ()
+      foldTerminate = foldProcs step
+      rmNetwork' name = void $ readProcess "docker" (removeNetworkArgs name) ""
+      rmNetwork = maybe (pure ()) (rmNetwork' . Text.unpack)
+   in flip foldTerminate procs $ rmNetwork $ network procs
+
+
+network :: (AreProcs procs) => HandlesOf procs -> Maybe Text
+network =
+  let step x _ = mphNetwork x
+   in foldProcs step Nothing
 
 
 {-# DEPRECATED netwTerminateAll "since v0.7 this is no longer needed and will be removed, use terminateAll instead" #-}
@@ -338,10 +347,8 @@ terminateAll =
 processes.
 -}
 netwTerminateAll :: (AreProcs procs) => NetworkHandlesOf procs -> IO ()
-netwTerminateAll (ntwk, ps) = do
-  let name' = Text.unpack ntwk
+netwTerminateAll (_ntwk, ps) = do
   terminateAll ps
-  void $ readProcess "docker" (removeNetworkArgs name') ""
 
 
 -- | Terminate the process owned by a @'ProcHandle's@.
