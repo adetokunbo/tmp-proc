@@ -69,6 +69,7 @@ module System.TmpProc.Docker
   , runArgs'
 
     -- * customize docker startup
+  , ProcPlus
   , ToRunCmd (..)
   , Preparer (..)
 
