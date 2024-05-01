@@ -220,6 +220,7 @@ data ProcHandle a = MkProcHandle
   , mphPid :: !String
   , mphUri :: !SvcURI
   , mphAddr :: !HostIpAddress
+  , mphNetwork :: !(Maybe Text)
   }
 
 
@@ -239,7 +240,7 @@ pattern ProcHandle ::
   -- | the IP address of the test service instance
   HostIpAddress ->
   ProcHandle a
-pattern ProcHandle {hProc, hPid, hUri, hAddr} <- MkProcHandle hProc hPid hUri hAddr
+pattern ProcHandle {hProc, hPid, hUri, hAddr} <- MkProcHandle hProc hPid hUri hAddr _
 
 
 {-# COMPLETE ProcHandle #-}
@@ -539,9 +540,9 @@ startup' ::
   [SlimHandle] ->
   a ->
   IO (ProcHandle a)
-startup' ntwkMb addrs x = do
+startup' mphNetwork addrs x = do
   x' <- prepare addrs x
-  let fullArgs = map Text.unpack $ dockerCmdArgs x x' ntwkMb
+  let fullArgs = map Text.unpack $ dockerCmdArgs x x' mphNetwork
       isGarbage = flip elem ['\'', '\n']
       trim = dropWhileEnd isGarbage . dropWhile isGarbage
   printDebug $ Text.pack $ show fullArgs
@@ -557,7 +558,7 @@ startup' ntwkMb addrs x = do
         , "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
         ]
         ""
-  let h = MkProcHandle {mphProc = x, mphPid, mphUri = uriOf' x mphAddr, mphAddr}
+  let h = MkProcHandle {mphProc = x, mphPid, mphUri = uriOf' x mphAddr, mphAddr, mphNetwork}
   (nPings h `onException` terminate h) >>= \case
     OK -> pure h
     pinged -> do
