@@ -248,10 +248,10 @@ pattern ProcHandle {hProc, hPid, hUri, hAddr} <- MkProcHandle hProc hPid hUri hA
 
 -- | Provides an untyped view of the data in a 'ProcHandle'
 data SlimHandle = SlimHandle
-  { shName :: !Text
-  , shIpAddress :: !HostIpAddress
-  , shPid :: !String
-  , shUri :: !SvcURI
+  { shName :: Text
+  , shIpAddress :: HostIpAddress
+  , shPid :: String
+  , shUri :: SvcURI
   }
   deriving (Eq, Show)
 
