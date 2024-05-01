@@ -276,6 +276,7 @@ slimMany =
 startupAll :: (AreProcs procs) => HList procs -> IO (HandlesOf procs)
 startupAll ps = snd <$> startupAll' Nothing ps
 
+{-# DEPRECATED netwStartupAll "since v0.7 this is no longer needed and will be removed, use startupAll instead" #-}
 
 -- | Like 'startupAll' but creates a new docker network and that the processes use
 netwStartupAll :: (AreProcs procs) => HList procs -> IO (NetworkHandlesOf procs)
@@ -296,6 +297,9 @@ foldProcs f acc = go procProof
     go :: SomeProcs as -> HandlesOf as -> b
     go SomeProcsNil HNil = acc
     go (SomeProcsCons cons) (x `HCons` y) = f x $ go cons y
+
+
+{-# DEPRECATED startupAll' "since v0.7 this is no longer needed and will be removed, use startupAll instead; it always generates a named docker network" #-}
 
 
 -- | Start up processes for each 'Proc' type.
@@ -324,6 +328,9 @@ terminateAll :: (AreProcs procs) => HandlesOf procs -> IO ()
 terminateAll =
   let step x acc = terminate x >> acc
    in foldProcs step $ pure ()
+
+
+{-# DEPRECATED netwTerminateAll "since v0.7 this is no longer needed and will be removed, use terminateAll instead" #-}
 
 
 {- | Like 'terminateAll', but also removes the docker network connecting the
@@ -779,6 +786,9 @@ type family Proc2Handle (as :: [Type]) = (handleTys :: [Type]) | handleTys -> as
 type HandlesOf procs = HList (Proc2Handle procs)
 
 
+{-# DEPRECATED NetworkHandlesOf "since v0.7 this is no longer necessary and will be removed" #-}
+
+
 -- | A list of @'ProcHandle'@ values with the docker network of their processes
 type NetworkHandlesOf procs = (Text, HandlesOf procs)
 
@@ -980,6 +990,9 @@ printDebug :: Text -> IO ()
 printDebug t = do
   canPrint <- showDebug
   when canPrint $ Text.hPutStrLn stderr t
+
+
+{-# DEPRECATED genNetworkName "since v0.7 this is no longer needed and will be removed" #-}
 
 
 -- | generate a random network name
