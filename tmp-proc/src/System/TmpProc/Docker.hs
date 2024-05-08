@@ -107,6 +107,7 @@ module System.TmpProc.Docker
   , HandlesOf
   , NetworkHandlesOf
   , manyNamed
+  , mapSlim
   , genNetworkName
   , SomeNamedHandles
 
@@ -276,8 +277,9 @@ slim x =
     }
 
 
-slimMany :: (AreProcs procs) => HandlesOf procs -> [SlimHandle]
-slimMany =
+-- | Obtain the 'SlimHandle' of several @'Proc's@
+mapSlim :: (AreProcs procs) => HandlesOf procs -> [SlimHandle]
+mapSlim =
   let step x acc = slim x : acc
    in foldProcs step []
 
@@ -296,7 +298,7 @@ startupAll ps = do
     go SomeProcsNil HNil = pure HNil
     go (SomeProcsCons cons) (x `HCons` y) = do
       others <- go cons y
-      h <- startup' (Just name) (slimMany others) x `onException` terminateAll others
+      h <- startup' (Just name) (mapSlim others) x `onException` terminateAll others
       pure $ h `HCons` others
   void $ readProcess "docker" (createNetworkArgs name') ""
   go procProof ps
@@ -344,7 +346,7 @@ startupAll' ntwkMb ps =
     go SomeProcsNil HNil = pure HNil
     go (SomeProcsCons cons) (x `HCons` y) = do
       others <- go cons y
-      h <- startup' ntwkMb (slimMany others) x `onException` terminateAll others
+      h <- startup' ntwkMb (mapSlim others) x `onException` terminateAll others
       pure $ h `HCons` others
    in
     do
