@@ -209,9 +209,7 @@ withTmpProcs ::
   HList procs ->
   (HandlesOf procs -> IO b) ->
   IO b
-withTmpProcs procs action =
-  let wrapAction f (_, ps) = f ps
-   in bracket (netwStartupAll procs) netwTerminateAll $ wrapAction action
+withTmpProcs procs = bracket (startupAll procs) terminateAll
 
 
 -- | Provides access to a 'Proc' that has been started.
