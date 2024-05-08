@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               tmp-proc-example
-version:            0.6.0.0
+version:            0.7.0.0
 synopsis:           Test a simple service with backends running on docker using tmp-proc
 description:
   An example of testing a service that uses Postgresql and Redis where these
@@ -68,7 +68,7 @@ library
     , tasty-hunit
     , text
     , time
-    , tmp-proc              >=0.5.3 && <0.7
+    , tmp-proc              >=0.5.3 && <0.8
     , tmp-proc-postgres
     , tmp-proc-redis
     , transformers

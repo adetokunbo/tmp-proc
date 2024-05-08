@@ -4,7 +4,12 @@
 
 ## 0.7.0.0 -- Unreleased
 
-# Convert ProcHandle constructor into a unidirectional PatternSynonym 
+* Convert ProcHandle constructor into a unidirectional PatternSynonym
+
+* Always run tmp procs in a docker network with custom generated network name
+
+* Deprecate netwTerminateAll, netwStartupAll, startupAll', genNetworkName,
+  NetworkHandlesOf
 
 ## 0.6.2.1 -- 2024-04-21
 

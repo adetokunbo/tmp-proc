@@ -2,6 +2,10 @@
 
 `tmp-proc-zipkin` uses [PVP Versioning][1].
 
+## 0.7.0.0 -- Unreleased
+
+* Extend the upper bound for tmp-proc to allow 0.7
+
 ## 0.6.0.1 -- 2024-02-28
 
 * Extend the version bounds of bytestring to allow 0.12.1
