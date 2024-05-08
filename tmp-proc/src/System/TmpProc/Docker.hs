@@ -1038,7 +1038,7 @@ printDebug t = do
   when canPrint $ Text.hPutStrLn stderr t
 
 
-{-# DEPRECATED genNetworkName "since v0.7 this is no longer needed and will be removed" #-}
+{-# DEPRECATED genNetworkName "since v0.7 this is no longer needs to be exported and will be hidden in later releases" #-}
 
 
 -- | generate a random network name
