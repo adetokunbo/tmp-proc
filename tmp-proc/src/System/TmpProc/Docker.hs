@@ -273,13 +273,32 @@ slimMany =
    in foldProcs step []
 
 
--- | Start up processes for each 'Proc' type.
+{- | Start up processes for each 'Proc' type
+
+the processes' are able to communicate via a docker network with a unique
+generated name
+-}
 startupAll :: (AreProcs procs) => HList procs -> IO (HandlesOf procs)
-startupAll ps = snd <$> startupAll' Nothing ps
+startupAll ps = do
+  name <- genNetworkName
+  let
+    name' = Text.unpack name
+    go :: SomeProcs as -> HList as -> IO (HandlesOf as)
+    go SomeProcsNil HNil = pure HNil
+    go (SomeProcsCons cons) (x `HCons` y) = do
+      others <- go cons y
+      h <- startup' (Just name) (slimMany others) x `onException` terminateAll others
+      pure $ h `HCons` others
+  void $ readProcess "docker" (createNetworkArgs name') ""
+  go procProof ps
+
 
 {-# DEPRECATED netwStartupAll "since v0.7 this is no longer needed and will be removed, use startupAll instead" #-}
 
--- | Like 'startupAll' but creates a new docker network and that the processes use
+
+{- | Like 'startupAll', but reveals the generated network name via the
+deprecated 'NetworkHandlesOf'
+-}
 netwStartupAll :: (AreProcs procs) => HList procs -> IO (NetworkHandlesOf procs)
 netwStartupAll ps = do
   netwName <- genNetworkName
