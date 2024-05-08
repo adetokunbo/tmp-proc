@@ -559,7 +559,9 @@ throwing an exception if it did not.
 Returns the 'ProcHandle' used to control the 'Proc' once a ping has succeeded.
 -}
 startup :: (ProcPlus a prepared) => a -> IO (ProcHandle a)
-startup = startup' Nothing mempty
+startup p = do
+  handles <- startupAll $ only p
+  pure $ hHead handles
 
 
 -- | A @Constraint@ that combines @'Proc'@  and its supporting typeclasses
