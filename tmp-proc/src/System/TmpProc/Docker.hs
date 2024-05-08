@@ -29,7 +29,7 @@ processes /(procs)/ using docker.
 
 @tmp-proc@ aims to simplify integration tests that use dockerizable services.
 
-* Basically, @tmp-proc@ helps launch services used in integration test on docker
+* @tmp-proc@ helps launch services used by integration tests on docker
 
 * While it's possible to write integration tests that use services hosted on
   docker /without/ @tmp-proc@, @tmp-proc@ aims to make writing those kind of
@@ -39,10 +39,10 @@ processes /(procs)/ using docker.
     * obtaining references to the launched service
     * cleaning up docker once the tests are finished
 
-This module does all that via its data types:
+It does this via its typeclasses and data types:
 
-* A /'Proc'/ specifies a docker image that provides a service and other details
-  related to its use in tests.
+* The /'Proc'/ typeclass specifies a docker image that provides a service and
+  other details related to its use in tests.
 
 * @'Proc's@ may need additional setup before the docker command runs, this can
   be done using by providing a specific /'Preparer'/ instance for it
@@ -51,11 +51,21 @@ This module does all that via its data types:
   it; this can be done using by providing a specific /'ToRunCmd'/ instance for
   it
 
-* A /'ProcHandle'/ is created whenever a service specifed by a /'Proc'/ is
-started, and is used to access and eventually terminate the service.
+* A /'ProcHandle'/ type is created whenever a service specifed by a /'Proc'/ is
+launched, and is used to access and eventually terminate the service.
 
-* Some @'Proc's@ will also be /'Connectable'/; these specify how access the
-service via some /'Conn'-ection/ type.
+* Some @'Proc's@ are /'Connectable'/; they implement a typeclass that specifies
+how access the service via some /'Conn'-ection/ type.
+
+* Custom setup of the docker container is supported
+
+   * A @'Proc'@ type may also implement @'Preparer'@ and @'ToRunCmd'@
+
+   * @'Preparer'@ allow resources to prepared before the docker start command is
+     invoked
+
+   * @'ToRunCmd'@ allows the docker start command line to be updated to refer to
+     prepared resources
 -}
 module System.TmpProc.Docker
   ( -- * @'Proc'@
@@ -68,12 +78,12 @@ module System.TmpProc.Docker
   , uriOf'
   , runArgs'
 
-    -- * customize docker startup
+    -- * customize proc setup
   , ProcPlus
   , ToRunCmd (..)
   , Preparer (..)
 
-    -- * start/stop multiple procs
+    -- * start/stop many procs
   , startupAll
   , startupAll'
   , terminateAll
@@ -93,7 +103,7 @@ module System.TmpProc.Docker
   , ixPing
   , ixUriOf
 
-    -- * access multiple procs
+    -- * access many started procs
   , HandlesOf
   , NetworkHandlesOf
   , manyNamed
@@ -149,6 +159,7 @@ import GHC.TypeLits
   , Symbol
   , symbolVal
   )
+import Network.TLS (GroupUsage (GroupUsageUnsupported), KxError (KxUnsupported))
 import Numeric.Natural (Natural)
 import System.Environment (lookupEnv)
 import System.Exit (ExitCode (..))
