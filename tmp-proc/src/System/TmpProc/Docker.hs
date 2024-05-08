@@ -503,7 +503,13 @@ uriOf' _ = uriOf @a
 
 
 -- | The full args of a @docker run@ command for starting up a 'Proc'.
-dockerCmdArgs :: forall a prepared. (Proc a, ToRunCmd a prepared) => a -> prepared -> Maybe Text -> [Text]
+dockerCmdArgs ::
+  forall a prepared.
+  (Proc a, ToRunCmd a prepared) =>
+  a ->
+  prepared ->
+  Maybe Text ->
+  [Text]
 dockerCmdArgs x prep ntwkMb =
   let toNetworkArgs n = ["--network", n]
       networkArg = maybe mempty toNetworkArgs ntwkMb
