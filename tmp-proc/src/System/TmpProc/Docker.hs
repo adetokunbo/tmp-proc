@@ -29,7 +29,7 @@ processes /(procs)/ using docker.
 
 @tmp-proc@ aims to simplify integration tests that use dockerizable services.
 
-* Basically, @tmp-proc@ helps launch services used in integration test on docker
+* @tmp-proc@ helps launch services used by integration tests on docker
 
 * While it's possible to write integration tests that use services hosted on
   docker /without/ @tmp-proc@, @tmp-proc@ aims to make writing those kind of
@@ -39,10 +39,10 @@ processes /(procs)/ using docker.
     * obtaining references to the launched service
     * cleaning up docker once the tests are finished
 
-This module does all that via its data types:
+It does this via its typeclasses and data types:
 
-* A /'Proc'/ specifies a docker image that provides a service and other details
-  related to its use in tests.
+* The /'Proc'/ typeclass specifies a docker image that provides a service and
+  other details related to its use in tests.
 
 * @'Proc's@ may need additional setup before the docker command runs, this can
   be done using by providing a specific /'Preparer'/ instance for it
@@ -51,11 +51,21 @@ This module does all that via its data types:
   it; this can be done using by providing a specific /'ToRunCmd'/ instance for
   it
 
-* A /'ProcHandle'/ is created whenever a service specifed by a /'Proc'/ is
-started, and is used to access and eventually terminate the service.
+* A /'ProcHandle'/ type is created whenever a service specifed by a /'Proc'/ is
+launched, and is used to access and eventually terminate the service.
 
-* Some @'Proc's@ will also be /'Connectable'/; these specify how access the
-service via some /'Conn'-ection/ type.
+* Some @'Proc's@ are /'Connectable'/; they implement a typeclass that specifies
+how access the service via some /'Conn'-ection/ type.
+
+* Custom setup of the docker container is supported
+
+   * A @'Proc'@ type may also implement @'Preparer'@ and @'ToRunCmd'@
+
+   * @'Preparer'@ allow resources to prepared before the docker start command is
+     invoked
+
+   * @'ToRunCmd'@ allows the docker start command line to be updated to refer to
+     prepared resources
 -}
 module System.TmpProc.Docker
   ( -- * @'Proc'@
@@ -68,11 +78,12 @@ module System.TmpProc.Docker
   , uriOf'
   , runArgs'
 
-    -- * customize docker startup
+    -- * customize proc setup
+  , ProcPlus
   , ToRunCmd (..)
   , Preparer (..)
 
-    -- * start/stop multiple procs
+    -- * start/stop many procs
   , startupAll
   , startupAll'
   , terminateAll
@@ -92,10 +103,11 @@ module System.TmpProc.Docker
   , ixPing
   , ixUriOf
 
-    -- * access multiple procs
+    -- * access many started procs
   , HandlesOf
   , NetworkHandlesOf
   , manyNamed
+  , mapSlim
   , genNetworkName
   , SomeNamedHandles
 
@@ -148,6 +160,7 @@ import GHC.TypeLits
   , Symbol
   , symbolVal
   )
+import Network.TLS (GroupUsage (GroupUsageUnsupported), KxError (KxUnsupported))
 import Numeric.Natural (Natural)
 import System.Environment (lookupEnv)
 import System.Exit (ExitCode (..))
@@ -208,9 +221,7 @@ withTmpProcs ::
   HList procs ->
   (HandlesOf procs -> IO b) ->
   IO b
-withTmpProcs procs action =
-  let wrapAction f (_, ps) = f ps
-   in bracket (netwStartupAll procs) netwTerminateAll $ wrapAction action
+withTmpProcs procs = bracket (startupAll procs) terminateAll
 
 
 -- | Provides access to a 'Proc' that has been started.
@@ -219,6 +230,7 @@ data ProcHandle a = MkProcHandle
   , mphPid :: !String
   , mphUri :: !SvcURI
   , mphAddr :: !HostIpAddress
+  , mphNetwork :: !(Maybe Text)
   }
 
 
@@ -238,7 +250,7 @@ pattern ProcHandle ::
   -- | the IP address of the test service instance
   HostIpAddress ->
   ProcHandle a
-pattern ProcHandle {hProc, hPid, hUri, hAddr} <- MkProcHandle hProc hPid hUri hAddr
+pattern ProcHandle {hProc, hPid, hUri, hAddr} <- MkProcHandle hProc hPid hUri hAddr _
 
 
 {-# COMPLETE ProcHandle #-}
@@ -246,10 +258,10 @@ pattern ProcHandle {hProc, hPid, hUri, hAddr} <- MkProcHandle hProc hPid hUri hA
 
 -- | Provides an untyped view of the data in a 'ProcHandle'
 data SlimHandle = SlimHandle
-  { shName :: !Text
-  , shIpAddress :: !HostIpAddress
-  , shPid :: !String
-  , shUri :: !SvcURI
+  { shName :: Text
+  , shIpAddress :: HostIpAddress
+  , shPid :: String
+  , shUri :: SvcURI
   }
   deriving (Eq, Show)
 
@@ -265,18 +277,39 @@ slim x =
     }
 
 
-slimMany :: (AreProcs procs) => HandlesOf procs -> [SlimHandle]
-slimMany =
+-- | Obtain the 'SlimHandle' of several @'Proc's@
+mapSlim :: (AreProcs procs) => HandlesOf procs -> [SlimHandle]
+mapSlim =
   let step x acc = slim x : acc
    in foldProcs step []
 
 
--- | Start up processes for each 'Proc' type.
+{- | Start up processes for each 'Proc' type
+
+the processes' are able to communicate via a docker network with a unique
+generated name
+-}
 startupAll :: (AreProcs procs) => HList procs -> IO (HandlesOf procs)
-startupAll ps = snd <$> startupAll' Nothing ps
+startupAll ps = do
+  name <- genNetworkName
+  let
+    name' = Text.unpack name
+    go :: SomeProcs as -> HList as -> IO (HandlesOf as)
+    go SomeProcsNil HNil = pure HNil
+    go (SomeProcsCons cons) (x `HCons` y) = do
+      others <- go cons y
+      h <- startup' (Just name) (mapSlim others) x `onException` terminateAll others
+      pure $ h `HCons` others
+  void $ readProcess "docker" (createNetworkArgs name') ""
+  go procProof ps
 
 
--- | Like 'startupAll' but creates a new docker network and that the processes use
+{-# DEPRECATED netwStartupAll "since v0.7 this is no longer needed and will be removed, use startupAll instead" #-}
+
+
+{- | Like 'startupAll', but reveals the generated network name via the
+deprecated 'NetworkHandlesOf'
+-}
 netwStartupAll :: (AreProcs procs) => HList procs -> IO (NetworkHandlesOf procs)
 netwStartupAll ps = do
   netwName <- genNetworkName
@@ -297,6 +330,9 @@ foldProcs f acc = go procProof
     go (SomeProcsCons cons) (x `HCons` y) = f x $ go cons y
 
 
+{-# DEPRECATED startupAll' "since v0.7 this is no longer needed and will be removed, use startupAll instead; it always generates a named docker network" #-}
+
+
 -- | Start up processes for each 'Proc' type.
 startupAll' :: (AreProcs procs) => Maybe Text -> HList procs -> IO (NetworkHandlesOf procs)
 startupAll' ntwkMb ps =
@@ -310,7 +346,7 @@ startupAll' ntwkMb ps =
     go SomeProcsNil HNil = pure HNil
     go (SomeProcsCons cons) (x `HCons` y) = do
       others <- go cons y
-      h <- startup' ntwkMb (slimMany others) x `onException` terminateAll others
+      h <- startup' ntwkMb (mapSlim others) x `onException` terminateAll others
       pure $ h `HCons` others
    in
     do
@@ -320,19 +356,29 @@ startupAll' ntwkMb ps =
 
 -- | Terminate all processes owned by some @'ProcHandle's@.
 terminateAll :: (AreProcs procs) => HandlesOf procs -> IO ()
-terminateAll =
+terminateAll procs =
   let step x acc = terminate x >> acc
-   in foldProcs step $ pure ()
+      foldTerminate = foldProcs step
+      rmNetwork' name = void $ readProcess "docker" (removeNetworkArgs name) ""
+      rmNetwork = maybe (pure ()) (rmNetwork' . Text.unpack)
+   in flip foldTerminate procs $ rmNetwork $ network procs
+
+
+network :: (AreProcs procs) => HandlesOf procs -> Maybe Text
+network =
+  let step x _ = mphNetwork x
+   in foldProcs step Nothing
+
+
+{-# DEPRECATED netwTerminateAll "since v0.7 this is no longer needed and will be removed, use terminateAll instead" #-}
 
 
 {- | Like 'terminateAll', but also removes the docker network connecting the
 processes.
 -}
 netwTerminateAll :: (AreProcs procs) => NetworkHandlesOf procs -> IO ()
-netwTerminateAll (ntwk, ps) = do
-  let name' = Text.unpack ntwk
+netwTerminateAll (_ntwk, ps) = do
   terminateAll ps
-  void $ readProcess "docker" (removeNetworkArgs name') ""
 
 
 -- | Terminate the process owned by a @'ProcHandle's@.
@@ -487,7 +533,13 @@ uriOf' _ = uriOf @a
 
 
 -- | The full args of a @docker run@ command for starting up a 'Proc'.
-dockerCmdArgs :: forall a prepared. (Proc a, ToRunCmd a prepared) => a -> prepared -> Maybe Text -> [Text]
+dockerCmdArgs ::
+  forall a prepared.
+  (Proc a, ToRunCmd a prepared) =>
+  a ->
+  prepared ->
+  Maybe Text ->
+  [Text]
 dockerCmdArgs x prep ntwkMb =
   let toNetworkArgs n = ["--network", n]
       networkArg = maybe mempty toNetworkArgs ntwkMb
@@ -518,7 +570,9 @@ throwing an exception if it did not.
 Returns the 'ProcHandle' used to control the 'Proc' once a ping has succeeded.
 -}
 startup :: (ProcPlus a prepared) => a -> IO (ProcHandle a)
-startup = startup' Nothing mempty
+startup p = do
+  handles <- startupAll $ only p
+  pure $ hHead handles
 
 
 -- | A @Constraint@ that combines @'Proc'@  and its supporting typeclasses
@@ -531,9 +585,9 @@ startup' ::
   [SlimHandle] ->
   a ->
   IO (ProcHandle a)
-startup' ntwkMb addrs x = do
+startup' mphNetwork addrs x = do
   x' <- prepare addrs x
-  let fullArgs = map Text.unpack $ dockerCmdArgs x x' ntwkMb
+  let fullArgs = map Text.unpack $ dockerCmdArgs x x' mphNetwork
       isGarbage = flip elem ['\'', '\n']
       trim = dropWhileEnd isGarbage . dropWhile isGarbage
   printDebug $ Text.pack $ show fullArgs
@@ -549,7 +603,7 @@ startup' ntwkMb addrs x = do
         , "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
         ]
         ""
-  let h = MkProcHandle {mphProc = x, mphPid, mphUri = uriOf' x mphAddr, mphAddr}
+  let h = MkProcHandle {mphProc = x, mphPid, mphUri = uriOf' x mphAddr, mphAddr, mphNetwork}
   (nPings h `onException` terminate h) >>= \case
     OK -> pure h
     pinged -> do
@@ -778,7 +832,12 @@ type family Proc2Handle (as :: [Type]) = (handleTys :: [Type]) | handleTys -> as
 type HandlesOf procs = HList (Proc2Handle procs)
 
 
--- | A list of @'ProcHandle'@ values with the docker network of their processes
+{-# DEPRECATED NetworkHandlesOf "since v0.7 this is no longer necessary and will be removed" #-}
+
+
+{- | A list of @'ProcHandle'@ values of different types with the name of the
+docker network connecting their processes
+-}
 type NetworkHandlesOf procs = (Text, HandlesOf procs)
 
 
@@ -979,6 +1038,9 @@ printDebug :: Text -> IO ()
 printDebug t = do
   canPrint <- showDebug
   when canPrint $ Text.hPutStrLn stderr t
+
+
+{-# DEPRECATED genNetworkName "since v0.7 this is no longer needs to be exported and will be hidden in later releases" #-}
 
 
 -- | generate a random network name

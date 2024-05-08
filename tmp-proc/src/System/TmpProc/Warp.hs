@@ -45,7 +45,6 @@ import Control.Concurrent
 import Control.Exception (ErrorCall (..))
 import Control.Monad (void, when)
 import Control.Monad.Cont (cont, runCont)
-import Data.Text (Text)
 import Network.Socket (Socket, close)
 import Network.Wai (Application)
 import qualified Network.Wai.Handler.Warp as Warp
@@ -54,8 +53,8 @@ import System.TmpProc.Docker
   ( AreProcs
   , HList (..)
   , HandlesOf
-  , netwStartupAll
-  , netwTerminateAll
+  , startupAll
+  , terminateAll
   , withTmpProcs
   )
 import UnliftIO
@@ -77,7 +76,6 @@ data ServerHandle procs = ServerHandle
   , shPort :: !Warp.Port
   , shSocket :: !Socket
   , shHandles :: !(HandlesOf procs)
-  , shNetwork :: !Text
   }
 
 
@@ -131,7 +129,7 @@ runReadyServer' ::
   IO (ServerHandle procs)
 runReadyServer' runApp check procs mkApp = do
   callingThread <- myThreadId
-  (netw, h) <- netwStartupAll procs
+  h <- startupAll procs
   (p, sock) <- Warp.openFreePort
   signal <- newEmptyMVar
   let settings = readySettings (putMVar signal ())
@@ -144,7 +142,7 @@ runReadyServer' runApp check procs mkApp = do
           throwIO e
   s <- async $ runApp settings sock wrappedApp
   aConfirm <- async (takeMVar signal)
-  let result = ServerHandle s p sock h netw
+  let result = ServerHandle s p sock h
   waitEither s aConfirm >>= \case
     Left _ -> do
       shutdown result
@@ -157,8 +155,8 @@ runReadyServer' runApp check procs mkApp = do
 -- | Shuts down the 'ServerHandle' server and its @tmp proc@ dependencies.
 shutdown :: (AreProcs procs) => ServerHandle procs -> IO ()
 shutdown h = do
-  let ServerHandle {shServer, shSocket, shHandles, shNetwork} = h
-  netwTerminateAll (shNetwork, shHandles)
+  let ServerHandle {shServer, shSocket, shHandles} = h
+  terminateAll shHandles
   cancel shServer
   close shSocket
 
