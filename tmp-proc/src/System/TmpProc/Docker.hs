@@ -822,7 +822,9 @@ type HandlesOf procs = HList (Proc2Handle procs)
 {-# DEPRECATED NetworkHandlesOf "since v0.7 this is no longer necessary and will be removed" #-}
 
 
--- | A list of @'ProcHandle'@ values with the docker network of their processes
+{- | A list of @'ProcHandle'@ values of different types with the name of the
+docker network connecting their processes
+-}
 type NetworkHandlesOf procs = (Text, HandlesOf procs)
 
 
