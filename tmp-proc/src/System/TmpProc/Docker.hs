@@ -160,7 +160,6 @@ import GHC.TypeLits
   , Symbol
   , symbolVal
   )
-import Network.TLS (GroupUsage (GroupUsageUnsupported), KxError (KxUnsupported))
 import Numeric.Natural (Natural)
 import System.Environment (lookupEnv)
 import System.Exit (ExitCode (..))
