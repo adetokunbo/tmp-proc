@@ -36,7 +36,7 @@ import Network.HTTP.Types.Status (statusCode)
 import Network.TLS (ClientParams (..), HostName, Shared (..), Supported (..), defaultParamsClient)
 import Network.TLS.Extra (ciphersuite_default)
 import Paths_tmp_proc (getDataDir)
-import System.Directory (createDirectory)
+import System.Directory (createDirectory, removeDirectoryRecursive)
 import System.FilePath ((</>))
 import System.IO.Temp (createTempDirectory, getCanonicalTemporaryDirectory)
 import System.Posix.ByteString (getEffectiveGroupID, getEffectiveUserID)
@@ -81,6 +81,7 @@ instance ToRunCmd NginxGateway NginxPrep where
 
 instance Preparer NginxGateway NginxPrep where
   prepare = prepare'
+  tidy = tidy'
 
 
 {- | Configures launch of a container thats uses nginx as a gateway (a.k.a
@@ -143,6 +144,10 @@ createWorkingDirs = do
   createDirectory confDir
   createDirectory certsDir
   pure topDir
+
+
+tidy' :: NginxGateway -> NginxPrep -> IO ()
+tidy' _ np = removeDirectoryRecursive $ npVolumeRoot np
 
 
 toRunCmd' :: NginxGateway -> NginxPrep -> [Text]

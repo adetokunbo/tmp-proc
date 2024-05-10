@@ -230,6 +230,7 @@ data ProcHandle a = MkProcHandle
   , mphUri :: !SvcURI
   , mphAddr :: !HostIpAddress
   , mphNetwork :: !(Maybe Text)
+  , mphTidy :: !(IO ())
   }
 
 
@@ -249,7 +250,7 @@ pattern ProcHandle ::
   -- | the IP address of the test service instance
   HostIpAddress ->
   ProcHandle a
-pattern ProcHandle {hProc, hPid, hUri, hAddr} <- MkProcHandle hProc hPid hUri hAddr _
+pattern ProcHandle {hProc, hPid, hUri, hAddr} <- MkProcHandle hProc hPid hUri hAddr _ _
 
 
 {-# COMPLETE ProcHandle #-}
@@ -355,12 +356,23 @@ startupAll' ntwkMb ps =
 
 -- | Terminate all processes owned by some @'ProcHandle's@.
 terminateAll :: (AreProcs procs) => HandlesOf procs -> IO ()
-terminateAll procs =
+terminateAll procs = terminateAllProcs procs >> terminateNetwork procs
+
+
+terminateAllProcs :: (AreProcs procs) => HandlesOf procs -> IO ()
+terminateAllProcs procs =
   let step x acc = terminate x >> acc
       foldTerminate = foldProcs step
-      rmNetwork' name = void $ readProcess "docker" (removeNetworkArgs name) ""
-      rmNetwork = maybe (pure ()) (rmNetwork' . Text.unpack)
-   in flip foldTerminate procs $ rmNetwork $ network procs
+   in flip foldTerminate procs $ pure ()
+
+
+terminateNetwork :: (AreProcs procs) => HandlesOf procs -> IO ()
+terminateNetwork procs =
+  let
+    rmNetwork' name = void $ readProcess "docker" (removeNetworkArgs name) ""
+    rmNetwork = maybe (pure ()) (rmNetwork' . Text.unpack)
+   in
+    rmNetwork $ network procs
 
 
 network :: (AreProcs procs) => HandlesOf procs -> Maybe Text
@@ -386,6 +398,7 @@ terminate handle = do
   let pid = hPid handle
   void $ readProcess "docker" ["stop", pid] ""
   void $ readProcess "docker" ["rm", pid] ""
+  mphTidy handle
 
 
 {- | Prepare resources for use by a  @'Proc'@
@@ -407,11 +420,15 @@ terminate handle = do
 class Preparer a prepared | a -> prepared where
   -- * Generate a @prepared@ before the docker container is started
   prepare :: [SlimHandle] -> a -> IO prepared
+  -- * Tidy any resources associated with @prepared@
+  tidy :: a -> prepared -> IO ()
 
 
 instance {-# OVERLAPPABLE #-} (a ~ a', Proc a) => Preparer a a' where
   prepare :: [SlimHandle] -> a -> IO a'
   prepare _ = pure
+  tidy :: a -> a' -> IO ()
+  tidy _ _ = pure ()
 
 
 {- | Allow customization of the docker command that launches a @'Proc'@
@@ -602,7 +619,15 @@ startup' mphNetwork addrs x = do
         , "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
         ]
         ""
-  let h = MkProcHandle {mphProc = x, mphPid, mphUri = uriOf' x mphAddr, mphAddr, mphNetwork}
+  let h =
+        MkProcHandle
+          { mphProc = x
+          , mphPid
+          , mphUri = uriOf' x mphAddr
+          , mphAddr
+          , mphNetwork
+          , mphTidy = tidy x x'
+          }
   (nPings h `onException` terminate h) >>= \case
     OK -> pure h
     pinged -> do

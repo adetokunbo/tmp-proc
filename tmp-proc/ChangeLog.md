@@ -10,6 +10,8 @@
 
 * Deprecate netwTerminateAll, netwStartupAll, startupAll', genNetworkName,
   NetworkHandlesOf
+  
+* Add 'tidy' function to the 'Preparer' typeclass to allow cleanup
 
 ## 0.6.2.1 -- 2024-04-21
 
