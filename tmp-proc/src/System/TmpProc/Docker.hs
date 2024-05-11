@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -44,28 +43,25 @@ It does this via its typeclasses and data types:
 * The /'Proc'/ typeclass specifies a docker image that provides a service and
   other details related to its use in tests.
 
-* @'Proc's@ may need additional setup before the docker command runs, this can
-  be done using by providing a specific /'Preparer'/ instance for it
-
-* @'Proc's@ may need additional arguments in the docker command that launches
-  it; this can be done using by providing a specific /'ToRunCmd'/ instance for
-  it
+    * @'Proc's@ may need additional arguments in the @docker run@ command that
+      launches it; this can be done using by providing a specific /'ToRunCmd'/
+      instance for it
 
 * A /'ProcHandle'/ type is created whenever a service specifed by a /'Proc'/ is
 launched, and is used to access and eventually terminate the service.
 
-* Some @'Proc's@ are /'Connectable'/; they implement a typeclass that specifies
-how access the service via some /'Conn'-ection/ type.
+    * Some @'Proc's@ are also /'Connectable'/; they implement a typeclass that
+      specifies how to access the service via some /'Conn'-ection/ type.
 
 * Custom setup of the docker container is supported
 
-   * A @'Proc'@ type may also implement @'Preparer'@ and @'ToRunCmd'@
+    * A @'Proc'@ type may also implement @'Preparer'@
 
-   * @'Preparer'@ allow resources to prepared before the docker start command is
-     invoked
+        * @'Preparer'@ allows resources to before prepared before the docker
+          start command is invoked, and cleaned up afterwards
 
-   * @'ToRunCmd'@ allows the docker start command line to be updated to refer to
-     prepared resources
+        * @'ToRunCmd'@ may then be used to update the @docker run@ command line
+          to refer to prepared resources
 -}
 module System.TmpProc.Docker
   ( -- * @'Proc'@
@@ -409,37 +405,37 @@ terminate handle = do
  Usually, it will be used by @'toRunCmd'@ to provide additional arguments to the
  docker command
 
- There is an @Overlappable@ fallback instance that works for any @'Proc'@,
- so this typeclass need only be specified for @'Proc'@ that require some
- setup
+ There is an @Overlappable@ fallback instance that matches all @'Proc'@, so this
+ typeclass need only be specified for @'Proc'@ that require some setup
 
- The 'prepare' method is given a list of 'SlimHandle' that represent preceding
- @tmp-proc@ managed containers, to allow preparation to establish links to these
- containers when necessary
+ The 'prepare' method's first argument is a list of 'SlimHandle' that represent
+ preceding @tmp-proc@ managed containers, to allow 'prepare' to setup links
+ to these containers when required
 -}
 class Preparer a prepared | a -> prepared where
-  -- * Generate a @prepared@ before the docker container is started
+  -- | Generate a @prepared@ before the docker container is started
   prepare :: [SlimHandle] -> a -> IO prepared
-  -- * Tidy any resources associated with @prepared@
+
+
+  -- | Tidy any resources associated with @prepared@
   tidy :: a -> prepared -> IO ()
 
 
 instance {-# OVERLAPPABLE #-} (a ~ a', Proc a) => Preparer a a' where
-  prepare :: [SlimHandle] -> a -> IO a'
   prepare _ = pure
-  tidy :: a -> a' -> IO ()
   tidy _ _ = pure ()
 
 
 {- | Allow customization of the docker command that launches a @'Proc'@
 
- The full command is
-   `docker run -d <optional-args> --name $(name a) $(imageText a)`
- Specify a new instance of @ToRunCmd@ to control <optional-args>
+ The full launch command is
+   `docker run -d /optional-args/ --name $(name a) $(imageText a)`
 
- There is an @Overlappable@ fallback instance that works for any @'Proc'@,
- so this typeclass need only be specified for @'Proc'@ that need extra
- args in the docker command
+ Specify a new instance of @ToRunCmd@ to control /optional-args/
+
+ There is an @Overlappable@ fallback instance with default behaviour that
+ matches all @'Proc'@, so this typeclass need only be implemented for @'Proc'@
+ types that actually need additional arguments
 -}
 class (Preparer a prepared) => ToRunCmd a prepared where
   -- * Generate docker command args to immeidately an initial ['docker', 'run', '-d']
