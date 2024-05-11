@@ -1,8 +1,8 @@
 # Revision history for tmp-proc
 
 `tmp-proc` uses [PVP Versioning][1].
-
-## 0.7.0.0 -- Unreleased
+ 
+## 0.7.0.0 -- 2024-05-11
 
 * Convert ProcHandle constructor into a unidirectional PatternSynonym
 

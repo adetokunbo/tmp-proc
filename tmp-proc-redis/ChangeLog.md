@@ -2,7 +2,7 @@
 
 `tmp-proc-redis` uses [PVP Versioning][1].
 
-## 0.7.0.0 -- Unreleased
+## 0.7.0.0 -- 2024-05-11
 
 * Extend the upper bound for tmp-proc to allow 0.7
 
