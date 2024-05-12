@@ -1,17 +1,17 @@
 # Revision history for tmp-proc
 
 `tmp-proc` uses [PVP Versioning][1].
-
-## 0.7.0.0 -- Unreleased
+ 
+## 0.7.0.0 -- 2024-05-12
 
 * Convert ProcHandle constructor into a unidirectional PatternSynonym
 
-* Always run tmp procs in a docker network with custom generated network name
+* Always run tmp procs in a docker network with a custom generated network name
 
 * Deprecate netwTerminateAll, netwStartupAll, startupAll', genNetworkName,
   NetworkHandlesOf
   
-* Add 'tidy' function to the 'Preparer' typeclass to allow cleanup
+* Add the 'tidy' function to the 'Preparer' typeclass to allow cleanup
 
 ## 0.6.2.1 -- 2024-04-21
 
