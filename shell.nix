@@ -10,7 +10,7 @@ in
     tools = {
       cabal = "latest";
       hlint = "3.6.1";
-      haskell-language-server = "latest";
+      haskell-language-server = "2.7.0.0";
       ghcid = "latest";
       fourmolu = "0.14.0.0";
       cabal-fmt = "latest";
