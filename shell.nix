@@ -2,9 +2,9 @@ let
   project = import ./default.nix {};
 in
   project.shellFor {
-    # Builds a Hoogle documentation index of all dependencies,
-    # and provides a "hoogle" command to search the index.
-    withHoogle = true;
+    # Don't build haddock to optimize build time
+    withHaddock = false;
+    withHoogle = false;
 
     # Some common tools can be added with the `tools` argument
     tools = {
