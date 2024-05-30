@@ -28,7 +28,7 @@ import Data.List (find)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
-import Network.Connection (TLSSettings (..))
+import Network.Connection.CPP (noCheckSettings)
 import qualified Network.HTTP.Client as HC
 import qualified Network.HTTP.Client.TLS as HC
 import Network.HTTP.Types.Header (hHost)
@@ -218,12 +218,11 @@ httpsGet :: ProcHandle a -> Text -> IO Int
 httpsGet handle urlPath = do
   -- _tlsSettings <- TLSSettings <$> _mkClientParams "localHost"
   let theUri = "https://" <> hAddr handle <> "/" <> Text.dropWhile (== '/') urlPath
-      -- use TLS settings that disable hostname verification. What's not
-      -- currently possible is to actually specify the hostname to use for SNI
-      -- that differs from the connection IP address, that's not supported by
-      -- http-client-tls
-      tlsSettings = TLSSettingsSimple True False False
-  manager <- HC.newTlsManagerWith $ HC.mkManagerSettings tlsSettings Nothing
+  -- use TLS settings that disable hostname verification. What's not
+  -- currently possible is to actually specify the hostname to use for SNI
+  -- that differs from the connection IP address, that's not supported by
+  -- http-client-tls
+  manager <- HC.newTlsManagerWith $ HC.mkManagerSettings noCheckSettings Nothing
   getReq <- HC.parseRequest $ Text.unpack theUri
   let withHost = getReq {HC.requestHeaders = [(hHost, "localhost")]}
   statusCode . HC.responseStatus <$> HC.httpLbs withHost manager
