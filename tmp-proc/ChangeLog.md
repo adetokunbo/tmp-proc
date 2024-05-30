@@ -1,7 +1,11 @@
 # Revision history for tmp-proc
 
 `tmp-proc` uses [PVP Versioning][1].
- 
+
+## 0.7.1.0 -- 2024-05-29
+
+* Relax the upper version bounds of crypton-connection to allow 0.4
+
 ## 0.7.0.0 -- 2024-05-12
 
 * Convert ProcHandle constructor into a unidirectional PatternSynonym
