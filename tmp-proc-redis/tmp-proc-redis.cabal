@@ -29,7 +29,7 @@ library
   build-depends:
     , base        >=4.11     && <5
     , bytestring  >=0.10.8.2 && <0.12.2
-    , hedis       >=0.10.4   && <0.16
+    , hedis       >=0.12.3   && <0.16
     , text        >=1.2.3 && <2.2
     , tmp-proc    >=0.5.3  && <0.8
 
