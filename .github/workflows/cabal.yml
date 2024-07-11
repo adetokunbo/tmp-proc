@@ -23,7 +23,7 @@ jobs:
       CONFIG: "--enable-tests --enable-benchmarks --flags=build-the-readme"
     steps:
       - uses: actions/checkout@v3
-      - uses: haskell/actions/setup@v2
+      - uses: haskell-actions/setup@v2
         id: setup-haskell-cabal
         with:
           ghc-version: ${{ matrix.ghc }}
