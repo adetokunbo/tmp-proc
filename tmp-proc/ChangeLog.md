@@ -2,6 +2,10 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
+## 0.7.1.1 -- 2024-07-11
+
+* Updated the tested-with metadata with latest CI GHCs
+
 ## 0.7.1.0 -- 2024-05-29
 
 * Relax the upper version bounds of crypton-connection to allow 0.4
