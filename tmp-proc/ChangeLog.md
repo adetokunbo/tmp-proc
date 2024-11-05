@@ -2,6 +2,10 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
+## 0.7.2.0 -- 2024-11-05
+
+* Relax the upper version bounds of data-default
+
 ## 0.7.1.0 -- 2024-05-29
 
 * Relax the upper version bounds of crypton-connection to allow 0.4

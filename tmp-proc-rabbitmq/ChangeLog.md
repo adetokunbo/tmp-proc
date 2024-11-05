@@ -2,6 +2,11 @@
 
 `tmp-proc-rabbitmq` uses [PVP Versioning][1].
 
+## 0.7.2.0 -- 2024-11-05
+
+* Restrict the upper version bounds of amqp to demarcate the last release using
+  a changing exported function
+
 ## 0.7.0.1 -- 2024-07-01
 
 * Extend the upper bound amqp
