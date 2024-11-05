@@ -23,7 +23,6 @@ where
 
 import qualified Data.ByteString.Char8 as C8
 import Data.Data (Proxy (..))
-import Data.Default (Default (..))
 import Data.List (find)
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -230,15 +229,15 @@ httpsGet handle urlPath = do
 
 -- currently unused, since the server specified in ClientParams for SNI is
 -- overridden by Connection, which resets it to the connection hostname
-_mkClientParams :: HostName -> IO ClientParams
-_mkClientParams server = do
-  cs <- getSystemCertificateStore
-  pure $
-    (defaultParamsClient server "")
-      { clientSupported =
-          def
-            { supportedCiphers = ciphersuite_default
-            }
-      , clientShared = def {sharedCAStore = cs}
-      , clientUseServerNameIndication = True
-      }
+-- _mkClientParams :: HostName -> IO ClientParams
+-- _mkClientParams server = do
+--   cs <- getSystemCertificateStore
+--   pure $
+--     (defaultParamsClient server "")
+--       { clientSupported =
+--           def
+--             { supportedCiphers = ciphersuite_default
+--             }
+--       , clientShared = def {sharedCAStore = cs}
+--       , clientUseServerNameIndication = True
+--       }
