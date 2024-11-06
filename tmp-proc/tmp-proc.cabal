@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               tmp-proc
-version:            0.7.2.0
+version:            0.7.2.1
 synopsis:           Run 'tmp' processes in integration tests
 description:
   @tmp-proc@ runs services in docker containers for use in integration tests.
@@ -30,7 +30,7 @@ data-files:
   templates/*.mustache
 
 extra-source-files: ChangeLog.md
-tested-with:        GHC ==8.10.7 || ==9.0.2 || ==9.2.8 || ==9.4.5
+tested-with:        GHC ==8.10.7 || ==9.0.2 || ==9.2.8 || ==9.4.8 || ==9.6.6 || ==9.8.2 || ==9.10.1
 
 source-repository head
   type:     git

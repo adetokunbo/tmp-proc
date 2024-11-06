@@ -17,13 +17,13 @@ jobs:
     needs: fourmolu
     strategy:
       matrix:
-        cabal: ["3.10"]
-        ghc: ["8.10.7", "9.0.2", "9.2.8", "9.4.5"]
+        cabal: ["latest"]
+        ghc: ["8.10.7", "9.0.2", "9.2.8", "9.4.8", "9.6.6", "9.8.2", "9.10.1"]
     env:
       CONFIG: "--enable-tests --enable-benchmarks --flags=build-the-readme"
     steps:
       - uses: actions/checkout@v3
-      - uses: haskell/actions/setup@v2
+      - uses: haskell-actions/setup@v2
         id: setup-haskell-cabal
         with:
           ghc-version: ${{ matrix.ghc }}
@@ -39,5 +39,5 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ matrix.ghc }}-
       - run: cabal build all $CONFIG
-      - run: cabal test tmp-proc tmp-proc-zipkin tmp-proc-rabbitmq tmp-proc-redis tmp-proc-postgres $CONFIG
+      - run: cabal test tmp-proc:integration-test tmp-proc-zipkin tmp-proc-rabbitmq tmp-proc-redis tmp-proc-postgres $CONFIG
       - run: cabal sdist all
