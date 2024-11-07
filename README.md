@@ -1,6 +1,6 @@
 # tmp-proc
 
-[![GitHub CI](https://github.com/adetokunbo/tmp-proc/actions/workflows/test.yml/badge.svg)](https://github.com/adetokunbo/tmp-proc/actions)
+[![GitHub CI](https://github.com/adetokunbo/tmp-proc/actions/workflows/cabal.yml/badge.svg)](https://github.com/adetokunbo/tmp-proc/actions)
 [![BSD-3.0 license](https://img.shields.io/badge/license-BSD--3.0-blue.svg)](https://github.com/adetokunbo/tmp-proc/blob/master/tmp-proc/LICENSE)
 
 `tmp-proc` is a testing library designed to simplify integration tests that use
