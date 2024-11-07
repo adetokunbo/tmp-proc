@@ -1,6 +1,6 @@
 # tmp-proc
 
-[![GitHub CI](https://github.com/adetokunbo/tmp-proc/actions/workflows/test.yml/badge.svg)](https://github.com/adetokunbo/tmp-proc/actions)
+[![GitHub CI](https://github.com/adetokunbo/tmp-proc/actions/workflows/cabal.yml/badge.svg)](https://github.com/adetokunbo/tmp-proc/actions)
 [![Stackage Nightly][stackage-nightly-badge]][stackage-nightly]
 [![Hackage][hackage-badge]][hackage]
 [![Hackage Dependencies][hackage-deps-badge]][hackage-deps]
