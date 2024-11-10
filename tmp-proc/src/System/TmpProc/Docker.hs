@@ -23,45 +23,59 @@ Copyright   : (c) 2020-2021 Tim Emiola
 SPDX-License-Identifier: BSD3
 Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
 
-Provides the core data types and combinators used to launch temporary /(tmp)/
+Provides the core datatypes and combinators used to launch temporary /(tmp)/
 processes /(procs)/ using docker.
 
-@tmp-proc@ aims to simplify integration tests that use dockerizable services.
+@tmp-proc@ helps launch services used by integration tests on docker
 
-* @tmp-proc@ helps launch services used by integration tests on docker
+* @tmp-proc@ aims to simplify writing those kind of tests, by providing
+  combinators that
 
-* While it's possible to write integration tests that use services hosted on
-  docker /without/ @tmp-proc@, @tmp-proc@ aims to make writing those kind of
-  tests easier, by providing types and combinators that take care of
+    * launch services on docker
+    * provide references to the launched services
+    * clean up these services after the test completes
 
-    * launching services on docker
-    * obtaining references to the launched service
-    * cleaning up docker once the tests are finished
+It achieves this through its typeclasses, datatypes and combinators:
 
-It does this via its typeclasses and data types:
+* A datatype implements the /'Proc'/ typeclass to specify a docker image that
+  provides a service
 
-* The /'Proc'/ typeclass specifies a docker image that provides a service and
-  other details related to its use in tests.
+  * 'startup' starts a @Proc@; using a @docker run@ command generated from
+    metadata encoded by the @Proc@'s typeclass implementation
 
-    * @'Proc's@ may need additional arguments in the @docker run@ command that
-      launches it; this can be done using by providing a specific /'ToRunCmd'/
-      instance for it
+* Additionally, a @Proc@ datatype may implement the /'ToRunCmd'/ typeclass to
+  customize the arguments of the @docker run@ command that launches the service.
 
-* A /'ProcHandle'/ type is created whenever a service specifed by a /'Proc'/ is
-launched, and is used to access and eventually terminate the service.
+* Invoking 'startup' constructs a /'ProcHandle'/ on successful launch of a
+  service specifed by a /'Proc'/
 
-    * Some @'Proc's@ are also /'Connectable'/; they implement a typeclass that
-      specifies how to access the service via some /'Conn'-ection/ type.
+    * It provides combinators for accessing the service, and for eventually
+      shutting it down
 
-* Custom setup of the docker container is supported
+* Multiple services are launched by specifying distinct @Procs@ in an 'HList'
 
-    * A @'Proc'@ type may also implement @'Preparer'@
+    * 'startupAll' constructs an 'HList' of the corresponding @ProcHandle@ on
+      successful launch of the specified services.
 
-        * @'Preparer'@ allows resources to before prepared before the docker
-          start command is invoked, and cleaned up afterwards
+Support for additional features that might prove useful in integration tests is
+available by implementing additional supporting typeclasses:
 
-        * @'ToRunCmd'@ may then be used to update the @docker run@ command line
-          to refer to prepared resources
+    * /'Connectable'/
+    * /'Preparer'/
+
+* Use /'Connectable'/ when there is a specific 'Connection' datatype used to
+  access a service. It provides a combinator to construct an instance of that
+  datatype that accesses the launched service
+
+* Use /'Preparer'/ to allow customization and cleanup of the docker container
+  used to launch the service
+
+    * @'Preparer'@ allows resources used by a docker container to be set up
+      before invoking the @docker run@ command that starts a service, and
+      enables these to be cleaned up afterwards
+
+    * It works with the @'ToRunCmd'@ to allow refererences to the resources to
+      be specified in the @docker run@ command
 -}
 module System.TmpProc.Docker
   ( -- * @'Proc'@
@@ -399,18 +413,20 @@ terminate handle = do
 
 {- | Prepare resources for use by a  @'Proc'@
 
- Preparation occurs before the @Proc's @docker container is a launched, and
- resources generated are made accessible via the @prepared@ data type.
+ Preparation occurs before docker container is a launched, and generated
+ resources should locatable by fields of the @prepared@ datatype.
 
  Usually, it will be used by @'toRunCmd'@ to provide additional arguments to the
- docker command
+ @docker run@ command
 
- There is an @Overlappable@ fallback instance that matches all @'Proc'@, so this
- typeclass need only be specified for @'Proc'@ that require some setup
+ This module provides an @Overlappable@ fallback instance that matches all
+ @'Proc'@, so this typeclass only needs be specified when @'Proc'@ really
+ requires preparatory setup.
 
- The 'prepare' method's first argument is a list of 'SlimHandle' that represent
- preceding @tmp-proc@ managed containers, to allow 'prepare' to setup links
- to these containers when required
+ The 'prepare' method's first argument is a 'List' of 'SlimHandle' that
+ represent provide access information @tmp-proc@ managed containers that are
+ previously launched in the same test, to allow 'prepare' to setup links to
+ these containers if necessary
 -}
 class Preparer a prepared | a -> prepared where
   -- | Generate a @prepared@ before the docker container is started
@@ -446,7 +462,9 @@ instance {-# OVERLAPPABLE #-} (a ~ a', Proc a) => ToRunCmd a a' where
   toRunCmd _ _ = runArgs @a
 
 
--- | Specifies how to a get a connection to a 'Proc'.
+{- | Specifies how to construct a connection datatype for accessing the launched
+service specified by a 'Proc'.
+-}
 class (Proc a) => Connectable a where
   -- | The connection type.
   type Conn a = (conn :: Type) | conn -> a
