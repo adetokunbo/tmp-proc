@@ -23,103 +23,115 @@ Copyright   : (c) 2020-2021 Tim Emiola
 SPDX-License-Identifier: BSD3
 Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
 
-Provides the core data types and combinators used to launch temporary /(tmp)/
+Provides the core datatypes and combinators used to launch temporary /(tmp)/
 processes /(procs)/ using docker.
 
-@tmp-proc@ aims to simplify integration tests that use dockerizable services.
+@tmp-proc@ helps launch services used by integration tests on docker. It aims to
+simplify writing those kind of tests, by providing combinators that
 
-* @tmp-proc@ helps launch services used by integration tests on docker
+  * launch services on docker
+  * provide references to the launched services
+  * clean up these services after the test completes
 
-* While it's possible to write integration tests that use services hosted on
-  docker /without/ @tmp-proc@, @tmp-proc@ aims to make writing those kind of
-  tests easier, by providing types and combinators that take care of
+It achieves this through its typeclasses, datatypes and combinators:
 
-    * launching services on docker
-    * obtaining references to the launched service
-    * cleaning up docker once the tests are finished
+* A datatype implements the 'Proc' typeclass to specify a docker image that
+  provides a service
 
-It does this via its typeclasses and data types:
+  * 'startup' starts a @Proc@; using a @docker run@ command generated from
+    metadata encoded in the @Proc@'s implementation
 
-* The /'Proc'/ typeclass specifies a docker image that provides a service and
-  other details related to its use in tests.
+* Additionally, a @Proc@ datatype may implement the 'ToRunCmd' typeclass to
+  customize the arguments of the @docker run@ command that launches the service.
 
-    * @'Proc's@ may need additional arguments in the @docker run@ command that
-      launches it; this can be done using by providing a specific /'ToRunCmd'/
-      instance for it
+* Invoking 'startup' constructs a 'ProcHandle' on successful launch of a
+  service specifed by a 'Proc'
 
-* A /'ProcHandle'/ type is created whenever a service specifed by a /'Proc'/ is
-launched, and is used to access and eventually terminate the service.
+    * It provides combinators for accessing the service, and for eventually
+      shutting it down
 
-    * Some @'Proc's@ are also /'Connectable'/; they implement a typeclass that
-      specifies how to access the service via some /'Conn'-ection/ type.
+* Multiple services are launched by specifying distinct @Procs@ in an 'HList'
 
-* Custom setup of the docker container is supported
+    * 'startupAll' constructs an 'HList' of the corresponding @ProcHandle@ on
+      successful launch of the specified services.
 
-    * A @'Proc'@ type may also implement @'Preparer'@
+Support for additional features that might prove useful in integration tests is
+available by implementing additional supporting typeclasses:
 
-        * @'Preparer'@ allows resources to before prepared before the docker
-          start command is invoked, and cleaned up afterwards
+  * /'Connectable'/
+  * /'Preparer'/
 
-        * @'ToRunCmd'@ may then be used to update the @docker run@ command line
-          to refer to prepared resources
+Use 'Connectable' when there is a specific /Connection/ datatype used to
+access a service. It provides a combinator to construct an instance of that
+datatype that accesses the launched service
+
+Use 'Preparer' to allow customization and cleanup of the docker container
+used to launch the service
+
+  * @'Preparer'@ allows resources used by a docker container to be set up
+    before invoking the @docker run@ command that starts a service, and
+    enables these to be cleaned up afterwards
+
+  * It works with @'ToRunCmd'@ to allow refererences to the resources to
+    be specified in the @docker run@ command
 -}
 module System.TmpProc.Docker
-  ( -- * @'Proc'@
+  ( -- * define tmp procs
     Proc (..)
-  , Pinged (..)
-  , AreProcs
-  , nameOf
   , startup
-  , toPinged
+  , nameOf
   , uriOf'
   , runArgs'
+  , Pinged (..)
+  , toPinged
+  , AreProcs
 
     -- * customize proc setup
-  , ProcPlus
   , ToRunCmd (..)
   , Preparer (..)
+  , ProcPlus
 
     -- * start/stop many procs
   , startupAll
-  , startupAll'
   , terminateAll
+  , withTmpProcs
+  , startupAll'
   , netwTerminateAll
   , netwStartupAll
-  , withTmpProcs
 
-    -- * access a started @'Proc'@
+    -- * access running procs
   , ProcHandle (ProcHandle, hUri, hPid, hAddr, hProc)
+  , handleOf
   , SlimHandle (..)
+  , slim
   , Proc2Handle
   , HasHandle
   , HasNamedHandle
-  , slim
-  , handleOf
-  , ixReset
-  , ixPing
-  , ixUriOf
 
     -- * access many started procs
   , HandlesOf
-  , NetworkHandlesOf
+  , ixReset
+  , ixPing
+  , ixUriOf
   , manyNamed
   , mapSlim
-  , genNetworkName
   , SomeNamedHandles
+  , NetworkHandlesOf
 
-    -- * @'Connectable'@
+    -- * access via a known connection type
   , Connectable (..)
-  , Connectables
   , withTmpConn
-  , withConnOf
   , openAll
   , closeAll
   , withConns
+  , withConnOf
   , withKnownConns
   , withNamedConns
+  , Connectables
 
     -- * Docker status
   , hasDocker
+  , genNetworkName
 
     -- * Aliases
   , HostIpAddress
@@ -196,7 +208,7 @@ import System.TmpProc.TypeLevel
   )
 
 
--- | Determines if the docker daemon is accessible.
+-- | Determine if the docker daemon is accessible.
 hasDocker :: IO Bool
 hasDocker = do
   let rawSystemNoStdout cmd args =
@@ -232,8 +244,8 @@ data ProcHandle a = MkProcHandle
 
 {- | A @pattern@ constructor the provides selectors for the @ProcHandle@ fields
 
-The selectors are readonly, i.e they only match in pattern context since
-@ProcHandle@s cannot be constructed directly; they are obtained@ through
+The selectors are readonly, i.e they only match in a pattern context since
+@ProcHandle@s cannot be constructed directly; they are constructed by invoking
 'startupAll' or 'startup'
 -}
 pattern ProcHandle ::
@@ -399,25 +411,26 @@ terminate handle = do
 
 {- | Prepare resources for use by a  @'Proc'@
 
- Preparation occurs before the @Proc's @docker container is a launched, and
- resources generated are made accessible via the @prepared@ data type.
+ Preparation occurs before the docker container is a launched; once the
+ resources are set up, they are located using the @prepared@ datatype.
 
- Usually, it will be used by @'toRunCmd'@ to provide additional arguments to the
- docker command
+ Usually, this means it will be used by 'toRunCmd' to provide additional
+ arguments to the @docker run@ command
 
- There is an @Overlappable@ fallback instance that matches all @'Proc'@, so this
- typeclass need only be specified for @'Proc'@ that require some setup
+ This module provides an @Overlappable@ fallback instance that matches all
+ @'Proc'@, so this typeclass is only needed when a @'Proc'@ datatype actually
+ requires preparatory setup.
 
- The 'prepare' method's first argument is a list of 'SlimHandle' that represent
- preceding @tmp-proc@ managed containers, to allow 'prepare' to setup links
- to these containers when required
+ The first argument to 'prepare' is a @['SlimHandle']@ that gives access to
+ other @tmp-procs@ previously launched in the same test, to allow 'prepare' to
+ setup links to them when necessary
 -}
 class Preparer a prepared | a -> prepared where
   -- | Generate a @prepared@ before the docker container is started
   prepare :: [SlimHandle] -> a -> IO prepared
 
 
-  -- | Tidy any resources associated with @prepared@
+  -- | Clean up any resources associated with @prepared@
   tidy :: a -> prepared -> IO ()
 
 
@@ -428,14 +441,15 @@ instance {-# OVERLAPPABLE #-} (a ~ a', Proc a) => Preparer a a' where
 
 {- | Allow customization of the docker command that launches a @'Proc'@
 
- The full launch command is
+ The docker launch command is
    `docker run -d /optional-args/ --name $(name a) $(imageText a)`
 
- Specify a new instance of @ToRunCmd@ to control /optional-args/
+ A @Proc@ datatype should declare an instance of @ToRunCmd@ to control
+ /optional-args/
 
- There is an @Overlappable@ fallback instance with default behaviour that
- matches all @'Proc'@, so this typeclass need only be implemented for @'Proc'@
- types that actually need additional arguments
+ This module provides an @Overlappable@ fallback instance with default behaviour
+ that matches all @'Proc'@, so this typeclass is only needed when a @'Proc'@
+ datatypes actually needs additional arguments
 -}
 class (Preparer a prepared) => ToRunCmd a prepared where
   -- * Generate docker command args to immeidately an initial ['docker', 'run', '-d']
@@ -446,7 +460,9 @@ instance {-# OVERLAPPABLE #-} (a ~ a', Proc a) => ToRunCmd a a' where
   toRunCmd _ _ = runArgs @a
 
 
--- | Specifies how to a get a connection to a 'Proc'.
+{- | Specifies how to construct a connection datatype for accessing the launched
+service specified by a 'Proc'.
+-}
 class (Proc a) => Connectable a where
   -- | The connection type.
   type Conn a = (conn :: Type) | conn -> a
@@ -467,7 +483,7 @@ class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
   type Image a :: Symbol
 
 
-  -- | A label used to refer to running process created from this image, e.g,
+  -- | A label used to refer to the running tmp proc created from this image, e.g,
   --   /a-postgres-db/
   type Name a = (labelName :: Symbol) | labelName -> a
 
@@ -477,7 +493,7 @@ class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
   runArgs = mempty
 
 
-  -- | Determines the service URI of the process, when applicable.
+  -- | Determines the service URI of the tmp proc, when applicable.
   uriOf :: HostIpAddress -> SvcURI
 
 
@@ -485,7 +501,7 @@ class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
   reset :: ProcHandle a -> IO ()
 
 
-  -- | Checks if the tmp proc started ok.
+  -- | Checks if the tmp proc started correctly.
   ping :: ProcHandle a -> IO Pinged
 
 
@@ -579,7 +595,8 @@ type SvcURI = C8.ByteString
 It uses 'ping' to determine if the 'Proc' started up ok, and will fail by
 throwing an exception if it did not.
 
-Returns the 'ProcHandle' used to control the 'Proc' once a ping has succeeded.
+Returns the 'ProcHandle' used to access and control the 'Proc' once a ping has
+succeeded.
 -}
 startup :: (ProcPlus a prepared) => a -> IO (ProcHandle a)
 startup p = do

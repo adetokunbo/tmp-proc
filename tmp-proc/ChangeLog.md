@@ -5,6 +5,7 @@
 ## 0.7.2.1 -- 2024-11-05
 
 * Updated the tested-with metadata with latest CI GHCs
+* Review and update various haddock comments
 
 ## 0.7.2.0 -- 2024-11-05
 
