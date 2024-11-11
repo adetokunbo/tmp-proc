@@ -61,7 +61,7 @@ available by implementing additional supporting typeclasses:
   * /'Connectable'/
   * /'Preparer'/
 
-Use /'Connectable'/ when there is a specific 'Connection' datatype used to
+Use /'Connectable'/ when there is a specific /Connection/ datatype used to
 access a service. It provides a combinator to construct an instance of that
 datatype that accesses the launched service
 
