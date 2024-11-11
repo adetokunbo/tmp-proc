@@ -81,12 +81,12 @@ module System.TmpProc.Docker
   ( -- * @'Proc'@
     Proc (..)
   , Pinged (..)
-  , AreProcs
   , nameOf
   , startup
   , toPinged
   , uriOf'
   , runArgs'
+  , AreProcs
 
     -- * customize proc setup
   , ProcPlus
@@ -246,8 +246,8 @@ data ProcHandle a = MkProcHandle
 
 {- | A @pattern@ constructor the provides selectors for the @ProcHandle@ fields
 
-The selectors are readonly, i.e they only match in pattern context since
-@ProcHandle@s cannot be constructed directly; they are obtained@ through
+The selectors are readonly, i.e they only match in a pattern context since
+@ProcHandle@s cannot be constructed directly; they are constructed by invoking
 'startupAll' or 'startup'
 -}
 pattern ProcHandle ::
@@ -413,27 +413,26 @@ terminate handle = do
 
 {- | Prepare resources for use by a  @'Proc'@
 
- Preparation occurs before docker container is a launched, and generated
- resources should locatable by fields of the @prepared@ datatype.
+ Preparation occurs before docker container is a launched; once the resources
+ are set up, they can be located using the @prepared@ datatype.
 
- Usually, it will be used by @'toRunCmd'@ to provide additional arguments to the
- @docker run@ command
+ Usually, this means it can used by @'toRunCmd'@ to provide additional arguments
+ to the @docker run@ command
 
  This module provides an @Overlappable@ fallback instance that matches all
- @'Proc'@, so this typeclass only needs be specified when @'Proc'@ really
+ @'Proc'@, so this typeclass is only needed when a @'Proc'@ datatype actually
  requires preparatory setup.
 
- The 'prepare' method's first argument is a 'List' of 'SlimHandle' that
- represent provide access information @tmp-proc@ managed containers that are
- previously launched in the same test, to allow 'prepare' to setup links to
- these containers if necessary
+ The 'prepare' method's first argument is a @['SlimHandle']@ that giving access
+ to other @tmp-procs@ previously launched in the same test, to allow 'prepare'
+ to setup links to them when necessary
 -}
 class Preparer a prepared | a -> prepared where
   -- | Generate a @prepared@ before the docker container is started
   prepare :: [SlimHandle] -> a -> IO prepared
 
 
-  -- | Tidy any resources associated with @prepared@
+  -- | Clean up any resources associated with @prepared@
   tidy :: a -> prepared -> IO ()
 
 
@@ -444,14 +443,15 @@ instance {-# OVERLAPPABLE #-} (a ~ a', Proc a) => Preparer a a' where
 
 {- | Allow customization of the docker command that launches a @'Proc'@
 
- The full launch command is
+ The docker launch command is
    `docker run -d /optional-args/ --name $(name a) $(imageText a)`
 
- Specify a new instance of @ToRunCmd@ to control /optional-args/
+ A @Proc@ datatype should declare an instance of @ToRunCmd@ to control
+ /optional-args/
 
- There is an @Overlappable@ fallback instance with default behaviour that
- matches all @'Proc'@, so this typeclass need only be implemented for @'Proc'@
- types that actually need additional arguments
+ This module provides an @Overlappable@ fallback instance with default behaviour
+ that matches all @'Proc'@, so this typeclass is only needed when a @'Proc'@
+ datatypes actually needs additional arguments
 -}
 class (Preparer a prepared) => ToRunCmd a prepared where
   -- * Generate docker command args to immeidately an initial ['docker', 'run', '-d']
@@ -485,7 +485,7 @@ class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
   type Image a :: Symbol
 
 
-  -- | A label used to refer to running process created from this image, e.g,
+  -- | A label used to refer to the running tmp proc created from this image, e.g,
   --   /a-postgres-db/
   type Name a = (labelName :: Symbol) | labelName -> a
 
@@ -495,7 +495,7 @@ class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
   runArgs = mempty
 
 
-  -- | Determines the service URI of the process, when applicable.
+  -- | Determines the service URI of the tmp proc, when applicable.
   uriOf :: HostIpAddress -> SvcURI
 
 
@@ -503,7 +503,7 @@ class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
   reset :: ProcHandle a -> IO ()
 
 
-  -- | Checks if the tmp proc started ok.
+  -- | Checks if the tmp proc started correctly.
   ping :: ProcHandle a -> IO Pinged
 
 
@@ -597,7 +597,8 @@ type SvcURI = C8.ByteString
 It uses 'ping' to determine if the 'Proc' started up ok, and will fail by
 throwing an exception if it did not.
 
-Returns the 'ProcHandle' used to control the 'Proc' once a ping has succeeded.
+Returns the 'ProcHandle' used to access and control the 'Proc' once a ping has
+succeeded.
 -}
 startup :: (ProcPlus a prepared) => a -> IO (ProcHandle a)
 startup p = do
