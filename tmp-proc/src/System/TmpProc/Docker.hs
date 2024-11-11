@@ -109,29 +109,29 @@ module System.TmpProc.Docker
   , HasNamedHandle
 
     -- * access many started procs
+  , HandlesOf
   , ixReset
   , ixPing
   , ixUriOf
-  , genNetworkName
   , manyNamed
   , mapSlim
-  , HandlesOf
-  , NetworkHandlesOf
   , SomeNamedHandles
+  , NetworkHandlesOf
 
     -- * access via a known connection type
   , Connectable (..)
   , withTmpConn
-  , withConnOf
   , openAll
   , closeAll
   , withConns
+  , withConnOf
   , withKnownConns
   , withNamedConns
   , Connectables
 
     -- * Docker status
   , hasDocker
+  , genNetworkName
 
     -- * Aliases
   , HostIpAddress
