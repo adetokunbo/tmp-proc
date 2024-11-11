@@ -411,8 +411,8 @@ terminate handle = do
 
 {- | Prepare resources for use by a  @'Proc'@
 
- Preparation occurs before docker container is a launched; once the resources
- are set up, they can be located using the @prepared@ datatype.
+ Preparation occurs before the docker container is a launched; once the
+ resources are set up, they can be located using the @prepared@ datatype.
 
  Usually, this means it can used by @'toRunCmd'@ to provide additional arguments
  to the @docker run@ command
@@ -421,9 +421,9 @@ terminate handle = do
  @'Proc'@, so this typeclass is only needed when a @'Proc'@ datatype actually
  requires preparatory setup.
 
- The 'prepare' method's first argument is a @['SlimHandle']@ that giving access
- to other @tmp-procs@ previously launched in the same test, to allow 'prepare'
- to setup links to them when necessary
+ the first argument to 'prepare' is a @['SlimHandle']@ that gives access to
+ other @tmp-procs@ previously launched in the same test, to allow 'prepare' to
+ setup links to them when necessary
 -}
 class Preparer a prepared | a -> prepared where
   -- | Generate a @prepared@ before the docker container is started
