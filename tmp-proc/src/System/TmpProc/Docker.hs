@@ -26,14 +26,12 @@ Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
 Provides the core datatypes and combinators used to launch temporary /(tmp)/
 processes /(procs)/ using docker.
 
-@tmp-proc@ helps launch services used by integration tests on docker
+@tmp-proc@ helps launch services used by integration tests on docker. It aims to
+simplify writing those kind of tests, by providing combinators that
 
-* @tmp-proc@ aims to simplify writing those kind of tests, by providing
-  combinators that
-
-    * launch services on docker
-    * provide references to the launched services
-    * clean up these services after the test completes
+  * launch services on docker
+  * provide references to the launched services
+  * clean up these services after the test completes
 
 It achieves this through its typeclasses, datatypes and combinators:
 
@@ -41,7 +39,7 @@ It achieves this through its typeclasses, datatypes and combinators:
   provides a service
 
   * 'startup' starts a @Proc@; using a @docker run@ command generated from
-    metadata encoded by the @Proc@'s typeclass implementation
+    metadata encoded in the @Proc@'s implementation
 
 * Additionally, a @Proc@ datatype may implement the /'ToRunCmd'/ typeclass to
   customize the arguments of the @docker run@ command that launches the service.
@@ -60,70 +58,69 @@ It achieves this through its typeclasses, datatypes and combinators:
 Support for additional features that might prove useful in integration tests is
 available by implementing additional supporting typeclasses:
 
-    * /'Connectable'/
-    * /'Preparer'/
+  * /'Connectable'/
+  * /'Preparer'/
 
-* Use /'Connectable'/ when there is a specific 'Connection' datatype used to
-  access a service. It provides a combinator to construct an instance of that
-  datatype that accesses the launched service
+Use /'Connectable'/ when there is a specific 'Connection' datatype used to
+access a service. It provides a combinator to construct an instance of that
+datatype that accesses the launched service
 
-* Use /'Preparer'/ to allow customization and cleanup of the docker container
-  used to launch the service
+Use /'Preparer'/ to allow customization and cleanup of the docker container
+used to launch the service
 
-    * @'Preparer'@ allows resources used by a docker container to be set up
-      before invoking the @docker run@ command that starts a service, and
-      enables these to be cleaned up afterwards
+  * @'Preparer'@ allows resources used by a docker container to be set up
+    before invoking the @docker run@ command that starts a service, and
+    enables these to be cleaned up afterwards
 
-    * It works with the @'ToRunCmd'@ to allow refererences to the resources to
-      be specified in the @docker run@ command
+  * It works with @'ToRunCmd'@ to allow refererences to the resources to
+    be specified in the @docker run@ command
 -}
 module System.TmpProc.Docker
-  ( -- * @'Proc'@
+  ( -- * define tmp procs
     Proc (..)
-  , Pinged (..)
-  , nameOf
   , startup
-  , toPinged
+  , nameOf
   , uriOf'
   , runArgs'
+  , Pinged (..)
+  , toPinged
   , AreProcs
 
     -- * customize proc setup
-  , ProcPlus
   , ToRunCmd (..)
   , Preparer (..)
+  , ProcPlus
 
     -- * start/stop many procs
   , startupAll
-  , startupAll'
   , terminateAll
+  , withTmpProcs
+  , startupAll'
   , netwTerminateAll
   , netwStartupAll
-  , withTmpProcs
 
-    -- * access a started @'Proc'@
+    -- * access running procs
   , ProcHandle (ProcHandle, hUri, hPid, hAddr, hProc)
+  , handleOf
   , SlimHandle (..)
+  , slim
   , Proc2Handle
   , HasHandle
   , HasNamedHandle
-  , slim
-  , handleOf
+
+    -- * access many started procs
   , ixReset
   , ixPing
   , ixUriOf
-
-    -- * access many started procs
-  , HandlesOf
-  , NetworkHandlesOf
+  , genNetworkName
   , manyNamed
   , mapSlim
-  , genNetworkName
+  , HandlesOf
+  , NetworkHandlesOf
   , SomeNamedHandles
 
-    -- * @'Connectable'@
+    -- * access via a known connection type
   , Connectable (..)
-  , Connectables
   , withTmpConn
   , withConnOf
   , openAll
@@ -131,6 +128,7 @@ module System.TmpProc.Docker
   , withConns
   , withKnownConns
   , withNamedConns
+  , Connectables
 
     -- * Docker status
   , hasDocker
@@ -210,7 +208,7 @@ import System.TmpProc.TypeLevel
   )
 
 
--- | Determines if the docker daemon is accessible.
+-- | Determine if the docker daemon is accessible.
 hasDocker :: IO Bool
 hasDocker = do
   let rawSystemNoStdout cmd args =
