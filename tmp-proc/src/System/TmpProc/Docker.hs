@@ -35,17 +35,17 @@ simplify writing those kind of tests, by providing combinators that
 
 It achieves this through its typeclasses, datatypes and combinators:
 
-* A datatype implements the /'Proc'/ typeclass to specify a docker image that
+* A datatype implements the 'Proc' typeclass to specify a docker image that
   provides a service
 
   * 'startup' starts a @Proc@; using a @docker run@ command generated from
     metadata encoded in the @Proc@'s implementation
 
-* Additionally, a @Proc@ datatype may implement the /'ToRunCmd'/ typeclass to
+* Additionally, a @Proc@ datatype may implement the 'ToRunCmd' typeclass to
   customize the arguments of the @docker run@ command that launches the service.
 
-* Invoking 'startup' constructs a /'ProcHandle'/ on successful launch of a
-  service specifed by a /'Proc'/
+* Invoking 'startup' constructs a 'ProcHandle' on successful launch of a
+  service specifed by a 'Proc'
 
     * It provides combinators for accessing the service, and for eventually
       shutting it down
@@ -61,11 +61,11 @@ available by implementing additional supporting typeclasses:
   * /'Connectable'/
   * /'Preparer'/
 
-Use /'Connectable'/ when there is a specific /Connection/ datatype used to
+Use 'Connectable' when there is a specific /Connection/ datatype used to
 access a service. It provides a combinator to construct an instance of that
 datatype that accesses the launched service
 
-Use /'Preparer'/ to allow customization and cleanup of the docker container
+Use 'Preparer' to allow customization and cleanup of the docker container
 used to launch the service
 
   * @'Preparer'@ allows resources used by a docker container to be set up
@@ -412,16 +412,16 @@ terminate handle = do
 {- | Prepare resources for use by a  @'Proc'@
 
  Preparation occurs before the docker container is a launched; once the
- resources are set up, they can be located using the @prepared@ datatype.
+ resources are set up, they are located using the @prepared@ datatype.
 
- Usually, this means it can used by @'toRunCmd'@ to provide additional arguments
- to the @docker run@ command
+ Usually, this means it will be used by 'toRunCmd' to provide additional
+ arguments to the @docker run@ command
 
  This module provides an @Overlappable@ fallback instance that matches all
  @'Proc'@, so this typeclass is only needed when a @'Proc'@ datatype actually
  requires preparatory setup.
 
- the first argument to 'prepare' is a @['SlimHandle']@ that gives access to
+ The first argument to 'prepare' is a @['SlimHandle']@ that gives access to
  other @tmp-procs@ previously launched in the same test, to allow 'prepare' to
  setup links to them when necessary
 -}
