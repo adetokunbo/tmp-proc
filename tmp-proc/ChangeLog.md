@@ -2,6 +2,10 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
+## 0.7.2.2 -- 2025-01-06
+
+* Relax the upper version bounds of random
+
 ## 0.7.2.1 -- 2024-11-05
 
 * Updated the tested-with metadata with latest CI GHCs
