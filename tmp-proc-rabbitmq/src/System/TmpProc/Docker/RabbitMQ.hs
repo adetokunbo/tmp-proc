@@ -30,6 +30,7 @@ module System.TmpProc.Docker.RabbitMQ
   )
 where
 
+import Control.Exception (throwIO)
 import qualified Data.ByteString.Char8 as C8
 import Data.Proxy (Proxy (..))
 import qualified Data.Text as Text
@@ -93,5 +94,13 @@ mkUri' ip =
     <> ":5672@/%2f"
 
 
+fromURI' :: String -> IO ConnectionOpts
+fromURI' x = case fromURI x of
+  Left e -> throwIO $ userError e
+  Right c -> pure c
+
+
 openConn' :: ProcHandle TmpRabbitMQ -> IO Connection
-openConn' = openConnection'' . fromURI . C8.unpack . hUri
+openConn' h = do
+  opts <- fromURI' $ C8.unpack $ hUri h
+  openConnection'' opts

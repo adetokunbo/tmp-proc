@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               tmp-proc-rabbitmq
-version:            0.7.2.0
+version:            0.7.2.3
 synopsis:           Launch RabbitMQ in docker using tmp-proc
 description:
   Demos how to use tmp-proc to run RabbitMQ in docker in a unittest.
@@ -27,7 +27,7 @@ library
   exposed-modules:  System.TmpProc.Docker.RabbitMQ
   hs-source-dirs:   src
   build-depends:
-    , amqp        >=0.22.1 && < 0.24
+    , amqp        >=0.24 && < 0.26
     , base        >=4.11     && <5
     , bytestring  >=0.10.8.2 && <0.12.2
     , text        >=1.2.3 && <2.2
