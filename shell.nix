@@ -9,10 +9,10 @@ in
     # Some common tools can be added with the `tools` argument
     tools = {
       cabal = "latest";
-      hlint = "3.6.1";
+      hlint = "latest";
       haskell-language-server = "latest";
       ghcid = "latest";
-      fourmolu = "0.14.0.0";
+      fourmolu = "0.15.0.0";
       cabal-fmt = "latest";
     };
     # See overlays/tools.nix for more details
