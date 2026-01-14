@@ -51,7 +51,6 @@ import System.TmpProc
   , ToRunCmd (..)
   , toPinged
   )
-import System.X509 (getSystemCertificateStore)
 import Test.Certs.Temp (CertPaths (..), defaultConfig, generateAndStore)
 import Text.Mustache
   ( ToMustache (..)
