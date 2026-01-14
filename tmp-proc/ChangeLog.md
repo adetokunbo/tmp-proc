@@ -5,6 +5,7 @@
 ## 0.7.2.5 -- 2026-01-14
 
 * Remove the unnecessary test dependency crypton-x509-system
+* Relax the upper version bounds of tls
 
 ## 0.7.2.2 -- 2025-01-06
 
