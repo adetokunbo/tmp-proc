@@ -14,3 +14,6 @@ package tmp-proc
 
 package postgresql-libpq
   flags: +use-pkg-config
+
+package HsOpenSSL
+  ghc-options: -optc=-Wno-discarded-qualifiers -optc=-Wno-deprecated-declarations -optc=-Wno-incompatible-pointer-types
