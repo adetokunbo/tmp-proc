@@ -2,6 +2,10 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
+## 0.7.2.5 -- 2026-01-14
+
+* Remove the unnecessary test dependency crypton-x509-system
+
 ## 0.7.2.2 -- 2025-01-06
 
 * Relax the upper version bounds of random
