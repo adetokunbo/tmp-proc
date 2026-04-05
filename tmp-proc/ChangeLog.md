@@ -2,6 +2,10 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
+## 0.7.2.6 -- 2025-04-05
+
+* Relax the upper version bounds of http-client-tls
+
 ## 0.7.2.5 -- 2026-01-14
 
 * Remove the unnecessary test dependency crypton-x509-system
