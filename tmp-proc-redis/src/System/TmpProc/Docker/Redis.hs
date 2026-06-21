@@ -35,6 +35,7 @@ where
 import Control.Exception (catch)
 import Control.Monad (void)
 import qualified Data.ByteString.Char8 as C8
+import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.Text as Text
 import Database.Redis
   ( ConnectTimeout
@@ -119,5 +120,5 @@ mkUri' ip = "redis://" <> C8.pack (Text.unpack ip) <> "/"
 clearKeys :: ProcHandle TmpRedis -> IO ()
 clearKeys handle@ProcHandle {hProc} =
   let go (TmpRedis []) = pure ()
-      go (TmpRedis keys) = withTmpConn handle $ \c -> runRedis c $ void $ del keys
+      go (TmpRedis (x : xs)) = withTmpConn handle $ \c -> runRedis c $ void $ del (x :| xs)
    in go hProc
