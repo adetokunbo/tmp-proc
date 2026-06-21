@@ -22,8 +22,16 @@ where
 
 import Control.Monad (void)
 import Data.ByteString.Char8 (ByteString, pack, unpack)
-import Data.List.NonEmpty (NonEmpty ((:|)))
 import Database.Redis
+  ( Connection
+  , Redis
+  , connect
+  , defaultConnectInfo
+  , get
+  , runRedis
+  , setex
+  )
+import System.TmpProc.Docker.Redis (del)
 import TmpProc.Example2.Schema
 
 
@@ -50,7 +58,7 @@ loadContact loc cid = runRedisAction loc $ do
 deleteContact :: Connection -> ContactID -> IO ()
 deleteContact loc cid = do
   runRedis loc $ do
-    _ <- del ((pack . show $ cid) :| [])
+    _ <- del [(pack . show $ cid)]
     return ()
 
 
