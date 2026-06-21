@@ -1,11 +1,11 @@
 {-# LANGUAGE LambdaCase #-}
-{-|
+
+{- |
 Copyright   : (c) 2020-2021 Tim Emiola
 SPDX-License-Identifier: BSD3
 Maintainer  : Tim Emiola <adetokunbo@users.noreply.github.com>
 
 Implements a cache for the demo service
-
 -}
 module TmpProc.Example2.Cache
   ( -- * Cache services
@@ -20,21 +20,25 @@ module TmpProc.Example2.Cache
   )
 where
 
-import           Control.Monad (void)
-import           Data.ByteString.Char8 (pack, unpack, ByteString)
-import           Database.Redis
+import Control.Monad (void)
+import Data.ByteString.Char8 (ByteString, pack, unpack)
+import Data.List.NonEmpty (NonEmpty ((:|)))
+import Database.Redis
+import TmpProc.Example2.Schema
 
-import           TmpProc.Example2.Schema
 
-{-| A default for local development .-}
+-- | A default for local development .
 defaultConn :: IO Connection
 defaultConn = connect defaultConnectInfo
+
 
 runRedisAction :: Connection -> Redis a -> IO a
 runRedisAction loc action = runRedis loc action
 
+
 saveContact :: Connection -> ContactID -> Contact -> IO ()
 saveContact loc cid contact = runRedisAction loc $ void $ setex (toKey cid) 3600 (pack . show $ contact)
+
 
 loadContact :: Connection -> ContactID -> IO (Maybe Contact)
 loadContact loc cid = runRedisAction loc $ do
@@ -42,10 +46,11 @@ loadContact loc cid = runRedisAction loc $ do
     Right (Just contactString) -> return $ Just (read . unpack $ contactString)
     _ -> return Nothing
 
+
 deleteContact :: Connection -> ContactID -> IO ()
 deleteContact loc cid = do
   runRedis loc $ do
-    _ <- del [pack . show $ cid]
+    _ <- del ((pack . show $ cid) :| [])
     return ()
 
 
