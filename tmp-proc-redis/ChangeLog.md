@@ -2,6 +2,10 @@
 
 `tmp-proc-redis` uses [PVP Versioning][1].
 
+## 0.7.2.5 -- 2026-06-21
+
+* Relax the upper bound on hedis
+
 ## 0.7.2.4 -- 2025-03-25
 
 * Relax the upper bound on bytestring

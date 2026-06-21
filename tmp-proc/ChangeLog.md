@@ -2,6 +2,10 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
+## 0.7.2.7 -- 2026-04-20
+
+* Relax the upper version bounds of tls
+
 ## 0.7.2.6 -- 2025-04-05
 
 * Relax the upper version bounds of http-client-tls
