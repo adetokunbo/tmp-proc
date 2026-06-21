@@ -2,6 +2,11 @@
 
 `tmp-proc-redis` uses [PVP Versioning][1].
 
+## 0.7.3.0 -- 2026-06-22
+
+* Update the lower bound on hedis
+  * allows dependencies to demarcate a hedis major version change
+
 ## 0.7.2.5 -- 2026-06-21
 
 * Relax the upper bound on hedis
