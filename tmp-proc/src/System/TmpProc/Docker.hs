@@ -145,10 +145,14 @@ where
 import Control.Concurrent (threadDelay)
 import Control.Exception
   ( Exception
+  , Handler (..)
+  , SomeAsyncException
   , SomeException
   , bracket
   , catch
+  , catches
   , onException
+  , throwIO
   )
 import Control.Monad (void, when)
 import qualified Data.ByteString.Char8 as C8
@@ -686,11 +690,12 @@ nPings h =
 
     ping' x =
       ping x
-        `catch` ( \(e :: SomeException) -> do
-                    let errMsg = Text.pack $ show e
-                    badErr errMsg
-                    pure $ PingFailed errMsg
-                )
+        `catches` [ Handler $ \(e :: SomeAsyncException) -> throwIO e
+                  , Handler $ \(e :: SomeException) -> do
+                      let errMsg = Text.pack $ show e
+                      badErr errMsg
+                      pure $ PingFailed errMsg
+                  ]
 
     go n =
       ping' h >>= \case
