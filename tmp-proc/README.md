@@ -2,8 +2,8 @@
 
 [![GitHub CI](https://github.com/adetokunbo/tmp-proc/actions/workflows/cabal.yml/badge.svg)](https://github.com/adetokunbo/tmp-proc/actions)
 [![Stackage Nightly][stackage-nightly-badge]][stackage-nightly]
+[![Stackage LTS][stackage-lts-badge]][stackage-lts]
 [![Hackage][hackage-badge]][hackage]
-[![Hackage Dependencies][hackage-deps-badge]][hackage-deps]
 [![BSD-3.0 license](https://img.shields.io/badge/license-BSD--3.0-blue.svg)](https://github.com/adetokunbo/tmp-proc/blob/master/tmp-proc/LICENSE)
 
 `tmp-proc` is a small library designed to simplify integration tests that use
@@ -222,8 +222,10 @@ main = hspec spec
 [18]: https://hackage.haskell.org/package/tmp-proc-0.5.0.1/docs/System-TmpProc-Docker.html#v:ping
 
 [hackage-deps-badge]:     <https://img.shields.io/hackage-deps/v/tmp-proc.svg>
-[hackage-deps]:           <http://packdeps.haskellers.com/feed?needle=tmp-proc>
 [hackage-badge]:          <https://img.shields.io/hackage/v/tmp-proc.svg>
 [hackage]:                <https://hackage.haskell.org/package/tmp-proc>
+[stackage-lts]:           <http://stackage.org/lts/package/tmp-proc>
+[stackage-lts-badge]:     <http://stackage.org/package/tmp-proc/badge/lts>
 [stackage-nightly-badge]: <http://stackage.org/package/tmp-proc/badge/nightly>
 [stackage-nightly]:       <http://stackage.org/nightly/package/tmp-proc>
+
