@@ -81,6 +81,8 @@ module System.TmpProc.Docker
   , startup
   , nameOf
   , uriOf'
+  , uriOfRootless'
+  , uriOfRootlessWith'
   , runArgs'
   , Pinged (..)
   , toPinged
@@ -519,6 +521,30 @@ class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
   uriOf :: HostIpAddress -> SvcURI
 
 
+  -- | The port the service listens on inside the container.
+  --   When @0@ (default), rootless mode publishes all @EXPOSE@d ports via @-P@.
+  --   Set to a specific port to use @-p@ instead, for images with many @EXPOSE@s.
+  containerPort :: Word16
+  containerPort = 0
+
+
+  -- | The URI to use when accessing the service from the host in rootless mode.
+  --   Receives the host port for 'containerPort' (or @0@ if no mapping was found).
+  --   Defaults to 'uriOf', ignoring the host port; override to incorporate it.
+  uriOfRootless :: HostIpAddress -> Word16 -> SvcURI
+  uriOfRootless addr _ = uriOf @a addr
+
+
+  -- | Like 'uriOfRootless' but receives all published port mappings as
+  --   @(containerPort, hostPort)@ pairs. Defaults to delegating to 'uriOfRootless'
+  --   using the host port of the first pair. Override for multi-port images.
+  uriOfRootlessWith :: HostIpAddress -> [(Word16, Word16)] -> SvcURI
+  uriOfRootlessWith addr pairs =
+    uriOfRootless @a addr $ case pairs of
+      (_, hp) : _ -> hp
+      [] -> 0
+
+
   -- | Resets some state in a tmp proc service.
   reset :: ProcHandle a -> IO ()
 
@@ -580,6 +606,16 @@ pingGap' _ = pingGap @a
 -- | Simplifies use of 'uriOf'.
 uriOf' :: forall a. (Proc a) => a -> HostIpAddress -> SvcURI
 uriOf' _ = uriOf @a
+
+
+-- | Simplifies use of 'uriOfRootless'.
+uriOfRootless' :: forall a. (Proc a) => a -> HostIpAddress -> Word16 -> SvcURI
+uriOfRootless' _ = uriOfRootless @a
+
+
+-- | Simplifies use of 'uriOfRootlessWith'.
+uriOfRootlessWith' :: forall a. (Proc a) => a -> HostIpAddress -> [(Word16, Word16)] -> SvcURI
+uriOfRootlessWith' _ = uriOfRootlessWith @a
 
 
 -- | The full args of a @docker run@ command for starting up a 'Proc'.

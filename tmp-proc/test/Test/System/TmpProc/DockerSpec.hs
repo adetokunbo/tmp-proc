@@ -32,6 +32,19 @@ spec = do
       result <- isRootless
       result `shouldBe` False
 
+  describe "Proc typeclass defaults" $ do
+    it "containerPort defaults to 0" $
+      containerPort @AlwaysFailPing `shouldBe` 0
+    it "uriOfRootless defaults to uriOf ignoring the host port" $
+      uriOfRootless @AlwaysFailPing "127.0.0.1" 5432
+        `shouldBe` uriOf @AlwaysFailPing "127.0.0.1"
+    it "uriOfRootlessWith delegates to uriOfRootless using the first pair's host port" $
+      uriOfRootlessWith @AlwaysFailPing "127.0.0.1" [(6379, 49153)]
+        `shouldBe` uriOfRootless @AlwaysFailPing "127.0.0.1" 49153
+    it "uriOfRootlessWith passes 0 to uriOfRootless when the pairs list is empty" $
+      uriOfRootlessWith @AlwaysFailPing "127.0.0.1" []
+        `shouldBe` uriOfRootless @AlwaysFailPing "127.0.0.1" 0
+
   describe "Exception handling during startup" $ do
     it "re-throws UserInterrupt during ping and cleans up the container" $ do
       result <- try @SomeAsyncException (startup InterruptOnPing)
