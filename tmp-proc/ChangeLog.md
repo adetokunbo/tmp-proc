@@ -2,7 +2,14 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
-## 0.7.2.8 -- TBD
+## 0.8.0.0 -- TBD
+
+* Add rootless docker support: `Proc` gains `containerPort`, `uriOfRootless`,
+  and `uriOfRootlessWith` with defaults; `startupAll` detects rootless mode and
+  publishes ports via `-p`/`-P`; `hUri` returns the correct `127.0.0.1:<port>`
+  URI in rootless mode without any change to `MkProcHandle` or `hAddr`
+
+* Add `isRootless :: IO Bool` to detect rootless docker mode
 
 * Fix exception handling during startup: re-throw async exceptions (e.g. Ctrl+C)
   from `ping`, protect the container-start window in `startup'`, and clean up the
