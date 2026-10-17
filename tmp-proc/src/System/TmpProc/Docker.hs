@@ -146,6 +146,7 @@ import Control.Concurrent (threadDelay)
 import Control.Exception
   ( Exception
   , Handler (..)
+  , IOException
   , SomeAsyncException
   , SomeException
   , bracket
@@ -626,30 +627,33 @@ startup' mphNetwork addrs x = do
   printDebug $ Text.pack $ show fullArgs
   runCmd <- createDockerCmdProcess fullArgs
   mphPid <- trim <$> readCreateProcess runCmd ""
-  mphAddr <-
-    Text.pack . trim
-      <$> readProcess
-        "docker"
-        [ "inspect"
-        , mphPid
-        , "--format"
-        , "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
-        ]
-        ""
-  let h =
-        MkProcHandle
-          { mphProc = x
+  let stopByPid = do
+        ignoreIOErrors $ void $ readProcess "docker" ["stop", mphPid] ""
+        ignoreIOErrors $ void $ readProcess "docker" ["rm", mphPid] ""
+        tidy x x'
+  flip onException stopByPid $ do
+    mphAddr <-
+      Text.pack . trim
+        <$> readProcess
+          "docker"
+          [ "inspect"
           , mphPid
-          , mphUri = uriOf' x mphAddr
-          , mphAddr
-          , mphNetwork
-          , mphTidy = tidy x x'
-          }
-  (nPings h `onException` terminate h) >>= \case
-    OK -> pure h
-    pinged -> do
-      terminate h
-      fail $ pingedMsg x pinged
+          , "--format"
+          , "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
+          ]
+          ""
+    let h =
+          MkProcHandle
+            { mphProc = x
+            , mphPid
+            , mphUri = uriOf' x mphAddr
+            , mphAddr
+            , mphNetwork
+            , mphTidy = tidy x x'
+            }
+    nPings h >>= \case
+      OK -> pure h
+      pinged -> fail $ pingedMsg x pinged
 
 
 pingedMsg :: (Proc a) => a -> Pinged -> String
@@ -1080,6 +1084,10 @@ printDebug :: Text -> IO ()
 printDebug t = do
   canPrint <- showDebug
   when canPrint $ Text.hPutStrLn stderr t
+
+
+ignoreIOErrors :: IO () -> IO ()
+ignoreIOErrors = (`catch` (\(_ :: IOException) -> pure ()))
 
 
 {-# DEPRECATED genNetworkName "since v0.7 this is no longer needs to be exported and will be hidden in later releases" #-}
