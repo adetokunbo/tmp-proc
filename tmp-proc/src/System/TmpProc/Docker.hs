@@ -417,7 +417,7 @@ terminate handle = do
 
 {- | Prepare resources for use by a  @'Proc'@
 
- Preparation occurs before the docker container is a launched; once the
+ Preparation occurs before the docker container is launched; once the
  resources are set up, they are located using the @prepared@ datatype.
 
  Usually, this means it will be used by 'toRunCmd' to provide additional
@@ -437,6 +437,9 @@ class Preparer a prepared | a -> prepared where
 
 
   -- | Clean up any resources associated with @prepared@
+  --
+  --   'tidy' is called exactly once per 'prepare' invocation — implementations
+  --   do not need to be idempotent.
   tidy :: a -> prepared -> IO ()
 
 
