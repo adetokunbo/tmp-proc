@@ -34,8 +34,6 @@ import qualified Network.HTTP.Client as HC
 import qualified Network.HTTP.Client.TLS as HC
 import Network.HTTP.Types.Header (hHost)
 import Network.HTTP.Types.Status (statusCode)
-import Network.TLS (ClientParams (..), HostName, Shared (..), Supported (..), defaultParamsClient)
-import Network.TLS.Extra (ciphersuite_default)
 import Paths_tmp_proc (getDataDir)
 import System.Directory (createDirectory, removeDirectoryRecursive)
 import System.FilePath ((</>))
