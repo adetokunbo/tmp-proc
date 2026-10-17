@@ -145,10 +145,15 @@ where
 import Control.Concurrent (threadDelay)
 import Control.Exception
   ( Exception
+  , Handler (..)
+  , IOException
+  , SomeAsyncException
   , SomeException
   , bracket
   , catch
+  , catches
   , onException
+  , throwIO
   )
 import Control.Monad (void, when)
 import qualified Data.ByteString.Char8 as C8
@@ -302,6 +307,7 @@ startupAll ps = do
   name <- genNetworkName
   let
     name' = Text.unpack name
+    removeNetwork = runDockerProcQuietly (removeNetworkArgs name')
     go :: SomeProcs as -> HList as -> IO (HandlesOf as)
     go SomeProcsNil HNil = pure HNil
     go (SomeProcsCons cons) (x `HCons` y) = do
@@ -309,7 +315,7 @@ startupAll ps = do
       h <- startup' (Just name) (mapSlim others) x `onException` terminateAll others
       pure $ h `HCons` others
   void $ readProcess "docker" (createNetworkArgs name') ""
-  go procProof ps
+  go procProof ps `onException` removeNetwork
 
 
 {-# DEPRECATED netwStartupAll "since v0.7 this is no longer needed and will be removed, use startupAll instead" #-}
@@ -404,14 +410,14 @@ netwTerminateAll (_ntwk, ps) = do
 terminate :: ProcHandle p -> IO ()
 terminate handle = do
   let pid = hPid handle
-  void $ readProcess "docker" ["stop", pid] ""
-  void $ readProcess "docker" ["rm", pid] ""
+  runDockerProcQuietly ["stop", pid]
+  runDockerProcQuietly ["rm", pid]
   mphTidy handle
 
 
 {- | Prepare resources for use by a  @'Proc'@
 
- Preparation occurs before the docker container is a launched; once the
+ Preparation occurs before the docker container is launched; once the
  resources are set up, they are located using the @prepared@ datatype.
 
  Usually, this means it will be used by 'toRunCmd' to provide additional
@@ -431,6 +437,9 @@ class Preparer a prepared | a -> prepared where
 
 
   -- | Clean up any resources associated with @prepared@
+  --
+  --   'tidy' is called exactly once per 'prepare' invocation — implementations
+  --   do not need to be idempotent.
   tidy :: a -> prepared -> IO ()
 
 
@@ -622,30 +631,33 @@ startup' mphNetwork addrs x = do
   printDebug $ Text.pack $ show fullArgs
   runCmd <- createDockerCmdProcess fullArgs
   mphPid <- trim <$> readCreateProcess runCmd ""
-  mphAddr <-
-    Text.pack . trim
-      <$> readProcess
-        "docker"
-        [ "inspect"
-        , mphPid
-        , "--format"
-        , "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
-        ]
-        ""
-  let h =
-        MkProcHandle
-          { mphProc = x
+  let stopByPid = do
+        runDockerProcQuietly ["stop", mphPid]
+        runDockerProcQuietly ["rm", mphPid]
+        tidy x x'
+  flip onException stopByPid $ do
+    mphAddr <-
+      Text.pack . trim
+        <$> readProcess
+          "docker"
+          [ "inspect"
           , mphPid
-          , mphUri = uriOf' x mphAddr
-          , mphAddr
-          , mphNetwork
-          , mphTidy = tidy x x'
-          }
-  (nPings h `onException` terminate h) >>= \case
-    OK -> pure h
-    pinged -> do
-      terminate h
-      fail $ pingedMsg x pinged
+          , "--format"
+          , "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
+          ]
+          ""
+    let h =
+          MkProcHandle
+            { mphProc = x
+            , mphPid
+            , mphUri = uriOf' x mphAddr
+            , mphAddr
+            , mphNetwork
+            , mphTidy = tidy x x'
+            }
+    nPings h >>= \case
+      OK -> pure h
+      pinged -> fail $ pingedMsg x pinged
 
 
 pingedMsg :: (Proc a) => a -> Pinged -> String
@@ -686,11 +698,12 @@ nPings h =
 
     ping' x =
       ping x
-        `catch` ( \(e :: SomeException) -> do
-                    let errMsg = Text.pack $ show e
-                    badErr errMsg
-                    pure $ PingFailed errMsg
-                )
+        `catches` [ Handler $ \(e :: SomeAsyncException) -> throwIO e
+                  , Handler $ \(e :: SomeException) -> do
+                      let errMsg = Text.pack $ show e
+                      badErr errMsg
+                      pure $ PingFailed errMsg
+                  ]
 
     go n =
       ping' h >>= \case
@@ -1075,6 +1088,10 @@ printDebug :: Text -> IO ()
 printDebug t = do
   canPrint <- showDebug
   when canPrint $ Text.hPutStrLn stderr t
+
+
+runDockerProcQuietly :: [String] -> IO ()
+runDockerProcQuietly args = (`catch` (\(_ :: IOException) -> pure ())) $ void $ readProcess "docker" args ""
 
 
 {-# DEPRECATED genNetworkName "since v0.7 this is no longer needs to be exported and will be hidden in later releases" #-}

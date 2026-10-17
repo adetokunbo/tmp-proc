@@ -76,6 +76,7 @@ test-suite integration-test
     Test.NginxGateway
     Test.SimpleServer
     Test.System.TmpProc.Hspec
+    Test.System.TmpProc.DockerSpec
     Test.System.TmpProc.HttpBinSpec
     Test.System.TmpProc.WarpSpec
     Network.Connection.CPP
@@ -97,6 +98,7 @@ test-suite integration-test
     , test-certs            >=0.1 && <0.2
     , text
     , tls
+    , process     ^>=1.6.3.0
     , tmp-proc
     , wai
     , warp
