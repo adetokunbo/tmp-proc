@@ -162,7 +162,7 @@ import Control.Monad (void, when)
 import qualified Data.ByteString.Char8 as C8
 import Data.Kind (Type)
 import Data.List (dropWhileEnd, isInfixOf)
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (fromMaybe, isJust, mapMaybe)
 import Data.Proxy (Proxy (..))
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -214,6 +214,7 @@ import System.TmpProc.TypeLevel
   , (&:)
   , (&:&)
   )
+import Text.Read (readMaybe)
 
 
 -- | Determine if docker is running in rootless mode.
@@ -319,6 +320,8 @@ generated name
 -}
 startupAll :: (AreProcs procs) => HList procs -> IO (HandlesOf procs)
 startupAll ps = do
+  rootless <- isRootless
+  when rootless $ printDebug "tmp.proc: rootless docker detected; using host port mappings"
   name <- genNetworkName
   let
     name' = Text.unpack name
@@ -327,7 +330,7 @@ startupAll ps = do
     go SomeProcsNil HNil = pure HNil
     go (SomeProcsCons cons) (x `HCons` y) = do
       others <- go cons y
-      h <- startup' (Just name) (mapSlim others) x `onException` terminateAll others
+      h <- startup' rootless (Just name) (mapSlim others) x `onException` terminateAll others
       pure $ h `HCons` others
   void $ readProcess "docker" (createNetworkArgs name') ""
   go procProof ps `onException` removeNetwork
@@ -364,23 +367,21 @@ foldProcs f acc = go procProof
 
 -- | Start up processes for each 'Proc' type.
 startupAll' :: (AreProcs procs) => Maybe Text -> HList procs -> IO (NetworkHandlesOf procs)
-startupAll' ntwkMb ps =
+startupAll' ntwkMb ps = do
+  rootless <- isRootless
   let
     mayCreateNetwork = case ntwkMb of
       Nothing -> pure ()
       Just name -> void $ readProcess "docker" (createNetworkArgs $ Text.unpack name) ""
     wrap x = (fromMaybe "" ntwkMb, x)
-
     go :: SomeProcs as -> HList as -> IO (HandlesOf as)
     go SomeProcsNil HNil = pure HNil
     go (SomeProcsCons cons) (x `HCons` y) = do
       others <- go cons y
-      h <- startup' ntwkMb (mapSlim others) x `onException` terminateAll others
+      h <- startup' rootless ntwkMb (mapSlim others) x `onException` terminateAll others
       pure $ h `HCons` others
-   in
-    do
-      mayCreateNetwork
-      wrap <$> go procProof ps
+  mayCreateNetwork
+  wrap <$> go procProof ps
 
 
 -- | Terminate all processes owned by some @'ProcHandle's@.
@@ -625,11 +626,29 @@ dockerCmdArgs ::
   a ->
   prepared ->
   Maybe Text ->
+  Bool ->
   [Text]
-dockerCmdArgs x prep ntwkMb =
+dockerCmdArgs x prep ntwkMb rootless =
   let toNetworkArgs n = ["--network", n]
       networkArg = maybe mempty toNetworkArgs ntwkMb
-   in ["run", "-d"] <> nameArg @a <> networkArg <> toRunCmd x prep <> [imageText' @a]
+      portArg
+        | not rootless = []
+        | containerPort @a /= 0 = ["-p", Text.pack (show (containerPort @a))]
+        | otherwise = ["-P"]
+   in ["run", "-d"] <> nameArg @a <> networkArg <> portArg <> toRunCmd x prep <> [imageText' @a]
+
+
+inspectPortPairs :: String -> IO [(Word16, Word16)]
+inspectPortPairs pid = do
+  output <- readProcess "docker" ["port", pid] ""
+  pure $ mapMaybe parseLine (lines output)
+  where
+    parseLine line = case words line of
+      [portProto, "->", endpoint] ->
+        let cPortStr = takeWhile (/= '/') portProto
+            hPortStr = reverse $ takeWhile (/= ':') (reverse endpoint)
+         in (,) <$> readMaybe cPortStr <*> readMaybe hPortStr
+      _ -> Nothing
 
 
 imageText' :: forall a. (Proc a) => Text
@@ -668,13 +687,14 @@ type ProcPlus a prepared = (Proc a, ToRunCmd a prepared, Preparer a prepared)
 
 startup' ::
   (ProcPlus a prepared) =>
+  Bool ->
   Maybe Text ->
   [SlimHandle] ->
   a ->
   IO (ProcHandle a)
-startup' mphNetwork addrs x = do
+startup' rootless mphNetwork addrs x = do
   x' <- prepare addrs x
-  let fullArgs = map Text.unpack $ dockerCmdArgs x x' mphNetwork
+  let fullArgs = map Text.unpack $ dockerCmdArgs x x' mphNetwork rootless
       isGarbage = flip elem ['\'', '\n']
       trim = dropWhileEnd isGarbage . dropWhile isGarbage
   printDebug $ Text.pack $ show fullArgs
@@ -695,11 +715,16 @@ startup' mphNetwork addrs x = do
           , "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
           ]
           ""
+    portPairs <- if rootless then inspectPortPairs mphPid else pure []
+    let mphUri =
+          if rootless
+            then uriOfRootlessWith' x "127.0.0.1" portPairs
+            else uriOf' x mphAddr
     let h =
           MkProcHandle
             { mphProc = x
             , mphPid
-            , mphUri = uriOf' x mphAddr
+            , mphUri
             , mphAddr
             , mphNetwork
             , mphTidy = tidy x x'
