@@ -9,18 +9,27 @@ Copyright   : (c) 2026 Tim Emiola
 Maintainer  : adetokunbo@users.noreply.github.com
 SPDX-License-Identifier: BSD3
 
-Tests for exception handling during docker proc startup, and for rootless docker
-detection.
+Tests for exception handling during docker proc startup, rootless docker
+detection, and rootless startup behaviour.
 -}
 module Test.System.TmpProc.DockerSpec (spec) where
 
 import Control.Exception (AsyncException (..), SomeAsyncException, throwIO, try)
+import qualified Data.ByteString.Char8 as C8
+import Data.Proxy (Proxy (..))
+import qualified Data.Text as Text
+import qualified Network.HTTP.Client as HC
 import System.Process (readProcess)
 import System.TmpProc.Docker
   ( Pinged (..)
   , Proc (..)
+  , ProcHandle (..)
+  , hHead
   , isRootless
+  , only
   , startup
+  , toPinged
+  , withTmpProcs
   )
 import Test.Hspec
 
@@ -59,6 +68,15 @@ spec = do
       out <- readProcess "docker" ["ps", "-a", "--filter", "name=always-fail-ping", "--format", "{{.Names}}"] ""
       out `shouldNotContain` "always-fail-ping"
 
+  describe "Rootless docker startup" $ do
+    it "hUri is host-accessible and startup succeeds in both normal and rootless mode" $ do
+      rootless <- isRootless
+      withTmpProcs (only RootlessTest) $ \handles -> do
+        let h = hHead handles
+        if rootless
+          then hUri h `shouldSatisfy` ("http://127.0.0.1:" `C8.isPrefixOf`)
+          else hUri h `shouldSatisfy` ("http://" `C8.isPrefixOf`)
+
 
 -- | A 'Proc' whose 'ping' always throws 'UserInterrupt'.
 data InterruptOnPing = InterruptOnPing
@@ -84,3 +102,29 @@ instance Proc AlwaysFailPing where
   reset _ = pure ()
   ping _ = pure NotOK
   pingCount = 1
+
+
+{- | A 'Proc' for testing rootless docker support.
+
+Its 'ping' uses 'hUri' rather than 'hAddr', and 'uriOfRootlessWith' builds
+a @127.0.0.1:<hostPort>@ URI so that startup succeeds in rootless mode.
+-}
+data RootlessTest = RootlessTest
+
+
+instance Proc RootlessTest where
+  type Image RootlessTest = "kennethreitz/httpbin"
+  type Name RootlessTest = "rootless-test-proc"
+  uriOf ip = "http://" <> C8.pack (Text.unpack ip) <> "/"
+  runArgs = []
+  reset _ = pure ()
+  ping h = toPinged @HC.HttpException Proxy $ do
+    manager <- HC.newManager HC.defaultManagerSettings
+    req <- HC.parseRequest $ C8.unpack (hUri h) <> "status/200"
+    HC.httpNoBody req manager
+  uriOfRootlessWith addr pairs =
+    case lookup 80 pairs of
+      Just hp -> "http://127.0.0.1:" <> C8.pack (show hp) <> "/"
+      Nothing -> "http://" <> C8.pack (Text.unpack addr) <> "/"
+  pingCount = 6
+  pingGap = 2000000
