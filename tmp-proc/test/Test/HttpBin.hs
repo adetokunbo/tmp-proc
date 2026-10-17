@@ -30,6 +30,7 @@ import System.TmpProc
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
+  , addrHost
   , addrPort
   , manyNamed
   , startupAll
@@ -108,7 +109,7 @@ instance Proc HttpBinTest3 where
 
 -- | Make a uri to access the http-bin server.
 httpUri :: HostIpAddress -> SvcURI
-httpUri ip = "http://" <> C8.pack (Text.unpack ip) <> "/"
+httpUri ip = "http://" <> addrHost ip <> "/"
 
 
 -- | Make a rootless-aware uri for the http-bin server using the mapped host port for port 80.

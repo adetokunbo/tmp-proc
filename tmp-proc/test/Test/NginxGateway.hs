@@ -49,6 +49,7 @@ import System.TmpProc
   , SlimHandle (..)
   , SvcURI
   , ToRunCmd (..)
+  , addrHost
   , addrPort
   , toPinged
   )
@@ -207,7 +208,7 @@ prepare' views nt@NginxGateway {ngTargetName = name} = do
 
 -- | Make a uri to access the nginx gateway server.
 httpsUri :: HostIpAddress -> SvcURI
-httpsUri ip = "https://" <> C8.pack (Text.unpack ip) <> "/"
+httpsUri ip = "https://" <> addrHost ip <> "/"
 
 
 pingHttps :: ProcHandle a -> IO Pinged

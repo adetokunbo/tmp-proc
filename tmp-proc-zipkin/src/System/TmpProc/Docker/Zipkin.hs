@@ -36,7 +36,6 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trace.Class (MonadTrace, alwaysSampled, rootSpan)
 import qualified Data.ByteString.Char8 as C8
 import Data.Proxy (Proxy (..))
-import qualified Data.Text as Text
 import Monitor.Tracing.Zipkin (defaultSettings, settingsHostname, settingsPort)
 import qualified Monitor.Tracing.Zipkin as ZPK
 import Network.HTTP.Client (HttpException)
@@ -55,6 +54,7 @@ import System.TmpProc
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
+  , addrHost
   , addrPort
   , only
   , startupAll
@@ -108,7 +108,7 @@ instance Connectable TmpZipkin where
 
 -- | Make a simple HTTP uri to the zipkin server.
 mkUri' :: HostIpAddress -> SvcURI
-mkUri' ip = "http://" <> C8.pack (Text.unpack ip) <> "/"
+mkUri' ip = "http://" <> addrHost ip <> "/"
 
 
 toSettings :: ProcHandle TmpZipkin -> ZPK.Settings

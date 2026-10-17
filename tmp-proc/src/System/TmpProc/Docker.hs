@@ -139,6 +139,7 @@ module System.TmpProc.Docker
     -- * Aliases
   , HostIpAddress
   , SvcURI
+  , addrHost
   , addrPort
 
     -- * Re-exports
@@ -620,9 +621,14 @@ uriOfRootlessWith' :: forall a. (Proc a) => a -> HostIpAddress -> [(Word16, Word
 uriOfRootlessWith' _ = uriOfRootlessWith @a
 
 
+-- | Encode a 'HostIpAddress' as a 'SvcURI' fragment for embedding in URIs.
+addrHost :: HostIpAddress -> SvcURI
+addrHost = C8.pack . Text.unpack
+
+
 -- | Format an address and port as @host:port@ for embedding in a 'SvcURI'.
 addrPort :: HostIpAddress -> Word16 -> SvcURI
-addrPort addr port = C8.pack (Text.unpack addr) <> ":" <> C8.pack (show port)
+addrPort addr port = addrHost addr <> ":" <> C8.pack (show port)
 
 
 -- | The full args of a @docker run@ command for starting up a 'Proc'.

@@ -35,7 +35,6 @@ where
 
 import Control.Exception (catch)
 import qualified Data.ByteString.Char8 as C8
-import qualified Data.Text as Text
 import Database.Redis
   ( ConnectTimeout
   , Connection
@@ -54,6 +53,7 @@ import System.TmpProc
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
+  , addrHost
   , addrPort
   , only
   , startupAll
@@ -118,7 +118,7 @@ toPinged action =
 
 
 mkUri' :: HostIpAddress -> SvcURI
-mkUri' ip = "redis://" <> C8.pack (Text.unpack ip) <> "/"
+mkUri' ip = "redis://" <> addrHost ip <> "/"
 
 
 clearKeys :: ProcHandle TmpRedis -> IO ()

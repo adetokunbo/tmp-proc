@@ -52,6 +52,7 @@ import System.TmpProc
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
+  , addrHost
   , addrPort
   , only
   , startupAll
@@ -103,7 +104,7 @@ mkUri' ip =
   "postgres://postgres:"
     <> dbPassword
     <> "@"
-    <> C8.pack (Text.unpack ip)
+    <> addrHost ip
     <> "/postgres"
 
 

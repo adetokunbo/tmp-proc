@@ -33,7 +33,6 @@ where
 import Control.Exception (throwIO)
 import qualified Data.ByteString.Char8 as C8
 import Data.Proxy (Proxy (..))
-import qualified Data.Text as Text
 import Network.AMQP
 import System.TmpProc
   ( Connectable (..)
@@ -43,6 +42,7 @@ import System.TmpProc
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
+  , addrHost
   , addrPort
   , only
   , startupAll
@@ -95,7 +95,7 @@ instance Connectable TmpRabbitMQ where
 mkUri' :: HostIpAddress -> SvcURI
 mkUri' ip =
   "amqp://guest:guest@"
-    <> C8.pack (Text.unpack ip)
+    <> addrHost ip
     <> ":5672@/%2f"
 
 
