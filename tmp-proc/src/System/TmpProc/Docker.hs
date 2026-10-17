@@ -307,6 +307,7 @@ startupAll ps = do
   name <- genNetworkName
   let
     name' = Text.unpack name
+    removeNetwork = ignoreIOErrors $ void $ readProcess "docker" (removeNetworkArgs name') ""
     go :: SomeProcs as -> HList as -> IO (HandlesOf as)
     go SomeProcsNil HNil = pure HNil
     go (SomeProcsCons cons) (x `HCons` y) = do
@@ -314,7 +315,7 @@ startupAll ps = do
       h <- startup' (Just name) (mapSlim others) x `onException` terminateAll others
       pure $ h `HCons` others
   void $ readProcess "docker" (createNetworkArgs name') ""
-  go procProof ps
+  go procProof ps `onException` removeNetwork
 
 
 {-# DEPRECATED netwStartupAll "since v0.7 this is no longer needed and will be removed, use startupAll instead" #-}
