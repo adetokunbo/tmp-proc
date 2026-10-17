@@ -9,7 +9,8 @@ Copyright   : (c) 2026 Tim Emiola
 Maintainer  : adetokunbo@users.noreply.github.com
 SPDX-License-Identifier: BSD3
 
-Tests for exception handling during docker proc startup.
+Tests for exception handling during docker proc startup, and for rootless docker
+detection.
 -}
 module Test.System.TmpProc.DockerSpec (spec) where
 
@@ -18,25 +19,32 @@ import System.Process (readProcess)
 import System.TmpProc.Docker
   ( Pinged (..)
   , Proc (..)
+  , isRootless
   , startup
   )
 import Test.Hspec
 
 
 spec :: Spec
-spec = describe "Exception handling during startup" $ do
-  it "re-throws UserInterrupt during ping and cleans up the container" $ do
-    result <- try @SomeAsyncException (startup InterruptOnPing)
-    case result of
-      Left _ -> pure ()
-      Right _ -> expectationFailure "expected UserInterrupt to be re-thrown"
-    out <- readProcess "docker" ["ps", "-a", "--filter", "name=interrupt-on-ping", "--format", "{{.Names}}"] ""
-    out `shouldNotContain` "interrupt-on-ping"
+spec = do
+  describe "Rootless docker detection" $ do
+    it "returns a Bool without throwing in standard docker mode" $ do
+      result <- isRootless
+      result `shouldBe` False
 
-  it "cleans up the container when ping always fails" $ do
-    startup AlwaysFailPing `shouldThrow` anyIOException
-    out <- readProcess "docker" ["ps", "-a", "--filter", "name=always-fail-ping", "--format", "{{.Names}}"] ""
-    out `shouldNotContain` "always-fail-ping"
+  describe "Exception handling during startup" $ do
+    it "re-throws UserInterrupt during ping and cleans up the container" $ do
+      result <- try @SomeAsyncException (startup InterruptOnPing)
+      case result of
+        Left _ -> pure ()
+        Right _ -> expectationFailure "expected UserInterrupt to be re-thrown"
+      out <- readProcess "docker" ["ps", "-a", "--filter", "name=interrupt-on-ping", "--format", "{{.Names}}"] ""
+      out `shouldNotContain` "interrupt-on-ping"
+
+    it "cleans up the container when ping always fails" $ do
+      startup AlwaysFailPing `shouldThrow` anyIOException
+      out <- readProcess "docker" ["ps", "-a", "--filter", "name=always-fail-ping", "--format", "{{.Names}}"] ""
+      out `shouldNotContain` "always-fail-ping"
 
 
 -- | A 'Proc' whose 'ping' always throws 'UserInterrupt'.

@@ -131,6 +131,7 @@ module System.TmpProc.Docker
 
     -- * Docker status
   , hasDocker
+  , isRootless
   , genNetworkName
 
     -- * Aliases
@@ -158,7 +159,7 @@ import Control.Exception
 import Control.Monad (void, when)
 import qualified Data.ByteString.Char8 as C8
 import Data.Kind (Type)
-import Data.List (dropWhileEnd)
+import Data.List (dropWhileEnd, isInfixOf)
 import Data.Maybe (fromMaybe, isJust)
 import Data.Proxy (Proxy (..))
 import Data.Text (Text)
@@ -211,6 +212,18 @@ import System.TmpProc.TypeLevel
   , (&:)
   , (&:&)
   )
+
+
+-- | Determine if docker is running in rootless mode.
+isRootless :: IO Bool
+isRootless =
+  ( ("name=rootless" `isInfixOf`)
+      <$> readProcess
+        "docker"
+        ["info", "--format", "{{range .SecurityOptions}}{{println .}}{{end}}"]
+        ""
+  )
+    `catch` (\(_ :: IOException) -> pure False)
 
 
 -- | Determine if the docker daemon is accessible.
