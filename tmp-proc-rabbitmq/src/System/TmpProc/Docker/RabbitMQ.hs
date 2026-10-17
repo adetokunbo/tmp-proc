@@ -33,7 +33,6 @@ where
 import Control.Exception (throwIO)
 import qualified Data.ByteString.Char8 as C8
 import Data.Proxy (Proxy (..))
-import qualified Data.Text as Text
 import Network.AMQP
 import System.TmpProc
   ( Connectable (..)
@@ -43,6 +42,8 @@ import System.TmpProc
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
+  , addrHost
+  , addrPort
   , only
   , startupAll
   , toPinged
@@ -75,6 +76,10 @@ instance Proc TmpRabbitMQ where
   ping = toPinged @AMQPException Proxy . openConn'
   reset _ = pure ()
   pingGap = 3 * 1000000
+  uriOfRootlessWith addr pairs =
+    case lookup 5672 pairs of
+      Just hp -> "amqp://guest:guest@" <> addrPort addr hp <> "@/%2f"
+      Nothing -> mkUri' addr
 
 
 -- | Specifies how to connect to a tmp @RabbitMQ@ service.
@@ -90,7 +95,7 @@ instance Connectable TmpRabbitMQ where
 mkUri' :: HostIpAddress -> SvcURI
 mkUri' ip =
   "amqp://guest:guest@"
-    <> C8.pack (Text.unpack ip)
+    <> addrHost ip
     <> ":5672@/%2f"
 
 

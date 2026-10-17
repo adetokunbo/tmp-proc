@@ -35,7 +35,6 @@ where
 
 import Control.Exception (catch)
 import qualified Data.ByteString.Char8 as C8
-import qualified Data.Text as Text
 import Database.Redis
   ( ConnectTimeout
   , Connection
@@ -54,6 +53,8 @@ import System.TmpProc
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
+  , addrHost
+  , addrPort
   , only
   , startupAll
   , withTmpConn
@@ -89,6 +90,10 @@ instance Proc TmpRedis where
   runArgs = []
   ping = toPinged . flip withTmpConn (const $ pure ())
   reset = clearKeys
+  uriOfRootlessWith addr pairs =
+    case lookup 6379 pairs of
+      Just hp -> "redis://" <> addrPort addr hp <> "/"
+      Nothing -> mkUri' addr
 
 
 -- | Specifies how to connect to a tmp @redis@ service.
@@ -113,7 +118,7 @@ toPinged action =
 
 
 mkUri' :: HostIpAddress -> SvcURI
-mkUri' ip = "redis://" <> C8.pack (Text.unpack ip) <> "/"
+mkUri' ip = "redis://" <> addrHost ip <> "/"
 
 
 clearKeys :: ProcHandle TmpRedis -> IO ()

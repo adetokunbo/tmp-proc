@@ -2,6 +2,11 @@
 
 `tmp-proc-redis` uses [PVP Versioning][1].
 
+## 0.8.0.0 -- TBD
+
+* Extend the upper bound for tmp-proc to allow 0.8
+* Add `uriOfRootlessWith` to `TmpRedis` for rootless docker support
+
 ## 0.7.3.0 -- 2026-06-22
 
 * Update the lower bound on hedis

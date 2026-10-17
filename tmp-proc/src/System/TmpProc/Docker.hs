@@ -81,6 +81,8 @@ module System.TmpProc.Docker
   , startup
   , nameOf
   , uriOf'
+  , uriOfRootless'
+  , uriOfRootlessWith'
   , runArgs'
   , Pinged (..)
   , toPinged
@@ -131,11 +133,14 @@ module System.TmpProc.Docker
 
     -- * Docker status
   , hasDocker
+  , isRootless
   , genNetworkName
 
     -- * Aliases
   , HostIpAddress
   , SvcURI
+  , addrHost
+  , addrPort
 
     -- * Re-exports
   , module System.TmpProc.TypeLevel
@@ -158,8 +163,8 @@ import Control.Exception
 import Control.Monad (void, when)
 import qualified Data.ByteString.Char8 as C8
 import Data.Kind (Type)
-import Data.List (dropWhileEnd)
-import Data.Maybe (fromMaybe, isJust)
+import Data.List (dropWhileEnd, isInfixOf)
+import Data.Maybe (fromMaybe, isJust, mapMaybe)
 import Data.Proxy (Proxy (..))
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -211,6 +216,19 @@ import System.TmpProc.TypeLevel
   , (&:)
   , (&:&)
   )
+import Text.Read (readMaybe)
+
+
+-- | Determine if docker is running in rootless mode.
+isRootless :: IO Bool
+isRootless =
+  ( ("name=rootless" `isInfixOf`)
+      <$> readProcess
+        "docker"
+        ["info", "--format", "{{range .SecurityOptions}}{{println .}}{{end}}"]
+        ""
+  )
+    `catch` (\(_ :: IOException) -> pure False)
 
 
 -- | Determine if the docker daemon is accessible.
@@ -304,6 +322,8 @@ generated name
 -}
 startupAll :: (AreProcs procs) => HList procs -> IO (HandlesOf procs)
 startupAll ps = do
+  rootless <- isRootless
+  when rootless $ printDebug "tmp.proc: rootless docker detected; using host port mappings"
   name <- genNetworkName
   let
     name' = Text.unpack name
@@ -312,7 +332,7 @@ startupAll ps = do
     go SomeProcsNil HNil = pure HNil
     go (SomeProcsCons cons) (x `HCons` y) = do
       others <- go cons y
-      h <- startup' (Just name) (mapSlim others) x `onException` terminateAll others
+      h <- startup' rootless (Just name) (mapSlim others) x `onException` terminateAll others
       pure $ h `HCons` others
   void $ readProcess "docker" (createNetworkArgs name') ""
   go procProof ps `onException` removeNetwork
@@ -349,23 +369,21 @@ foldProcs f acc = go procProof
 
 -- | Start up processes for each 'Proc' type.
 startupAll' :: (AreProcs procs) => Maybe Text -> HList procs -> IO (NetworkHandlesOf procs)
-startupAll' ntwkMb ps =
+startupAll' ntwkMb ps = do
+  rootless <- isRootless
   let
     mayCreateNetwork = case ntwkMb of
       Nothing -> pure ()
       Just name -> void $ readProcess "docker" (createNetworkArgs $ Text.unpack name) ""
     wrap x = (fromMaybe "" ntwkMb, x)
-
     go :: SomeProcs as -> HList as -> IO (HandlesOf as)
     go SomeProcsNil HNil = pure HNil
     go (SomeProcsCons cons) (x `HCons` y) = do
       others <- go cons y
-      h <- startup' ntwkMb (mapSlim others) x `onException` terminateAll others
+      h <- startup' rootless ntwkMb (mapSlim others) x `onException` terminateAll others
       pure $ h `HCons` others
-   in
-    do
-      mayCreateNetwork
-      wrap <$> go procProof ps
+  mayCreateNetwork
+  wrap <$> go procProof ps
 
 
 -- | Terminate all processes owned by some @'ProcHandle's@.
@@ -506,6 +524,30 @@ class (KnownSymbol (Image a), KnownSymbol (Name a)) => Proc a where
   uriOf :: HostIpAddress -> SvcURI
 
 
+  -- | The port the service listens on inside the container.
+  --   When @0@ (default), rootless mode publishes all @EXPOSE@d ports via @-P@.
+  --   Set to a specific port to use @-p@ instead, for images with many @EXPOSE@s.
+  containerPort :: Word16
+  containerPort = 0
+
+
+  -- | The URI to use when accessing the service from the host in rootless mode.
+  --   Receives the host port for 'containerPort' (or @0@ if no mapping was found).
+  --   Defaults to 'uriOf', ignoring the host port; override to incorporate it.
+  uriOfRootless :: HostIpAddress -> Word16 -> SvcURI
+  uriOfRootless addr _ = uriOf @a addr
+
+
+  -- | Like 'uriOfRootless' but receives all published port mappings as
+  --   @(containerPort, hostPort)@ pairs. Defaults to delegating to 'uriOfRootless'
+  --   using the host port of the first pair. Override for multi-port images.
+  uriOfRootlessWith :: HostIpAddress -> [(Word16, Word16)] -> SvcURI
+  uriOfRootlessWith addr pairs =
+    uriOfRootless @a addr $ case pairs of
+      (_, hp) : _ -> hp
+      [] -> 0
+
+
   -- | Resets some state in a tmp proc service.
   reset :: ProcHandle a -> IO ()
 
@@ -569,6 +611,26 @@ uriOf' :: forall a. (Proc a) => a -> HostIpAddress -> SvcURI
 uriOf' _ = uriOf @a
 
 
+-- | Simplifies use of 'uriOfRootless'.
+uriOfRootless' :: forall a. (Proc a) => a -> HostIpAddress -> Word16 -> SvcURI
+uriOfRootless' _ = uriOfRootless @a
+
+
+-- | Simplifies use of 'uriOfRootlessWith'.
+uriOfRootlessWith' :: forall a. (Proc a) => a -> HostIpAddress -> [(Word16, Word16)] -> SvcURI
+uriOfRootlessWith' _ = uriOfRootlessWith @a
+
+
+-- | Encode a 'HostIpAddress' as a 'SvcURI' fragment for embedding in URIs.
+addrHost :: HostIpAddress -> SvcURI
+addrHost = C8.pack . Text.unpack
+
+
+-- | Format an address and port as @host:port@ for embedding in a 'SvcURI'.
+addrPort :: HostIpAddress -> Word16 -> SvcURI
+addrPort addr port = addrHost addr <> ":" <> C8.pack (show port)
+
+
 -- | The full args of a @docker run@ command for starting up a 'Proc'.
 dockerCmdArgs ::
   forall a prepared.
@@ -576,11 +638,29 @@ dockerCmdArgs ::
   a ->
   prepared ->
   Maybe Text ->
+  Bool ->
   [Text]
-dockerCmdArgs x prep ntwkMb =
+dockerCmdArgs x prep ntwkMb rootless =
   let toNetworkArgs n = ["--network", n]
       networkArg = maybe mempty toNetworkArgs ntwkMb
-   in ["run", "-d"] <> nameArg @a <> networkArg <> toRunCmd x prep <> [imageText' @a]
+      portArg
+        | not rootless = []
+        | containerPort @a /= 0 = ["-p", Text.pack (show (containerPort @a))]
+        | otherwise = ["-P"]
+   in ["run", "-d"] <> nameArg @a <> networkArg <> portArg <> toRunCmd x prep <> [imageText' @a]
+
+
+inspectPortPairs :: String -> IO [(Word16, Word16)]
+inspectPortPairs pid = do
+  output <- readProcess "docker" ["port", pid] ""
+  pure $ mapMaybe parseLine (lines output)
+  where
+    parseLine line = case words line of
+      [portProto, "->", endpoint] ->
+        let cPortStr = takeWhile (/= '/') portProto
+            hPortStr = reverse $ takeWhile (/= ':') (reverse endpoint)
+         in (,) <$> readMaybe cPortStr <*> readMaybe hPortStr
+      _ -> Nothing
 
 
 imageText' :: forall a. (Proc a) => Text
@@ -619,13 +699,14 @@ type ProcPlus a prepared = (Proc a, ToRunCmd a prepared, Preparer a prepared)
 
 startup' ::
   (ProcPlus a prepared) =>
+  Bool ->
   Maybe Text ->
   [SlimHandle] ->
   a ->
   IO (ProcHandle a)
-startup' mphNetwork addrs x = do
+startup' rootless mphNetwork addrs x = do
   x' <- prepare addrs x
-  let fullArgs = map Text.unpack $ dockerCmdArgs x x' mphNetwork
+  let fullArgs = map Text.unpack $ dockerCmdArgs x x' mphNetwork rootless
       isGarbage = flip elem ['\'', '\n']
       trim = dropWhileEnd isGarbage . dropWhile isGarbage
   printDebug $ Text.pack $ show fullArgs
@@ -646,11 +727,16 @@ startup' mphNetwork addrs x = do
           , "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
           ]
           ""
+    portPairs <- if rootless then inspectPortPairs mphPid else pure []
+    let mphUri =
+          if rootless
+            then uriOfRootlessWith' x "127.0.0.1" portPairs
+            else uriOf' x mphAddr
     let h =
           MkProcHandle
             { mphProc = x
             , mphPid
-            , mphUri = uriOf' x mphAddr
+            , mphUri
             , mphAddr
             , mphNetwork
             , mphTidy = tidy x x'

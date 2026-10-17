@@ -2,6 +2,11 @@
 
 `tmp-proc-postgres` uses [PVP Versioning][1].
 
+## 0.8.0.0 -- TBD
+
+* Extend the upper bound for tmp-proc to allow 0.8
+* Add `uriOfRootlessWith` to `TmpPostgres` for rootless docker support
+
 ## 0.7.2.4 -- 2025-03-25
 
 * Relax the upper bound on bytestring

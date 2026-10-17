@@ -6,12 +6,21 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
+{- |
+Module      : Test.HttpBin
+Copyright   : (c) 2026 Tim Emiola
+Maintainer  : adetokunbo@users.noreply.github.com
+SPDX-License-Identifier: BSD3
+
+Test helper types and functions for testing with an httpbin container.
+-}
 module Test.HttpBin where
 
 import qualified Data.ByteString.Char8 as C8
 import Data.Proxy (Proxy (..))
 import Data.Text (Text)
 import qualified Data.Text as Text
+import Data.Word (Word16)
 import qualified Network.HTTP.Client as HC
 import Network.HTTP.Types.Status (statusCode)
 import System.TmpProc
@@ -21,6 +30,8 @@ import System.TmpProc
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
+  , addrHost
+  , addrPort
   , manyNamed
   , startupAll
   , toPinged
@@ -55,6 +66,7 @@ instance Proc HttpBinTest where
   runArgs = []
   reset _ = pure ()
   ping = pingHttp
+  uriOfRootlessWith = httpUriRootless
 
 
 {- | Another data type representing a connection to a HttpBin server.
@@ -73,6 +85,7 @@ instance Proc HttpBinTest2 where
   runArgs = []
   reset _ = pure ()
   ping = pingHttp
+  uriOfRootlessWith = httpUriRootless
 
 
 {- | Yet another data type representing a connection to a HttpBin server.
@@ -91,11 +104,20 @@ instance Proc HttpBinTest3 where
   runArgs = []
   reset _ = pure ()
   ping = pingHttp
+  uriOfRootlessWith = httpUriRootless
 
 
--- | Make a uri access the http-bin server.
+-- | Make a uri to access the http-bin server.
 httpUri :: HostIpAddress -> SvcURI
-httpUri ip = "http://" <> C8.pack (Text.unpack ip) <> "/"
+httpUri ip = "http://" <> addrHost ip <> "/"
+
+
+-- | Make a rootless-aware uri for the http-bin server using the mapped host port for port 80.
+httpUriRootless :: HostIpAddress -> [(Word16, Word16)] -> SvcURI
+httpUriRootless addr pairs =
+  case lookup 80 pairs of
+    Just hp -> "http://" <> addrPort addr hp <> "/"
+    Nothing -> httpUri addr
 
 
 pingHttp :: ProcHandle a -> IO Pinged
@@ -104,12 +126,12 @@ pingHttp handle = toPinged @HC.HttpException Proxy $ do
   if gotStatus == 200 then pure OK else pure NotOK
 
 
--- | Determine the status from a Get.
+-- | Determine the status from a GET request, using the handle's URI as the base.
 httpGet :: ProcHandle a -> Text -> IO Int
 httpGet handle urlPath = do
-  let theUri = "http://" <> hAddr handle <> "/" <> Text.dropWhile (== '/') urlPath
+  let theUri = C8.unpack (hUri handle) <> Text.unpack (Text.dropWhile (== '/') urlPath)
   manager <- HC.newManager HC.defaultManagerSettings
-  getReq <- HC.parseRequest $ Text.unpack theUri
+  getReq <- HC.parseRequest theUri
   statusCode . HC.responseStatus <$> HC.httpLbs getReq manager
 
 

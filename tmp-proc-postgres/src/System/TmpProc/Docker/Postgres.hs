@@ -52,6 +52,8 @@ import System.TmpProc
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
+  , addrHost
+  , addrPort
   , only
   , startupAll
   , withTmpConn
@@ -83,6 +85,10 @@ instance Proc TmpPostgres where
   runArgs = runArgs'
   ping = toPinged . connectPostgreSQL . hUri
   reset = reset'
+  uriOfRootlessWith addr pairs =
+    case lookup 5432 pairs of
+      Just hp -> "postgres://postgres:" <> dbPassword <> "@" <> addrPort addr hp <> "/postgres"
+      Nothing -> mkUri' addr
 
 
 -- | Specifies how to connect to a tmp @postgres@ db.
@@ -98,7 +104,7 @@ mkUri' ip =
   "postgres://postgres:"
     <> dbPassword
     <> "@"
-    <> C8.pack (Text.unpack ip)
+    <> addrHost ip
     <> "/postgres"
 
 

@@ -2,6 +2,13 @@
 
 `tmp-proc-zipkin` uses [PVP Versioning][1].
 
+## 0.8.0.0 -- TBD
+
+* Extend the upper bound for tmp-proc to allow 0.8
+* Add `uriOfRootlessWith` to `TmpZipkin` for rootless docker support
+* Fix `toSettings` to use `hUri` instead of `hAddr` so that both ping and
+  connection work in rootless mode
+
 ## 0.7.0.0 -- 2024-05-12
 
 * Extend the upper bound for tmp-proc to allow 0.7
