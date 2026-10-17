@@ -36,8 +36,8 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trace.Class (MonadTrace, alwaysSampled, rootSpan)
 import qualified Data.ByteString.Char8 as C8
 import Data.Proxy (Proxy (..))
-import Data.String (fromString)
 import qualified Data.Text as Text
+import Monitor.Tracing.Zipkin (defaultSettings, settingsHostname, settingsPort)
 import qualified Monitor.Tracing.Zipkin as ZPK
 import Network.HTTP.Client (HttpException)
 import System.IO
@@ -88,6 +88,10 @@ instance Proc TmpZipkin where
     ZPK.run tracedPing z
     ZPK.publish z
   reset _ = pure ()
+  uriOfRootlessWith addr pairs =
+    case lookup 9411 pairs of
+      Just hp -> "http://" <> C8.pack (Text.unpack addr) <> ":" <> C8.pack (show hp) <> "/"
+      Nothing -> mkUri' addr
 
 
 {- | Specifies how to connect to a tmp @ZipKin@ service.
@@ -107,7 +111,19 @@ mkUri' ip = "http://" <> C8.pack (Text.unpack ip) <> "/"
 
 
 toSettings :: ProcHandle TmpZipkin -> ZPK.Settings
-toSettings = fromString . Text.unpack . hAddr
+toSettings h =
+  let uri = C8.unpack $ hUri h
+      -- strip "http://" prefix and trailing "/"
+      stripped = reverse . dropWhile (== '/') . reverse . drop 7 $ uri
+      (hostname, portPart) = break (== ':') stripped
+   in defaultSettings
+        { settingsHostname = Just hostname
+        , settingsPort = case drop 1 portPart of
+            [] -> Nothing
+            portStr -> case reads portStr of
+              [(p, "")] -> Just (fromIntegral (p :: Int))
+              _ -> Nothing
+        }
 
 
 pingAction :: IO ()

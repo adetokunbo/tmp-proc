@@ -83,6 +83,17 @@ instance Proc TmpPostgres where
   runArgs = runArgs'
   ping = toPinged . connectPostgreSQL . hUri
   reset = reset'
+  uriOfRootlessWith addr pairs =
+    case lookup 5432 pairs of
+      Just hp ->
+        "postgres://postgres:"
+          <> dbPassword
+          <> "@"
+          <> C8.pack (Text.unpack addr)
+          <> ":"
+          <> C8.pack (show hp)
+          <> "/postgres"
+      Nothing -> mkUri' addr
 
 
 -- | Specifies how to connect to a tmp @postgres@ db.

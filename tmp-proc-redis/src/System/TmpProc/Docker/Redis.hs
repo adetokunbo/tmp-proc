@@ -89,6 +89,10 @@ instance Proc TmpRedis where
   runArgs = []
   ping = toPinged . flip withTmpConn (const $ pure ())
   reset = clearKeys
+  uriOfRootlessWith addr pairs =
+    case lookup 6379 pairs of
+      Just hp -> "redis://" <> C8.pack (Text.unpack addr) <> ":" <> C8.pack (show hp) <> "/"
+      Nothing -> mkUri' addr
 
 
 -- | Specifies how to connect to a tmp @redis@ service.
