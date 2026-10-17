@@ -2,6 +2,12 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
+## 0.7.2.8 -- TBD
+
+* Fix exception handling during startup: re-throw async exceptions (e.g. Ctrl+C)
+  from `ping`, protect the container-start window in `startup'`, and clean up the
+  docker network on early failure in `startupAll`
+
 ## 0.7.2.7 -- 2026-04-20
 
 * Relax the upper version bounds of tls
