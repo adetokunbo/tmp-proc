@@ -54,6 +54,7 @@ import System.TmpProc
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
+  , addrPort
   , only
   , startupAll
   , withTmpConn
@@ -91,7 +92,7 @@ instance Proc TmpRedis where
   reset = clearKeys
   uriOfRootlessWith addr pairs =
     case lookup 6379 pairs of
-      Just hp -> "redis://" <> C8.pack (Text.unpack addr) <> ":" <> C8.pack (show hp) <> "/"
+      Just hp -> "redis://" <> addrPort addr hp <> "/"
       Nothing -> mkUri' addr
 
 

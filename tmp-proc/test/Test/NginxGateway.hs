@@ -49,6 +49,7 @@ import System.TmpProc
   , SlimHandle (..)
   , SvcURI
   , ToRunCmd (..)
+  , addrPort
   , toPinged
   )
 import Test.Certs.Temp (CertPaths (..), defaultConfig, generateAndStore)
@@ -73,7 +74,7 @@ instance Proc NginxGateway where
   ping = pingHttps
   uriOfRootlessWith addr pairs =
     case lookup 443 pairs of
-      Just hp -> "https://" <> C8.pack (Text.unpack addr) <> ":" <> C8.pack (show hp) <> "/"
+      Just hp -> "https://" <> addrPort addr hp <> "/"
       Nothing -> httpsUri addr
 
 

@@ -43,6 +43,7 @@ import System.TmpProc
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
+  , addrPort
   , only
   , startupAll
   , toPinged
@@ -77,12 +78,7 @@ instance Proc TmpRabbitMQ where
   pingGap = 3 * 1000000
   uriOfRootlessWith addr pairs =
     case lookup 5672 pairs of
-      Just hp ->
-        "amqp://guest:guest@"
-          <> C8.pack (Text.unpack addr)
-          <> ":"
-          <> C8.pack (show hp)
-          <> "@/%2f"
+      Just hp -> "amqp://guest:guest@" <> addrPort addr hp <> "@/%2f"
       Nothing -> mkUri' addr
 
 

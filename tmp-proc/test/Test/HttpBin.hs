@@ -30,6 +30,7 @@ import System.TmpProc
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
+  , addrPort
   , manyNamed
   , startupAll
   , toPinged
@@ -114,7 +115,7 @@ httpUri ip = "http://" <> C8.pack (Text.unpack ip) <> "/"
 httpUriRootless :: HostIpAddress -> [(Word16, Word16)] -> SvcURI
 httpUriRootless addr pairs =
   case lookup 80 pairs of
-    Just hp -> "http://" <> C8.pack (Text.unpack addr) <> ":" <> C8.pack (show hp) <> "/"
+    Just hp -> "http://" <> addrPort addr hp <> "/"
     Nothing -> httpUri addr
 
 

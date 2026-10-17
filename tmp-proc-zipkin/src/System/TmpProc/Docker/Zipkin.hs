@@ -55,6 +55,7 @@ import System.TmpProc
   , Proc (..)
   , ProcHandle (..)
   , SvcURI
+  , addrPort
   , only
   , startupAll
   , toPinged
@@ -90,7 +91,7 @@ instance Proc TmpZipkin where
   reset _ = pure ()
   uriOfRootlessWith addr pairs =
     case lookup 9411 pairs of
-      Just hp -> "http://" <> C8.pack (Text.unpack addr) <> ":" <> C8.pack (show hp) <> "/"
+      Just hp -> "http://" <> addrPort addr hp <> "/"
       Nothing -> mkUri' addr
 
 

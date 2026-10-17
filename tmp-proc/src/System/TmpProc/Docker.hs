@@ -139,6 +139,7 @@ module System.TmpProc.Docker
     -- * Aliases
   , HostIpAddress
   , SvcURI
+  , addrPort
 
     -- * Re-exports
   , module System.TmpProc.TypeLevel
@@ -617,6 +618,11 @@ uriOfRootless' _ = uriOfRootless @a
 -- | Simplifies use of 'uriOfRootlessWith'.
 uriOfRootlessWith' :: forall a. (Proc a) => a -> HostIpAddress -> [(Word16, Word16)] -> SvcURI
 uriOfRootlessWith' _ = uriOfRootlessWith @a
+
+
+-- | Format an address and port as @host:port@ for embedding in a 'SvcURI'.
+addrPort :: HostIpAddress -> Word16 -> SvcURI
+addrPort addr port = C8.pack (Text.unpack addr) <> ":" <> C8.pack (show port)
 
 
 -- | The full args of a @docker run@ command for starting up a 'Proc'.
