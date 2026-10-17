@@ -307,7 +307,7 @@ startupAll ps = do
   name <- genNetworkName
   let
     name' = Text.unpack name
-    removeNetwork = ignoreIOErrors $ void $ readProcess "docker" (removeNetworkArgs name') ""
+    removeNetwork = runDockerProcQuietly (removeNetworkArgs name')
     go :: SomeProcs as -> HList as -> IO (HandlesOf as)
     go SomeProcsNil HNil = pure HNil
     go (SomeProcsCons cons) (x `HCons` y) = do
@@ -410,8 +410,8 @@ netwTerminateAll (_ntwk, ps) = do
 terminate :: ProcHandle p -> IO ()
 terminate handle = do
   let pid = hPid handle
-  void $ readProcess "docker" ["stop", pid] ""
-  void $ readProcess "docker" ["rm", pid] ""
+  runDockerProcQuietly ["stop", pid]
+  runDockerProcQuietly ["rm", pid]
   mphTidy handle
 
 
@@ -629,8 +629,8 @@ startup' mphNetwork addrs x = do
   runCmd <- createDockerCmdProcess fullArgs
   mphPid <- trim <$> readCreateProcess runCmd ""
   let stopByPid = do
-        ignoreIOErrors $ void $ readProcess "docker" ["stop", mphPid] ""
-        ignoreIOErrors $ void $ readProcess "docker" ["rm", mphPid] ""
+        runDockerProcQuietly ["stop", mphPid]
+        runDockerProcQuietly ["rm", mphPid]
         tidy x x'
   flip onException stopByPid $ do
     mphAddr <-
@@ -1087,8 +1087,8 @@ printDebug t = do
   when canPrint $ Text.hPutStrLn stderr t
 
 
-ignoreIOErrors :: IO () -> IO ()
-ignoreIOErrors = (`catch` (\(_ :: IOException) -> pure ()))
+runDockerProcQuietly :: [String] -> IO ()
+runDockerProcQuietly args = (`catch` (\(_ :: IOException) -> pure ())) $ void $ readProcess "docker" args ""
 
 
 {-# DEPRECATED genNetworkName "since v0.7 this is no longer needs to be exported and will be hidden in later releases" #-}
