@@ -10,6 +10,8 @@ Module      : Test.NginxGateway
 Copyright   : (c) 2022 Tim Emiola
 Maintainer  : Tim Emiola <adetokunbo@emio.la>
 SPDX-License-Identifier: BSD3
+
+Test helper types and functions for testing with an nginx reverse-proxy container.
 -}
 module Test.NginxGateway
   ( -- * data types
@@ -67,10 +69,14 @@ instance Proc NginxGateway where
   -- config
   type Image NginxGateway = "lscr.io/linuxserver/nginx"
   type Name NginxGateway = "nginx-test"
-  uriOf = httpUri
+  uriOf = httpsUri
   runArgs = []
   reset _ = pure ()
   ping = pingHttps
+  uriOfRootlessWith addr pairs =
+    case lookup 443 pairs of
+      Just hp -> "https://" <> C8.pack (Text.unpack addr) <> ":" <> C8.pack (show hp) <> "/"
+      Nothing -> httpsUri addr
 
 
 instance ToRunCmd NginxGateway NginxPrep where
@@ -200,9 +206,9 @@ prepare' views nt@NginxGateway {ngTargetName = name} = do
           pure np
 
 
--- | Make a uri access the http-bin server.
-httpUri :: HostIpAddress -> SvcURI
-httpUri ip = "http://" <> C8.pack (Text.unpack ip) <> "/"
+-- | Make a uri to access the nginx gateway server.
+httpsUri :: HostIpAddress -> SvcURI
+httpsUri ip = "https://" <> C8.pack (Text.unpack ip) <> "/"
 
 
 pingHttps :: ProcHandle a -> IO Pinged
@@ -211,20 +217,16 @@ pingHttps handle = toPinged @HC.HttpException Proxy $ do
   if gotStatus == 200 then pure OK else pure NotOK
 
 
--- | Determine the status from a secure Get to host localhost.
+-- | Determine the status from a secure GET, using the handle's URI as the base.
 httpsGet :: ProcHandle a -> Text -> IO Int
 httpsGet handle urlPath = do
-  -- _tlsSettings <- TLSSettings <$> _mkClientParams "localHost"
-  let theUri = "https://" <> hAddr handle <> "/" <> Text.dropWhile (== '/') urlPath
-  -- use TLS settings that disable hostname verification. What's not
-  -- currently possible is to actually specify the hostname to use for SNI
-  -- that differs from the connection IP address, that's not supported by
-  -- http-client-tls
+  let theUri = C8.unpack (hUri handle) <> Text.unpack (Text.dropWhile (== '/') urlPath)
+  -- TLS settings disable hostname verification: the cert is for "localhost"
+  -- but the connection address may be a container IP or 127.0.0.1:<port>.
   manager <- HC.newTlsManagerWith $ HC.mkManagerSettings noCheckSettings Nothing
-  getReq <- HC.parseRequest $ Text.unpack theUri
+  getReq <- HC.parseRequest theUri
   let withHost = getReq {HC.requestHeaders = [(hHost, "localhost")]}
   statusCode . HC.responseStatus <$> HC.httpLbs withHost manager
-
 
 -- currently unused, since the server specified in ClientParams for SNI is
 -- overridden by Connection, which resets it to the connection hostname
