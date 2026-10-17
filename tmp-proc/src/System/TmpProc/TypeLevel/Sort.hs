@@ -27,42 +27,32 @@ for similar type-level lists.
 This is an internal module that provides type-level functions used in
 various constraints in "System.TmpProc.Docker".
 -}
-module System.TmpProc.TypeLevel.Sort (
-  -- * Merge sort for @Symbols@.
-  SortSymbols,
+module System.TmpProc.TypeLevel.Sort
+  ( -- * Merge sort for @Symbols@.
+    SortSymbols
 
-  -- * Sort combinators
-  Take,
-  Drop,
-  LengthOf,
-  HalfOf,
-) where
+    -- * Sort combinators
+  , Take
+  , Drop
+  , LengthOf
+  , HalfOf
+  )
+where
 
-import GHC.TypeLits (
-  CmpNat,
-  CmpSymbol,
-  Nat,
-  Symbol,
-  type (*),
-  type (+),
-  type (-),
- )
-
-
-{- $setup
->>> import Data.Proxy
->>> :set -XDataKinds
->>> :set -XTypeFamilies
--}
+import GHC.TypeLits
+  ( CmpNat
+  , CmpSymbol
+  , Nat
+  , Symbol
+  , type (*)
+  , type (+)
+  , type (-)
+  )
 
 
 {- | Takes 1 element at a time from a list until the desired length is reached.
 
-==== __Examples__
-
->>> :kind! Take '["a", "b", "c", "d"] 2
-Take '["a", "b", "c", "d"] 2 :: [Symbol]
-= '["a", "b"]
+For example, @Take \'[\"a\", \"b\", \"c\", \"d\"] 2@ reduces to @\'[\"a\", \"b\"]@.
 -}
 type family Take (xs :: [k]) (n :: Nat) :: [k] where
   Take '[] n = '[]
@@ -72,16 +62,8 @@ type family Take (xs :: [k]) (n :: Nat) :: [k] where
 
 {- | Drops 1 element at a time until the the dropped target is reached.
 
-==== __Examples__
-
->>> :kind! Drop '["a", "b", "c", "d"] 2
-Drop '["a", "b", "c", "d"] 2 :: [Symbol]
-= '["c", "d"]
-
-
->>> :kind! Drop '["a"] 2
-Drop '["a"] 2 :: [Symbol]
-= '[]
+For example, @Drop \'[\"a\", \"b\", \"c\", \"d\"] 2@ reduces to @\'[\"c\", \"d\"]@,
+and @Drop \'[\"a\"] 2@ reduces to @\'[]@.
 -}
 type family Drop (xs :: [k]) (n :: Nat) :: [k] where
   Drop '[] n = '[]
@@ -91,11 +73,7 @@ type family Drop (xs :: [k]) (n :: Nat) :: [k] where
 
 {- | Counts a list, 1 element at a time.
 
-==== __Examples__
-
->>> :kind! CmpNat 4 (LengthOf '[1, 2, 3, 4])
-CmpNat 4 (LengthOf '[1, 2, 3, 4]) :: Ordering
-= 'EQ
+For example, @LengthOf \'[1, 2, 3, 4]@ reduces to @4@.
 -}
 type family LengthOf (xs :: [k]) :: Nat where
   LengthOf '[] = 0
@@ -107,15 +85,7 @@ type family LengthOf (xs :: [k]) :: Nat where
 N.B: maximum value that this works for depends on the reduction limit of the
 type-checker.
 
-==== __Examples__
-
->>> :kind! CmpNat 49 (HalfOf 99)
-CmpNat 49 (HalfOf 99) :: Ordering
-= 'EQ
-
->>> :kind! CmpNat 50 (HalfOf 100)
-CmpNat 50 (HalfOf 100) :: Ordering
-= 'EQ
+For example, @HalfOf 99@ reduces to @49@ and @HalfOf 100@ reduces to @50@.
 -}
 type family HalfOf (n :: Nat) :: Nat where
   -- optimizations for faster compilation
@@ -141,11 +111,7 @@ type family HalfOfImpl (n :: Nat) (i :: Nat) (dist :: Nat) (o :: Ordering) :: Na
 
 {- | Sort a list of type-level @symbols@ using merge sort.
 
-==== __Examples__
-
->>> :kind! SortSymbols '["xyz", "def", "abc"]
-SortSymbols '["xyz", "def", "abc"] :: [Symbol]
-= '["abc", "def", "xyz"]
+For example, @SortSymbols \'[\"xyz\", \"def\", \"abc\"]@ reduces to @\'[\"abc\", \"def\", \"xyz\"]@.
 -}
 type family SortSymbols (xs :: [Symbol]) :: [Symbol] where
   SortSymbols '[] = '[]
