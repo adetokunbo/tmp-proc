@@ -9,9 +9,6 @@ packages:
 
 test-show-details: streaming
 
-package tmp-proc
-  flags: +use-doc-tests
-
 package postgresql-libpq
   flags: +use-pkg-config
 
