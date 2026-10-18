@@ -53,7 +53,7 @@ library
     , monad-logger
     , mtl
     , persistent
-    , persistent-postgresql
+    , persistent-postgresql  >= 2.13.5.1
     , persistent-template
     , postgresql-simple
     , servant

@@ -79,7 +79,7 @@ newtype TmpPostgres = TmpPostgres [Text]
 
 -- | Specifies how to run @postgres@ as a @tmp proc@.
 instance Proc TmpPostgres where
-  type Image TmpPostgres = "postgres:10.6"
+  type Image TmpPostgres = "postgres:16"
   type Name TmpPostgres = "a-postgres-db"
   uriOf = mkUri'
   runArgs = runArgs'
