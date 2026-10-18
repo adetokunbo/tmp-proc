@@ -1,10 +1,14 @@
 name: "Nix Build"
 on:
+  pull_request:
   push:
-    branches: [disabled/temporarily]
+    branches: [master]
 jobs:
   cabal-nix:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ghc: ["ghc910", "ghc912"]
     steps:
     - uses: actions/checkout@v4
     - uses: cachix/install-nix-action@v22
@@ -15,16 +19,27 @@ jobs:
         mkdir -p $HOME/.config/nix
     - name: Add haskell.nix as a substituter in the user Nix conf
       run: |
-        echo "substituters = https://cache.nixos.org https://cache.iog.io" >> $HOME/.config/nix/nix.conf
+        echo "substituters = https://cache.iog.io https://iohk.cachix.org https://cache.nixos.org/" >> $HOME/.config/nix/nix.conf
     - name: Add the public key for the haskell.nix substituter
       run: |
-        echo "trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=" >> $HOME/.config/nix/nix.conf
-    - uses: cachix/cachix-action@v10
-      with:
-        name: adetokunbo-open
+        echo "trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= iohk.cachix.org-1:DpRUyj7h7V830dp/i6Nti+NEO2/nhblbov/8MW7Rqoo= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=" >> $HOME/.config/nix/nix.conf
     - name: Display the completed user Nix conf
       run: |
         cat $HOME/.config/nix/nix.conf
-    - name: Run the tests in a nix-shell
+    - uses: cachix/cachix-action@v17
+      with:
+        name: adetokunbo-open
+        authToken: "${{ secrets.CACHIX_TOKEN }}"
+    - uses: nix-community/cache-nix-action@v7
+      with:
+        primary-key: nix-${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('**/*.nix') }}
+        restore-prefixes-first-match: |
+          nix-${{ runner.os }}-${{ matrix.ghc }}-
+          nix-${{ runner.os }}-
+        gc-max-store-size-linux: 1073741824
+    - name: Fetch shell dependencies
       run: |
-        nix-shell --run "cabal test --test-show-details=streaming all"
+        nix-shell --argstr ghc ${{ matrix.ghc }} --run "ghc --version && cabal --version"
+    - name: Build and test
+      run: |
+        nix-shell --argstr ghc ${{ matrix.ghc }} --run "cabal build all && cabal test all"
