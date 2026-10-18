@@ -6,6 +6,7 @@
 
 * Extend the upper bound for tmp-proc to allow 0.8
 * Add `uriOfRootlessWith` to `TmpPostgres` for rootless docker support
+* Update Docker image from `postgres:10.6` to `postgres:16`
 
 ## 0.7.2.4 -- 2025-03-25
 

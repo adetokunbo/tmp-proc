@@ -15,6 +15,10 @@
   from `ping`, protect the container-start window in `startup'`, and clean up the
   docker network on early failure in `startupAll`
 
+* Add `addrHost` and `addrPort` helpers for constructing service URIs
+
+* Remove doctests
+
 ## 0.7.2.7 -- 2026-04-20
 
 * Relax the upper version bounds of tls
