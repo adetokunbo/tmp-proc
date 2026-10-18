@@ -68,20 +68,13 @@ import qualified GHC.TypeLits as TL
 import System.TmpProc.TypeLevel.Sort
 
 
-{- $setup
->>> import Data.Proxy
->>> :set -XDataKinds
->>> :set -XTypeApplications
--}
-
-
 -- | Obtain the first element of a 'HList'.
 hHead :: HList (a ': as) -> a
 hHead (x `HCons` _) = x
 
 
 -- | Get an item in an 'HList' given its type.
-hOf :: forall y xs. IsInProof y xs => Proxy y -> HList xs -> y
+hOf :: forall y xs. (IsInProof y xs) => Proxy y -> HList xs -> y
 hOf proxy = go proxy provedIsIn
   where
     go :: Proxy x -> IsIn x ys -> HList ys -> x
@@ -173,26 +166,21 @@ instance {-# OVERLAPPING #-} MemberKV k t (KV k t ': kvs) where
   lookupProof = AtHead @k @t @kvs
 
 
-instance MemberKV k t kvs => MemberKV k t (KV ok ot ': kvs) where
+instance (MemberKV k t kvs) => MemberKV k t (KV ok ot ': kvs) where
   lookupProof = OtherKeys lookupProof
 
 
 {- | Select an item from an 'HList' of @'KV's@ by /key/.
 
-
 /N.B/ Returns the first item. It assumes the keys in the KV HList are unique.
 /TODO:/ enforce this rule using a constraint.
 
-
-==== __Examples__
-
-
->>> select @"d" @Double  @'[KV "b" Bool, KV "d" Double] (V True &:  V (3.1 :: Double) &: HNil)
-3.1
+For example, @select \@\"d\" \@Double@ on @(V True &: V (3.1 :: Double) &: HNil)@
+typed as @HList \'[KV \"b\" Bool, KV \"d\" Double]@ returns @3.1@.
 -}
 select ::
   forall k t xs.
-  MemberKV k t xs =>
+  (MemberKV k t xs) =>
   HList xs ->
   t
 select = go $ lookupProof @k @t @xs
@@ -226,11 +214,11 @@ instance {-# OVERLAPPING #-} ManyMemberKV '[k] '[t] (KV k t ': ks) where
   manyProof = FirstOfMany @k @t @ks
 
 
-instance {-# OVERLAPPING #-} ManyMemberKV ks ts kvs => ManyMemberKV (k ': ks) (t ': ts) (KV k t ': kvs) where
+instance {-# OVERLAPPING #-} (ManyMemberKV ks ts kvs) => ManyMemberKV (k ': ks) (t ': ts) (KV k t ': kvs) where
   manyProof = NextOfMany manyProof
 
 
-instance ManyMemberKV ks ts kvs => ManyMemberKV ks ts (KV ok ot ': kvs) where
+instance (ManyMemberKV ks ts kvs) => ManyMemberKV ks ts (KV ok ot ': kvs) where
   manyProof = ManyOthers manyProof
 
 
@@ -241,15 +229,12 @@ instance ManyMemberKV ks ts kvs => ManyMemberKV ks ts (KV ok ot ': kvs) where
 The keys must be provided in the same order as they occur in the
 HList, any other order will likely result in an compiler error.
 
-==== __Examples__
-
-
->>> selectMany @'["b"] @'[Bool] @'[KV "b" Bool, KV "d" Double] (V True &:  V (3.1 :: Double) &: HNil)
-True &: HNil
+For example, @selectMany \@\'[\"b\"] \@\'[Bool]@ on @(V True &: V (3.1 :: Double) &: HNil)@
+typed as @HList \'[KV \"b\" Bool, KV \"d\" Double]@ returns @(True &: HNil) :: HList \'[Bool]@.
 -}
 selectMany ::
   forall ks ts xs.
-  ManyMemberKV ks ts xs =>
+  (ManyMemberKV ks ts xs) =>
   HList xs ->
   HList ts
 selectMany = go $ manyProof @ks @ts @xs
@@ -262,14 +247,8 @@ selectMany = go $ manyProof @ks @ts @xs
 
 {- | Allows reordering of similar @'HList's@.
 
-==== __Examples__
-
-
->>> hReorder @_ @'[Bool, Int] ('c' &: (3 :: Int) &: True &: (3.1 :: Double) &: HNil)
-True &: 3 &: HNil
-
->>> hReorder @_ @'[Double, Bool, Int] ('c' &: (3 :: Int) &: True &: (3.1 :: Double) &: HNil)
-3.1 &: True &: 3 &: HNil
+For example, @hReorder \@_ \@\'[Bool, Int]@ on @(\'c\' &: (3 :: Int) &: True &: (3.1 :: Double) &: HNil)@
+returns @True &: 3 &: HNil@.
 -}
 class ReorderH xs ys where
   hReorder :: HList xs -> HList ys
@@ -298,5 +277,5 @@ instance {-# OVERLAPPING #-} IsInProof t (t ': tys) where
   provedIsIn = IsHead @t @tys
 
 
-instance IsInProof t tys => IsInProof t (a : tys) where
+instance (IsInProof t tys) => IsInProof t (a : tys) where
   provedIsIn = IsInTail provedIsIn
