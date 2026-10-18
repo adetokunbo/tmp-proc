@@ -67,7 +67,7 @@ data TmpRabbitMQ = TmpRabbitMQ
 
 -- | Specifies how to run @RabbitMQ@ as a @tmp proc@.
 instance Proc TmpRabbitMQ where
-  type Image TmpRabbitMQ = "rabbitmq:3.9"
+  type Image TmpRabbitMQ = "rabbitmq:3"
   type Name TmpRabbitMQ = "a-rabbitmq-server"
 
 
@@ -75,6 +75,7 @@ instance Proc TmpRabbitMQ where
   runArgs = []
   ping = toPinged @AMQPException Proxy . openConn'
   reset _ = pure ()
+  pingCount = 10
   pingGap = 3 * 1000000
   uriOfRootlessWith addr pairs =
     case lookup 5672 pairs of
