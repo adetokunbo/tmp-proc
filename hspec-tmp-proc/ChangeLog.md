@@ -2,7 +2,7 @@
 
 `hspec-tmp-proc` uses [PVP Versioning][1].
 
-## 0.8.0.0 -- TBD
+## 0.8.0.0 -- 2026-10-18
 
 * Extend the upper bound for tmp-proc to allow 0.8
 
