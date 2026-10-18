@@ -2,10 +2,12 @@
 
 `tmp-proc-rabbitmq` uses [PVP Versioning][1].
 
-## 0.8.0.0 -- TBD
+## 0.8.0.0 -- 2026-10-18
 
 * Extend the upper bound for tmp-proc to allow 0.8
 * Add `uriOfRootlessWith` to `TmpRabbitMQ` for rootless docker support
+* Update Docker image from `rabbitmq:3.9` to `rabbitmq:3`
+* Increase `pingCount` to 10 (30 s startup grace) to reduce flakiness on CI
 
 ## 0.7.2.4 -- 2025-03-25
 

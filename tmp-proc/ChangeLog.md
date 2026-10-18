@@ -2,7 +2,7 @@
 
 `tmp-proc` uses [PVP Versioning][1].
 
-## 0.8.0.0 -- TBD
+## 0.8.0.0 -- 2026-10-18
 
 * Add rootless docker support: `Proc` gains `containerPort`, `uriOfRootless`,
   and `uriOfRootlessWith` with defaults; `startupAll` detects rootless mode and
@@ -14,6 +14,10 @@
 * Fix exception handling during startup: re-throw async exceptions (e.g. Ctrl+C)
   from `ping`, protect the container-start window in `startup'`, and clean up the
   docker network on early failure in `startupAll`
+
+* Add `addrHost` and `addrPort` helpers for constructing service URIs
+
+* Remove doctests
 
 ## 0.7.2.7 -- 2026-04-20
 
